@@ -778,27 +778,31 @@ class AgentRunner:
             )
 
         # Budget guard: compress (not drop) when total exceeds budget.
-        # Pattern from SmartContextManager: keep start + end of each chunk,
-        # compress the middle. This preserves signal while fitting budget.
+        # Delegates to SmartContextManager.compress_parts() for fair-share
+        # compression that keeps start + end of each chunk.
         total_chars = sum(len(p) for p in parts)
         if total_chars > _max_chars and parts:
-            # Calculate how much each part can have (fair share)
-            per_part_budget = _max_chars // len(parts)
-            compressed_parts = []
-            for p in parts:
-                if len(p) <= per_part_budget:
-                    compressed_parts.append(p)
-                else:
-                    # Keep start + end, mark middle as compressed
-                    keep = max(100, per_part_budget)
-                    half = keep // 2
-                    compressed_parts.append(p[:half] + "\n[...compressed...]\n" + p[-half:])
-            parts = compressed_parts
-            logger.debug(
-                f"Context budget: compressed {total_chars} → "
-                f"{sum(len(p) for p in parts)} chars "
-                f"(budget: {_max_chars})"
-            )
+            try:
+                from Jotty.core.infrastructure.context.facade import get_context_manager
+
+                parts = get_context_manager().compress_parts(parts, max_total_chars=_max_chars)
+            except Exception:
+                # Fallback: inline fair-share compression
+                per_part_budget = _max_chars // len(parts)
+                compressed_parts = []
+                for p in parts:
+                    if len(p) <= per_part_budget:
+                        compressed_parts.append(p)
+                    else:
+                        keep = max(100, per_part_budget)
+                        half = keep // 2
+                        compressed_parts.append(p[:half] + "\n[...compressed...]\n" + p[-half:])
+                parts = compressed_parts
+                logger.debug(
+                    f"Context budget: compressed {total_chars} -> "
+                    f"{sum(len(p) for p in parts)} chars "
+                    f"(budget: {_max_chars})"
+                )
 
         for i, p in enumerate(parts, 1):
             logger.info(f" Context {i}: {p[:500]}")

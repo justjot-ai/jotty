@@ -41,12 +41,12 @@ def _get_dspy() -> Any:
 
 # Import context utilities for error handling and compression
 try:
-    from ..utils.context_utils import (  # type: ignore[import-not-found]
-        ContextCompressor,
+    from Jotty.core.infrastructure.context.error_handling import (
         ErrorDetector,
         ErrorType,
         detect_error_type,
     )
+    from Jotty.core.infrastructure.utils.context_utils import ContextCompressor
 
     CONTEXT_UTILS_AVAILABLE = True
 except ImportError:

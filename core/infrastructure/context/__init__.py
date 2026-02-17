@@ -7,7 +7,8 @@ Token management, auto-chunking, compression, and context overflow prevention.
 Unified Architecture:
 --------------------
 - models: Unified data structures (ContextChunk, ContextPriority, configs)
-- utils: Shared utilities (token estimation, compression, chunking)
+- utils: Shared utilities (token estimation, compression, chunking, enrichment stripping)
+- error_handling: Error classification and retry strategies
 - context_manager: Smart context coordination
 - global_context_guard: Global context protection
 - content_gate: Content filtering & relevance
@@ -37,7 +38,8 @@ from .context_manager import (
     unpatch_dspy,
     with_smart_context,
 )
-from .facade import get_content_gate, get_context_guard, get_context_manager
+from .error_handling import CompressionResult, ErrorDetector, ErrorType, detect_error_type
+from .facade import get_content_gate, get_context_guard, get_context_manager, get_error_detector
 
 # Import unified models (single source of truth)
 from .models import (
@@ -46,8 +48,12 @@ from .models import (
     ContextChunk,
     ContextOverflowInfo,
     ContextPriority,
+    ExecutionTrajectory,
     ProcessedContent,
 )
+
+# Import enrichment stripping from utils
+from .utils import ENRICHMENT_MARKERS, strip_enrichment_context
 
 __all__ = [
     # Unified models (no duplicates!)
@@ -57,12 +63,22 @@ __all__ = [
     "ContextOverflowInfo",
     "CompressionConfig",
     "ChunkingConfig",
+    "ExecutionTrajectory",
+    # Error handling
+    "ErrorType",
+    "ErrorDetector",
+    "CompressionResult",
+    "detect_error_type",
+    # Enrichment stripping
+    "ENRICHMENT_MARKERS",
+    "strip_enrichment_context",
     # Shared utilities
     "context_utils",
     # Facades
     "get_context_manager",
     "get_context_guard",
     "get_content_gate",
+    "get_error_detector",
     # Chunker
     "ContextChunker",
     "ChunkingSignature",

@@ -294,3 +294,83 @@ class TestCircuitBreaker:
             cb.record_success()
             can2, _ = cb.can_request()
             assert can2 is True
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Canonical context imports — verify unified subsystem works
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+class TestCanonicalContextImports:
+    """Verify that canonical imports from context subsystem work."""
+
+    def test_strip_enrichment_from_context_utils(self):
+        """Canonical path for strip_enrichment_context."""
+        from Jotty.core.infrastructure.context.utils import strip_enrichment_context
+
+        assert strip_enrichment_context("Task\nLearned Insights: x") == "Task"
+
+    def test_error_detector_from_error_handling(self):
+        """Canonical path for ErrorDetector."""
+        from Jotty.core.infrastructure.context.error_handling import ErrorDetector, ErrorType
+
+        err = Exception("input is too long")
+        assert ErrorDetector.detect(err) == ErrorType.CONTEXT_LENGTH
+
+    def test_execution_trajectory_from_models(self):
+        """ExecutionTrajectory serialization round-trip."""
+        from Jotty.core.infrastructure.context.models import ExecutionTrajectory
+
+        traj = ExecutionTrajectory()
+        traj.add_step({"description": "search", "skill_name": "web-search"}, output="results")
+        ctx = traj.to_context()
+        assert "search" in ctx
+        assert traj.current_step_index == 1
+        assert "step_1" in traj.outputs_collected
+
+    def test_compress_parts(self):
+        """SmartContextManager.compress_parts respects budget."""
+        from Jotty.core.infrastructure.context.context_manager import SmartContextManager
+
+        mgr = SmartContextManager()
+        parts = ["A" * 5000, "B" * 5000, "C" * 5000]
+        result = mgr.compress_parts(parts, max_total_chars=6000)
+        total = sum(len(p) for p in result)
+        assert total <= 6000 + 100  # small overhead from markers is OK
+        assert len(result) == 3
+
+    def test_compress_parts_no_op_when_under_budget(self):
+        """compress_parts returns parts unchanged when under budget."""
+        from Jotty.core.infrastructure.context.context_manager import SmartContextManager
+
+        mgr = SmartContextManager()
+        parts = ["short", "text"]
+        result = mgr.compress_parts(parts, max_total_chars=1000)
+        assert result == parts
+
+    def test_shim_reexports_match_canonical(self):
+        """Shim re-exports resolve to the same objects as canonical imports."""
+        from Jotty.core.infrastructure.context.error_handling import (
+            ErrorDetector as CanonicalED,
+        )
+        from Jotty.core.infrastructure.context.error_handling import (
+            ErrorType as CanonicalET,
+        )
+        from Jotty.core.infrastructure.utils.context_utils import (
+            ErrorDetector as ShimED,
+        )
+        from Jotty.core.infrastructure.utils.context_utils import (
+            ErrorType as ShimET,
+        )
+
+        assert CanonicalED is ShimED
+        assert CanonicalET is ShimET
+
+    def test_get_error_detector_facade(self):
+        """get_error_detector returns an ErrorDetector instance."""
+        from Jotty.core.infrastructure.context.error_handling import ErrorDetector
+        from Jotty.core.infrastructure.context.facade import get_error_detector
+
+        detector = get_error_detector()
+        assert isinstance(detector, ErrorDetector)

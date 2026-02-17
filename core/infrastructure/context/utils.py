@@ -407,6 +407,92 @@ def detect_overflow_error(error: Exception, max_tokens: int = 28000) -> bool:
 
 
 # =============================================================================
+# ENRICHMENT CONTEXT STRIPPING
+# =============================================================================
+
+# Markers that separate the original user task from injected
+# learning/ensemble context.
+#
+# WRITE SIDE (inject context):
+#   - Orchestrator: enriches goal with ensemble synthesis
+#   - AgentRunner: appends Q-learning / transfer-learning / swarm-intelligence
+#   - AutoAgent: appends ensemble synthesis
+#
+# READ SIDE (strip context):
+#   - _plan_utils_mixin._clean_task_for_query()
+#   - swarm_lean.clean_task_for_execution()
+#   - auto_agent._clean_for_display()
+#
+# All consumers call strip_enrichment_context() below.
+
+ENRICHMENT_MARKERS: tuple[str, ...] = (
+    # Ensemble / multi-perspective
+    "\n[Multi-Perspective Analysis",
+    "\n[Multi-Perspective",
+    # Learning context (Q-learning, transfer learning)
+    "\nLearned Insights:",
+    "\n# Transferable Learnings",
+    "\n# Q-Learning Lessons",
+    # Agent runner injections
+    "\n[Learning Context",
+    "\n[Judge feedback",
+    "\n[Skill guidance",
+    # Swarm intelligence hints
+    "\n[Learned]",
+    "\n[Analysis]:",
+    "\n[Consensus]:",
+    "\n[Tensions]:",
+    "\n[Blind Spots]:",
+    # Meta-learning sections
+    "\n## Task Type Pattern",
+    "\n## Role Advice",
+    "\n## Meta-Learning Advice",
+    # Common separators before context
+    "\nBased on previous learnings:",
+    "\nRecommended approach:",
+    "\nPrevious success patterns:",
+    "\nRelevant past experience:",
+    "\n\n---\n",
+    # Paradigm executor injections (relay, refinement, debate)
+    "\n[Previous agent '",
+    "\n\nHere is the current draft. Improve it:\n",
+    "\nOther agents produced these solutions.",
+)
+
+
+def strip_enrichment_context(task: str) -> str:
+    """
+    Strip injected enrichment context from a task string.
+
+    Returns only the original user request, discarding any learning context,
+    ensemble synthesis, transfer learnings, etc. that were appended.
+
+    This is the **single source of truth** for context stripping.
+
+    Args:
+        task: Task string that may contain enrichment context.
+
+    Returns:
+        Clean task string (original request only).
+    """
+    if not task:
+        return task
+
+    cleaned = task
+    for marker in ENRICHMENT_MARKERS:
+        if marker in cleaned:
+            cleaned = cleaned.split(marker)[0]
+
+    # Also handle double-newline variants of the markers
+    for marker in ENRICHMENT_MARKERS:
+        double_nl = "\n" + marker.lstrip("\n")
+        if double_nl in cleaned:
+            cleaned = cleaned.split(double_nl)[0]
+
+    return cleaned.strip()
+
+
+# =============================================================================
 # EXPORTS
 # =============================================================================
 
@@ -418,4 +504,6 @@ __all__ = [
     "intelligent_compress",
     "create_chunks",
     "detect_overflow_error",
+    "ENRICHMENT_MARKERS",
+    "strip_enrichment_context",
 ]

@@ -54,9 +54,9 @@ _LAZY_MAP: dict[str, tuple[str, str]] = {
     "SandboxResult": (".execution.sandbox_manager", "SandboxResult"),
     # Chat executor
     "ChatExecutor": (".execution.unified_executor", "ChatExecutor"),
-    "ExecutionResult": (".execution.unified_executor", "ExecutionResult"),
-    "ToolResult": (".execution.unified_executor", "ToolResult"),
-    "StreamEvent": (".execution.unified_executor", "StreamEvent"),
+    "ExecutionResult": (".execution.types", "ExecutionResult"),
+    "ToolResult": (".llm_providers.types", "ToolResult"),
+    "StreamEvent": (".execution.types", "StreamEvent"),
     "create_unified_executor": (".execution.unified_executor", "create_unified_executor"),
     "UnifiedToolGenerator": ("Jotty.skills._tools", "UnifiedToolGenerator"),
     "ToolDefinition": ("Jotty.skills._tools.tool_generator", "ToolDefinition"),
@@ -123,24 +123,10 @@ def __getattr__(name: str) -> Any:
         globals()[name] = value
         return value
 
-    # Pipeline utility functions
-    if name == "sequential_pipeline":
-        from .coordination._pipeline_utils import sequential_pipeline
-
-        globals()[name] = sequential_pipeline
-        return sequential_pipeline
-    if name == "fanout_pipeline":
-        from .coordination._pipeline_utils import fanout_pipeline
-
-        globals()[name] = fanout_pipeline
-        return fanout_pipeline
-
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = list(_LAZY_MAP.keys()) + [
-    "sequential_pipeline",
-    "fanout_pipeline",
     # facade
     "get_swarm_intelligence",
     "get_paradigm_executor",

@@ -520,17 +520,25 @@ class BaseAgent(ABC):
 
     @property
     def context(self) -> Any:
-        """Lazy-load SharedContext."""
+        """Lazy-load context manager (SmartContextManager preferred, SharedContext fallback)."""
         if self._context_manager is None and self.config.enable_context:
+            # Try SmartContextManager first (unified context management)
             try:
-                from Jotty.core.infrastructure.persistence.shared_context import (
-                    SharedContext,  # type: ignore[import]
-                )
+                from Jotty.core.infrastructure.context.facade import get_context_manager
 
-                self._context_manager = SharedContext()
-                logger.debug(f"Initialized SharedContext for {self.config.name}")
-            except Exception as e:
-                logger.warning(f"Could not initialize context: {e}")
+                self._context_manager = get_context_manager()
+                logger.debug(f"Initialized SmartContextManager for {self.config.name}")
+            except Exception:
+                # Fall back to SharedContext
+                try:
+                    from Jotty.core.infrastructure.persistence.shared_context import (
+                        SharedContext,  # type: ignore[import]
+                    )
+
+                    self._context_manager = SharedContext()
+                    logger.debug(f"Initialized SharedContext for {self.config.name}")
+                except Exception as e:
+                    logger.warning(f"Could not initialize context: {e}")
         return self._context_manager
 
     @property

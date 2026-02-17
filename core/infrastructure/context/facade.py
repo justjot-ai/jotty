@@ -26,6 +26,9 @@ if TYPE_CHECKING:
     from Jotty.core.infrastructure.context.context_manager import (
         SmartContextManager,  # type: ignore[import]
     )
+    from Jotty.core.infrastructure.context.error_handling import (
+        ErrorDetector,  # type: ignore[import]
+    )
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
@@ -81,6 +84,23 @@ def get_content_gate() -> "ContentGate":
                 from Jotty.core.infrastructure.context.content_gate import ContentGate
 
                 _singletons[key] = ContentGate()
+    return _singletons[key]
+
+
+def get_error_detector() -> "ErrorDetector":
+    """
+    Return an ErrorDetector singleton for error classification.
+
+    Returns:
+        ErrorDetector instance.
+    """
+    key = "error_detector"
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.infrastructure.context.error_handling import ErrorDetector
+
+                _singletons[key] = ErrorDetector()
     return _singletons[key]
 
 

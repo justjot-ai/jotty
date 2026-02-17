@@ -7,8 +7,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from Jotty.core.infrastructure.utils.context_utils import (
-    strip_enrichment_context,  # type: ignore[import-not-found, import]
+from Jotty.core.infrastructure.context.utils import (
+    strip_enrichment_context,
 )
 
 from ..types.execution_types import ExecutionStep, TaskType, ToolSchema

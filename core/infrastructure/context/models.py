@@ -8,9 +8,9 @@ Consolidates data structures from:
 - global_context_guard.py (ContextOverflowInfo)
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from ..utils.tokenizer import SmartTokenizer
 
@@ -155,6 +155,63 @@ class ChunkingConfig:
 
 
 # =============================================================================
+# EXECUTION TRAJECTORY (migrated from utils/context_utils.py)
+# =============================================================================
+
+
+@dataclass
+class ExecutionTrajectory:
+    """
+    Captures the trajectory of an execution for preservation during retries.
+
+    When an LLM call fails mid-execution (e.g., context too long),
+    we want to preserve the work done so far rather than starting over.
+    """
+
+    steps_completed: List[Dict[str, Any]] = field(default_factory=list)
+    outputs_collected: Dict[str, Any] = field(default_factory=dict)
+    current_step_index: int = 0
+    partial_result: Optional[str] = None
+    reasoning_so_far: str = ""
+
+    def to_context(self) -> str:
+        """Convert trajectory to context string for LLM."""
+        if not self.steps_completed:
+            return ""
+
+        parts = ["[Progress so far]"]
+
+        for i, step in enumerate(self.steps_completed):
+            step_desc = step.get("description", f"Step {i+1}")
+            step_output = step.get("output", "")
+            if step_output:
+                output_preview = str(step_output)[:200]
+                parts.append(f"Step {i+1}: {step_desc}\nResult: {output_preview}")
+            else:
+                parts.append(f"Step {i+1}: {step_desc} (completed)")
+
+        if self.reasoning_so_far:
+            parts.append(f"\nReasoning: {self.reasoning_so_far}")
+
+        return "\n".join(parts)
+
+    def add_step(self, step: Dict[str, Any], output: Any = None) -> None:
+        """Add a completed step to trajectory."""
+        step_record = {
+            "description": step.get("description", ""),
+            "skill": step.get("skill_name", ""),
+            "tool": step.get("tool_name", ""),
+            "output": output,
+        }
+        self.steps_completed.append(step_record)
+        self.current_step_index += 1
+
+        if output:
+            key = step.get("output_key", f"step_{self.current_step_index}")
+            self.outputs_collected[key] = output
+
+
+# =============================================================================
 # EXPORTS
 # =============================================================================
 
@@ -165,4 +222,5 @@ __all__ = [
     "ContextOverflowInfo",
     "CompressionConfig",
     "ChunkingConfig",
+    "ExecutionTrajectory",
 ]

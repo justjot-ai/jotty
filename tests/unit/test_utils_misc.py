@@ -1256,24 +1256,6 @@ class TestContextCompressor:
         result = compressor.compress(content, target_ratio=0.5, preserve_keywords=["cats"])
         assert result.content  # Should have some content
 
-    def test_split_into_sections(self):
-        compressor = ContextCompressor()
-        content = "Section A\n\nSection B\n\nSection C"
-        sections = compressor._split_into_sections(content)
-        assert len(sections) == 3
-        assert sections[0]["text"] == "Section A"
-        assert sections[2]["is_recent"] is True  # Last 3 are recent
-
-    def test_score_and_sort_sections(self):
-        compressor = ContextCompressor()
-        sections = [
-            {"text": "about python", "position": 0, "length": 12, "score": 0.0, "is_recent": False},
-            {"text": "about java", "position": 1, "length": 10, "score": 0.0, "is_recent": True},
-        ]
-        scored = compressor._score_and_sort_sections(sections, ["python"])
-        # "python" keyword match should score higher
-        assert scored[0]["text"] == "about python" or scored[0]["is_recent"]
-
     def test_create_compressor_factory(self):
         c = create_compressor()
         assert isinstance(c, ContextCompressor)

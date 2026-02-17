@@ -50,8 +50,8 @@ try:
 except ImportError:
     DSPY_AVAILABLE = False
 
-from Jotty.core.infrastructure.utils.context_utils import (
-    strip_enrichment_context,  # type: ignore[import-not-found, import]
+from Jotty.core.infrastructure.context.utils import (
+    strip_enrichment_context,
 )
 
 from .base import AgentConfig, ModelTier, StageConfig, SwarmTemplate  # type: ignore[attr-defined]

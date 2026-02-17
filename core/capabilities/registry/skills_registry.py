@@ -797,7 +797,16 @@ class SkillsRegistry:
             2. Installed skill packages (via 'jotty.skills' entry point group)
             3. Claude Code skills directory (~/.claude/skills)
         """
-        excluded_dirs = {"composite-templates", "__pycache__", ".git", ".DS_Store"}
+        # composite-templates: template dir only. _*: shared libs, not invokable skills.
+        excluded_dirs = {
+            "composite-templates",
+            "__pycache__",
+            ".git",
+            ".DS_Store",
+            "_infrastructure",  # Provider base classes, registry (used by _providers)
+            "_providers",  # Alternative backends (n8n, Streamlit, etc.)
+            "_tools",  # ToolSelector, ToolManager (used by core/orchestration)
+        }
 
         # 1. Scan Jotty skills directory
         if self.skills_dir.exists():

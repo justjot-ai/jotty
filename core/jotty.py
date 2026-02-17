@@ -20,80 +20,80 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Axon = Agent Communication
-from .agents.axon import SmartAgentSlack as Axon  # type: ignore[import-not-found]
-
-# Architect = Pre-execution Planner
-# Auditor = Post-execution Validator
-from .agents.inspector import (
-    MultiRoundValidator as IterativeAuditor,  # type: ignore[import-not-found]
-)
-from .agents.inspector import ValidatorAgent as ValidatorAgent
-from .context.chunker import ContextChunker as Segmenter  # type: ignore[import-not-found]
-from .context.compressor import AgenticCompressor as Distiller  # type: ignore[import-not-found]
+from .infrastructure.context.chunker import ContextChunker as Segmenter
+from .infrastructure.context.compressor import AgenticCompressor as Distiller
 
 # Context Gradient (LLM-based Learning)
-from .context.context_gradient import (  # type: ignore[import-not-found]
+from .infrastructure.context.context_gradient import (
     ContextApplier,
     ContextGradient,
     ContextUpdate,
 )
-from .context.context_manager import SmartContextManager as Focus  # type: ignore[import-not-found]
-
-# Context Management
-from .context.global_context_guard import (
-    GlobalContextGuard as ContextSentinel,  # type: ignore[import-not-found]
-)
-from .data.data_registry import DataRegistry as Catalog  # type: ignore[import-not-found]
+from .infrastructure.context.context_manager import SmartContextManager as Focus
+from .infrastructure.data.data_registry import DataRegistry as Catalog
 
 # Data Flow
-from .data.io_manager import IOManager as Datastream  # type: ignore[import-not-found]
-from .foundation.agent_config import AgentConfig  # type: ignore[import-not-found]
+from .infrastructure.data.io_manager import IOManager as Datastream
+from .infrastructure.foundation.agent_config import AgentConfig
 
 # Configuration
-from .foundation.data_structures import SwarmConfig  # type: ignore[import-not-found]
+from .infrastructure.foundation.data_structures import SwarmLearningConfig as SwarmConfig
 
-# Cortex = Hierarchical Memory
-from .intelligence.memory.cortex import SwarmMemory as Cortex
+# Persistence
+from .infrastructure.persistence.persistence import Vault as Vault
+from .infrastructure.persistence.session_manager import (
+    SessionManager as Chronicle,
+)
+from .infrastructure.persistence.shared_context import (
+    SharedContext as Blackboard,
+)
+
+# Context Management
+from .infrastructure.utils.algorithmic_foundations import (
+    GlobalContextGuard as ContextSentinel,
+)
 
 # Credit Assignment (Game Theory)
-from .learning.algorithmic_credit import (
-    DifferenceRewardEstimator as ImpactEstimator,  # type: ignore[import-not-found]
+from .intelligence.learning.algorithmic_credit import (
+    DifferenceRewardEstimator as ImpactEstimator,
 )
-from .learning.algorithmic_credit import ShapleyValueEstimator as ContributionEstimator
-
-# Learning Components
-from .learning.learning import TDLambdaLearner as TemporalLearner  # type: ignore[import-not-found]
+from .intelligence.learning.algorithmic_credit import ShapleyValueEstimator as ContributionEstimator
 
 # Predictive Cooperation
-from .learning.predictive_cooperation import (  # type: ignore[import-not-found]
+from .intelligence.learning.predictive_cooperation import (
     CooperationPrinciples,
     CooperationReasoner,
     NashBargainingSolver,
     PredictiveCooperativeAgent,
 )
-from .learning.q_learning import LLMQPredictor as RewardLearner  # type: ignore[import-not-found]
+from .intelligence.learning.q_learning import LLMQPredictor as RewardLearner
+
+# Learning Components
+from .intelligence.learning.td_lambda import TDLambdaLearner as TemporalLearner
+
+# Cortex = Hierarchical Memory
+from .intelligence.memory.cortex import SwarmMemory as Cortex
 
 # Optimization Pipeline (V2)
 # Roadmap = Markovian Task List (V2)
 # Orchestrator = Main Orchestrator (V2)
-from .orchestration import (  # type: ignore[import-not-found]
+from .intelligence.orchestration.core.swarm_manager import Orchestrator
+from .intelligence.orchestration.learning.optimization_pipeline import (
     IterationResult,
     OptimizationConfig,
     OptimizationPipeline,
-    Orchestrator,
     create_optimization_pipeline,
 )
-from .orchestration import SubtaskState as Checkpoint
-from .orchestration import SwarmTaskBoard as Roadmap
+from .intelligence.orchestration.state.swarm_roadmap import SubtaskState as Checkpoint
+from .intelligence.orchestration.state.swarm_roadmap import SwarmTaskBoard as Roadmap
+from .intelligence.reasoning.tools.axon import SmartAgentSlack as Axon
 
-# Persistence
-from .persistence.persistence import Vault as Vault  # type: ignore[import-not-found]
-from .persistence.session_manager import (
-    SessionManager as Chronicle,  # type: ignore[import-not-found]
+# Architect = Pre-execution Planner
+# Auditor = Post-execution Validator
+from .intelligence.reasoning.tools.inspector import (
+    MultiRoundValidator as IterativeAuditor,
 )
-from .persistence.shared_context import (
-    SharedContext as Blackboard,  # type: ignore[import-not-found]
-)
+from .intelligence.reasoning.tools.inspector import ValidatorAgent as ValidatorAgent
 
 # =============================================================================
 # JOTTY CONVENIENCE FUNCTIONS
@@ -190,10 +190,8 @@ __description__ = "Brain-Inspired Orchestration for LLM Agent Swarms"
 # =============================================================================
 
 # API Layer (NEW)
-from .api import ChatAPI, JottyAPI, WorkflowAPI  # type: ignore[import-not-found]
-
 # Use Cases
-from .use_cases import (  # type: ignore[import-not-found]
+from .intelligence.orchestration.use_cases import (
     BaseUseCase,
     ChatUseCase,
     UseCaseConfig,
@@ -202,27 +200,11 @@ from .use_cases import (  # type: ignore[import-not-found]
 )
 
 # Chat Components
-from .use_cases.chat import ChatContext, ChatMessage  # type: ignore[import-not-found]
+from .intelligence.orchestration.use_cases.chat.chat_context import ChatContext, ChatMessage
 
 # Workflow Components
-from .use_cases.workflow import WorkflowContext  # type: ignore[import-not-found]
-
-# Server Layer (NEW - Minimal Client Integration)
-try:
-    from .server import (  # type: ignore[import-not-found]
-        AuthMiddleware,
-        ErrorMiddleware,
-        JottyHTTPServer,
-        JottyServer,
-        JottyServerConfig,
-        LoggingMiddleware,
-        SSEFormatter,
-        useChatFormatter,
-    )
-
-    SERVER_AVAILABLE = True
-except ImportError:
-    SERVER_AVAILABLE = False
+from .intelligence.orchestration.use_cases.workflow.workflow_context import WorkflowContext
+from .interface.api import ChatAPI, JottyAPI, WorkflowAPI
 
 # =============================================================================
 # ALL EXPORTS
@@ -283,15 +265,6 @@ __all__ = [
     "JottyAPI",
     "ChatAPI",
     "WorkflowAPI",
-    # Server Layer (NEW - Minimal Client Integration)
-    "JottyHTTPServer",
-    "JottyServer",
-    "JottyServerConfig",
-    "AuthMiddleware",
-    "LoggingMiddleware",
-    "ErrorMiddleware",
-    "SSEFormatter",
-    "useChatFormatter",
     # Convenience functions
     "create_swarm_manager",
     "create_cortex",

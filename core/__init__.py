@@ -108,17 +108,17 @@ _LAZY_IMPORTS: dict[str, str] = {
     # GoalHierarchy, GoalNode, CausalLink, SharedScratchpad, AgentMessage,
     # CommunicationType, AgentContribution, ValidationRound, ContextType,
     # RichObservation were removed during the migration to clean architecture.
-    # --- intelligence.orchestration.swarm_roadmap ---
-    "AgenticState": ".intelligence.orchestration.swarm_roadmap",
-    "TrajectoryStep": ".intelligence.orchestration.swarm_roadmap",
-    "DecomposedQFunction": ".intelligence.orchestration.swarm_roadmap",
-    "SwarmTaskBoard": ".intelligence.orchestration.swarm_roadmap",
-    "SubtaskState": ".intelligence.orchestration.swarm_roadmap",
+    # --- intelligence.orchestration.state.swarm_roadmap ---
+    "AgenticState": ".intelligence.orchestration.state.swarm_roadmap",
+    "TrajectoryStep": ".intelligence.orchestration.state.swarm_roadmap",
+    "DecomposedQFunction": ".intelligence.orchestration.state.swarm_roadmap",
+    "SwarmTaskBoard": ".intelligence.orchestration.state.swarm_roadmap",
+    "SubtaskState": ".intelligence.orchestration.state.swarm_roadmap",
     # NOTE: TaskStatus was removed (does not exist in swarm_roadmap.py)
-    "ThoughtLevelCredit": ".intelligence.orchestration.swarm_roadmap",
-    "StateCheckpointer": ".intelligence.orchestration.swarm_roadmap",
-    "TrajectoryPredictor": ".intelligence.orchestration.swarm_roadmap",
-    "TodoItem": ".intelligence.orchestration.swarm_roadmap",
+    "ThoughtLevelCredit": ".intelligence.orchestration.state.swarm_roadmap",
+    "StateCheckpointer": ".intelligence.orchestration.state.swarm_roadmap",
+    "TrajectoryPredictor": ".intelligence.orchestration.state.swarm_roadmap",
+    "TodoItem": ".intelligence.orchestration.state.swarm_roadmap",
     # --- infrastructure.context (context_manager + models) ---
     "SmartContextManager": ".infrastructure.context.context_manager",
     "ContextChunk": ".infrastructure.context.models",
@@ -143,10 +143,10 @@ _LAZY_IMPORTS: dict[str, str] = {
     "SwarmMemory": ".intelligence.memory.cortex",
     "MemoryCluster": ".intelligence.memory.consolidation",
     "MemoryLevelClassifier": ".intelligence.memory.consolidation",
-    # --- modes.agent.tools.inspector ---
-    "MultiRoundValidator": ".modes.agent.tools.inspector",
-    "InternalReasoningTool": ".modes.agent.tools.inspector",
-    "CachingToolWrapper": ".modes.agent.tools.inspector",
+    # --- intelligence.reasoning.tools.inspector ---
+    "MultiRoundValidator": ".intelligence.reasoning.tools.inspector",
+    "InternalReasoningTool": ".intelligence.reasoning.tools.inspector",
+    "CachingToolWrapper": ".intelligence.reasoning.tools.inspector",
     # --- intelligence.learning.offline_learning ---
     "OfflineLearner": ".intelligence.learning.offline_learning",
     "PrioritizedEpisodeBuffer": ".intelligence.learning.offline_learning",
@@ -209,14 +209,14 @@ _LAZY_IMPORTS: dict[str, str] = {
     "OverflowDetector": ".infrastructure.utils.algorithmic_foundations",
     "patch_dspy_with_guard": ".infrastructure.utils.algorithmic_foundations",
     "unpatch_dspy": ".infrastructure.utils.algorithmic_foundations",
-    # --- modes.agent.base.agent_factory ---
-    "UniversalRetryHandler": ".modes.agent.base.agent_factory",
-    "RetryStrategy": ".modes.agent.base.agent_factory",
-    "AgentResult": ".modes.agent.base.agent_factory",
-    "PatternDetector": ".modes.agent.base.agent_factory",
-    "LLMCounterfactualCritic": ".modes.agent.base.agent_factory",
-    "SelfRAGMemoryRetriever": ".modes.agent.base.agent_factory",
-    "LLMSurpriseEstimator": ".modes.agent.base.agent_factory",
+    # --- intelligence.reasoning.factory.agent_factory ---
+    "UniversalRetryHandler": ".intelligence.reasoning.factory.agent_factory",
+    "RetryStrategy": ".intelligence.reasoning.factory.agent_factory",
+    "AgentResult": ".intelligence.reasoning.factory.agent_factory",
+    "PatternDetector": ".intelligence.reasoning.factory.agent_factory",
+    "LLMCounterfactualCritic": ".intelligence.reasoning.factory.agent_factory",
+    "SelfRAGMemoryRetriever": ".intelligence.reasoning.factory.agent_factory",
+    "LLMSurpriseEstimator": ".intelligence.reasoning.factory.agent_factory",
     # --- persistence.persistence ---
     # Vault already imported eagerly via jotty.py
     # --- intelligence.orchestration (PolicyExplorer etc.) ---

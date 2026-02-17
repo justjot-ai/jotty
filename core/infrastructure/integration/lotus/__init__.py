@@ -39,8 +39,8 @@ Usage:
 """
 
 from .adaptive_validator import AdaptiveValidator, ValidationDecision
-from .batch_executor import BatchConfig, BatchExecutor, BatchResult  # type: ignore[attr-defined]
-from .config import CacheConfig, CascadeThresholds, LotusConfig
+from .batch_executor import BatchExecutor, BatchResult
+from .config import BatchConfig, CacheConfig, CascadeThresholds, LotusConfig
 from .model_cascade import CascadeResult, ModelCascade, ModelTier
 from .optimizer import LotusOptimizer
 from .semantic_cache import CacheEntry, CacheStats, SemanticCache

@@ -4,18 +4,18 @@ Agentic Discovery — LLM-based artifact analysis and registration.
 All implementation lives in ``discovery.py``.
 """
 
-from .discovery import (  # type: ignore[attr-defined]
+from .discovery import (
     AnalysisResult,
     ArtifactAnalyzer,
     ArtifactType,
     ArtifactValidator,
+    DiscoveryValidationResult,
     ExtractionResult,
     InformationExtractor,
     RegistrationOrchestrator,
     RegistrationResult,
     SemanticTagger,
     TaggingResult,
-    ValidationResult,
 )
 
 __all__ = [
@@ -28,6 +28,6 @@ __all__ = [
     "AnalysisResult",
     "TaggingResult",
     "ExtractionResult",
-    "ValidationResult",
+    "DiscoveryValidationResult",
     "RegistrationResult",
 ]

@@ -696,6 +696,45 @@ class SmartContextManager:
     # UTILITIES
     # =========================================================================
 
+    def compress_parts(self, parts: List[str], max_total_chars: int = 8000) -> List[str]:
+        """
+        Fair-share multi-source compression.
+
+        Divides the character budget equally across parts, then compresses
+        any part that exceeds its share by keeping start + end and marking
+        the middle as compressed.
+
+        Args:
+            parts: List of text parts to compress.
+            max_total_chars: Maximum total characters across all parts.
+
+        Returns:
+            List of (possibly compressed) parts fitting within budget.
+        """
+        if not parts:
+            return parts
+
+        total_chars = sum(len(p) for p in parts)
+        if total_chars <= max_total_chars:
+            return parts
+
+        per_part_budget = max_total_chars // len(parts)
+        compressed_parts = []
+        for p in parts:
+            if len(p) <= per_part_budget:
+                compressed_parts.append(p)
+            else:
+                keep = max(100, per_part_budget)
+                half = keep // 2
+                compressed_parts.append(p[:half] + "\n[...compressed...]\n" + p[-half:])
+
+        logger.debug(
+            f"Context budget: compressed {total_chars} -> "
+            f"{sum(len(p) for p in compressed_parts)} chars "
+            f"(budget: {max_total_chars})"
+        )
+        return compressed_parts
+
     def estimate_tokens(self, text: str) -> int:
         """Estimate token count using shared utility."""
         return ctx_utils.estimate_tokens(text)
