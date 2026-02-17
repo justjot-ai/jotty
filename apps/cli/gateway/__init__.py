@@ -16,8 +16,8 @@ Features:
 Inspired by OpenClaw's unified inbox architecture.
 
 Usage (jotty.justjot.ai):
-    python -m Jotty.cli.gateway              # Run gateway on port 8766
-    python -m Jotty.cli.gateway --port 8080  # Custom port
+    python -m Jotty.apps.cli.gateway              # Run gateway on port 8766
+    python -m Jotty.apps.cli.gateway --port 8080  # Custom port
 """
 
 from .channels import ChannelRouter, ChannelType, MessageEvent, ResponseEvent

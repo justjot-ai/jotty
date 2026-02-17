@@ -11,30 +11,30 @@ Jotty is a self-improving AI agent framework built on DSPy. It coordinates multi
                  └────┬─────┴──────┬───────┘
                       │            │
               ┌───────▼────────────▼────────┐
-   Layer 1    │       INTERFACE LAYER        │  web.py, cli/app.py, cli/gateway/
+  Layer 1    │       INTERFACE LAYER        │  web.py, apps/cli/, apps/api/
               │  UnifiedGateway + JottyCLI   │
               └─────────────┬───────────────┘
                             │
               ┌─────────────▼───────────────┐
-   Layer 2    │        MODES LAYER           │  core/agents/, core/api/
+  Layer 2    │        MODES LAYER           │  core/intelligence/reasoning/, core/interface/api/
               │  Chat | Workflow | API       │
               │  ChatAssistant | AutoAgent   │
               └─────────────┬───────────────┘
                             │
               ┌─────────────▼───────────────┐
-   Layer 3    │       REGISTRY LAYER         │  core/registry/
+  Layer 3    │       REGISTRY LAYER         │  core/capabilities/registry/
               │     UnifiedRegistry          │
               │  Skills (Hands) + UI (Eyes)  │
               └─────────────┬───────────────┘
                             │
               ┌─────────────▼───────────────┐
-   Layer 4    │        BRAIN LAYER           │  core/orchestration/, core/swarms/
+  Layer 4    │        BRAIN LAYER           │  core/intelligence/orchestration/
               │  Orchestrator + Swarms       │
               │  SwarmIntelligence + Agents   │
               └─────────────┬───────────────┘
                             │
               ┌─────────────▼───────────────┐
-   Layer 5    │     PERSISTENCE LAYER        │  core/learning/, core/memory/
+  Layer 5    │     PERSISTENCE LAYER        │  core/intelligence/learning/, core/intelligence/memory/
               │  TD-Lambda + SwarmMemory     │
               │  ~/jotty/intelligence/*.json │
               └─────────────────────────────┘
@@ -44,7 +44,7 @@ Jotty is a self-improving AI agent framework built on DSPy. It coordinates multi
 
 Entry points that accept external requests and route them into Jotty.
 
-### UnifiedGateway (`cli/gateway/server.py`)
+### UnifiedGateway (`apps/cli/gateway/server.py`)
 
 FastAPI + WebSocket server handling all channels:
 
@@ -53,11 +53,11 @@ FastAPI + WebSocket server handling all channels:
 - **REST API**: `/message` for generic HTTP requests
 - **Health**: `/health`, `/docs` (OpenAPI)
 
-### JottyCLI (`cli/app.py`)
+### JottyCLI (`apps/cli/app.py`)
 
-Interactive REPL with slash commands (`/run`, `/swarm`, `/learn`, etc.). Also supports single-command mode via `python -m Jotty.cli -c "task"`.
+Interactive REPL with slash commands (`/run`, `/swarm`, `/learn`, etc.). Also supports single-command mode via `python -m Jotty.apps.cli -c "task"`.
 
-### ChannelRouter (`cli/gateway/channels.py`)
+### ChannelRouter (`apps/cli/gateway/channels.py`)
 
 Routes incoming messages from different channels through `ChannelType` enum (TELEGRAM, SLACK, DISCORD, WHATSAPP, WEB, CLI) with trust-level authentication via `TrustManager`.
 
@@ -69,11 +69,11 @@ Standalone entry point that initializes JottyCLI and starts UnifiedGateway on po
 
 Three execution modes that determine how tasks are processed.
 
-### ChatAssistant (`core/agents/chat_assistant.py`)
+### ChatAssistant (`core/intelligence/reasoning/agents/chat_assistant.py`)
 
 Conversational mode. Maintains chat history, handles multi-turn dialogue, streams responses. Used for interactive Q&A.
 
-### AutoAgent (`core/agents/auto_agent.py`)
+### AutoAgent (`core/intelligence/reasoning/agents/auto_agent.py`)
 
 Workflow mode. Takes a goal, discovers skills, creates an execution plan, and runs it autonomously. Handles multi-step tasks with replanning on failure.
 
@@ -84,7 +84,7 @@ Goal → TaskType Inference → Skill Discovery → Plan Creation → Step Execu
                                                      └── Replan on Fail ──┘
 ```
 
-### JottyAPI (`core/api/unified.py`)
+### JottyAPI (`core/interface/api/unified.py`)
 
 Programmatic API combining chat and workflow use cases:
 ```python
@@ -99,7 +99,7 @@ async for event in api.chat_stream(message="Hi"): # Streaming
 
 The capability discovery system. All skills and UI components are registered here.
 
-### UnifiedRegistry (`core/registry/unified_registry.py`)
+### UnifiedRegistry (`core/capabilities/registry/unified_registry.py`)
 
 Single entry point combining two sub-registries:
 
@@ -116,7 +116,7 @@ registry.list_ui_components()             # 16 UI components
 registry.ui.convert_to_a2ui('chart', data)
 ```
 
-### SkillsRegistry (`core/registry/skills_registry.py`)
+### SkillsRegistry (`core/capabilities/registry/skills_registry.py`)
 
 Manages 273 skills loaded from `skills/` directories. Each skill has:
 - `tools.py`: Tool function implementations
@@ -130,7 +130,7 @@ Key features:
 - **Semantic discovery**: Task description -> ranked skill matches
 - **MCP integration**: Tools exposed as Model Context Protocol endpoints
 
-### UIRegistry (`core/registry/ui_registry.py`)
+### UIRegistry (`core/capabilities/registry/ui_registry.py`)
 
 16 UI components for rendering agent outputs (charts, tables, forms, markdown, etc.).
 
@@ -138,7 +138,7 @@ Key features:
 
 The orchestration and agent execution layer.
 
-### Orchestrator (`core/orchestration/swarm_manager.py`)
+### Orchestrator (`core/intelligence/orchestration/core/swarm_manager.py`)
 
 Central coordinator. Uses composition pattern with lazy-initialized components:
 
@@ -162,7 +162,7 @@ Orchestrator
 - **Debate**: Multiple agents solve independently, then vote
 - **Refinement**: Initial solution refined iteratively
 
-### SwarmIntelligence (`core/orchestration/swarm_intelligence.py`)
+### SwarmIntelligence (`core/intelligence/orchestration/intelligence/swarm_intelligence.py`)
 
 Multi-agent coordination engine:
 - **Specialization tracking**: Agents develop expertise based on performance history
@@ -173,7 +173,7 @@ Multi-agent coordination engine:
 - **Byzantine verification**: Detect and isolate faulty agents
 - **Curriculum generation**: Synthetic training tasks targeting weaknesses
 
-### SwarmLearning (`core/swarms/base_swarm.py`)
+### SwarmLearning (`core/intelligence/orchestration/swarms/_base/swarm_learning.py`)
 
 Foundation for all swarm types. Implements the self-improving loop:
 
@@ -206,7 +206,7 @@ BaseAgent (ABC)
 └── ChatAssistant        — Conversational agent
 ```
 
-### AgenticPlanner (`core/agents/agentic_planner.py`)
+### AgenticPlanner (`core/intelligence/reasoning/planners/agentic_planner.py`)
 
 Fully LLM-based planning (no hardcoded logic). Uses DSPy signatures:
 
@@ -218,7 +218,7 @@ Fully LLM-based planning (no hardcoded logic). Uses DSPy signatures:
 | `ExecutionPlanningSignature` | Create step-by-step plan | `ChainOfThought` |
 | `ReflectivePlanningSignature` | Replan after failure | `ChainOfThought` |
 
-### SkillPlanExecutor (`core/agents/base/skill_plan_executor.py`)
+### SkillPlanExecutor (`core/intelligence/reasoning/executors/skill_plan_executor.py`)
 
 Reusable planning/execution service. Any agent can use it:
 ```python
@@ -233,7 +233,7 @@ Components:
 
 ## Layer 5: Persistence
 
-### TD-Lambda Learning (`core/learning/td_lambda.py`)
+### TD-Lambda Learning (`core/intelligence/learning/td_lambda.py`)
 
 Reinforcement learning with temporal difference:
 
@@ -246,7 +246,7 @@ Key features:
 - Cross-domain transfer learning
 - Adaptive learning rates
 
-### SwarmMemory (`core/memory/cortex.py`)
+### SwarmMemory (`core/intelligence/memory/cortex.py`)
 
 Five-level hierarchical memory:
 
@@ -315,7 +315,7 @@ Key features:
 
 ## Configuration
 
-### SwarmConfig (`core/foundation/data_structures.py`)
+### SwarmConfig (`core/infrastructure/foundation/data_structures.py`)
 
 Central configuration dataclass with 8 view subclasses for scoped access:
 
@@ -337,7 +337,7 @@ view = ExecutionView(config)
 view.max_actor_iters  # 5 (proxied to parent)
 ```
 
-### AgentRuntimeConfig (`core/agents/base/base_agent.py`)
+### AgentRuntimeConfig (`core/intelligence/reasoning/base/base_agent.py`)
 
 Per-agent configuration with smart defaults from `config_defaults.py`:
 - `model`, `temperature`, `max_tokens`, `max_retries`

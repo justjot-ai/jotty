@@ -183,20 +183,20 @@ Jotty/
 ## API Usage
 
 ```python
-from Jotty.layers.interface import JottyCLI
-from Jotty.layers.modes import AutoAgent
-from Jotty.layers.registry import get_unified_registry
+from Jotty import Jotty
+from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
 
 # Get unified registry
 registry = get_unified_registry()
 skills = registry.list_skills()  # 273 skills
 
 # Discover for task
-discovery = registry.discover_for_task("create a chart")
+discovery = registry.skills.discover("create a chart")
 
 # Run workflow
-agent = AutoAgent()
-result = await agent.execute("Research X, create report, send via telegram")
+client = Jotty()
+result = await client.workflow("Research X, create report, send via telegram")
+print(result.content)
 ```
 
 ## Testing

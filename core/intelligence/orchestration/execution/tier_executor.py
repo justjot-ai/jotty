@@ -1810,14 +1810,19 @@ Correct answer:"""
 
         try:
             llm_start = time.time()
-            response = await self.provider.generate(
+            raw_response = await self.provider.generate(
                 prompt=synthesis_prompt,
                 temperature=0.5,
                 max_tokens=4000,
             )
             llm_duration = time.time() - llm_start
 
+            # Provider adapters occasionally return non-dict payloads; normalize
+            # shape so synthesis can still succeed without hard failure.
+            response = raw_response if isinstance(raw_response, dict) else {"content": raw_response}
             usage = response.get("usage", {})
+            if not isinstance(usage, dict):
+                usage = {}
             input_tokens = usage.get("input_tokens", 400)
             output_tokens = usage.get("output_tokens", 300)
             record = self.cost_tracker.record_llm_call(
@@ -1834,8 +1839,12 @@ Correct answer:"""
                 "llm_calls": 1,
                 "cost": record.cost,
             }
-        except (LLMError, ExecutionError, ConnectionError) as e:
-            logger.warning(f"Output synthesis LLM call failed, using fallback: {e}")
+        except Exception as e:
+            logger.warning(
+                "Output synthesis LLM call failed (%s), using fallback: %s",
+                type(e).__name__,
+                e,
+            )
             return {
                 "output": self._fallback_aggregate(results, goal),
                 "llm_calls": 0,
@@ -2003,18 +2012,21 @@ class _FallbackValidator:
         full_prompt = f"{validation_system}\n\n{prompt}"
 
         try:
-            response = await self._provider.generate(
+            raw_response = await self._provider.generate(
                 prompt=full_prompt,
                 temperature=0.3,
                 max_tokens=500,
             )
+            response = raw_response if isinstance(raw_response, dict) else {"content": raw_response}
             content = response.get("content", "{}")
+            if not isinstance(content, str):
+                content = str(content)
             start = content.find("{")
             end = content.rfind("}") + 1
             if start >= 0 and end > start:
                 return _json.loads(content[start:end])  # type: ignore[no-any-return]
             return {"success": True, "confidence": 0.7, "feedback": content, "reasoning": ""}
-        except (LLMError, ConnectionError, ValueError) as e:
+        except Exception as e:
             logger.warning(f"Validation LLM call failed: {e}")
             return {
                 "success": True,

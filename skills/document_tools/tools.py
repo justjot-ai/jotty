@@ -7,6 +7,15 @@ Exposes OutputFormatManager as registry tools for PDF, EPUB, HTML, DOCX, and pre
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    result_to_tool_dict,
+    tool_error,
+    tool_wrapper,
+)
+
+status = SkillStatus("document-tools")
+
 # Lazy import to avoid loading manager (and registry) until first tool use
 _manager: Optional[Any] = None
 
@@ -22,31 +31,17 @@ def _get_manager() -> Any:
 
 def _result_to_dict(result: Any) -> Dict[str, Any]:
     """Convert OutputFormatResult to dict for tool response."""
-    return {
-        "success": result.success,
-        "format": getattr(result, "format", ""),
-        "file_path": getattr(result, "file_path", None),
-        "error": getattr(result, "error", None),
-        "metadata": getattr(result, "metadata", None) or {},
-    }
+    return result_to_tool_dict(result, include=("format", "file_path"))
 
 
+@tool_wrapper(required_params=["markdown_path"])
 def generate_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate PDF from a markdown file.
-
-    Args:
-        params: markdown_path (required), title, author, page_size (default a4), output_path
-
-    Returns:
-        success, file_path, error, format, metadata
-    """
+    """Generate PDF from a markdown file."""
+    status.set_callback(params.pop("_status_callback", None))
+    status.emit("Creating", "Generating PDF...")
     manager = _get_manager()
-    markdown_path = params.get("markdown_path")
-    if not markdown_path:
-        return {"success": False, "error": "markdown_path is required"}
     result = manager.generate_pdf(
-        markdown_path=markdown_path,
+        markdown_path=params["markdown_path"],
         title=params.get("title"),
         author=params.get("author"),
         page_size=params.get("page_size", "a4"),
@@ -55,51 +50,31 @@ def generate_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return _result_to_dict(result)
 
 
+@tool_wrapper(required_params=["markdown_path"])
 def generate_epub_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate EPUB from a markdown file.
-
-    Args:
-        params: markdown_path (required), title (required), author (required), output_path
-
-    Returns:
-        success, file_path, error, format, metadata
-    """
+    """Generate EPUB from a markdown file."""
+    status.set_callback(params.pop("_status_callback", None))
+    status.emit("Creating", "Generating EPUB...")
     manager = _get_manager()
-    markdown_path = params.get("markdown_path")
-    title = params.get("title") or "Untitled"
-    author = params.get("author") or "Unknown"
-    if not markdown_path:
-        return {"success": False, "error": "markdown_path is required"}
     result = manager.generate_epub(
-        markdown_path=markdown_path,
-        title=title,
-        author=author,
+        markdown_path=params["markdown_path"],
+        title=params.get("title") or "Untitled",
+        author=params.get("author") or "Unknown",
         output_path=params.get("output_path"),
     )
     return _result_to_dict(result)
 
 
+@tool_wrapper(required_params=["chapters"])
 def generate_epub_with_chapters_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate rich EPUB with chapters (epub-builder).
-
-    Args:
-        params: chapters (list of {title, content}), title, author, description, language, output_path
-
-    Returns:
-        success, file_path, error, format, metadata
-    """
+    """Generate rich EPUB with chapters (epub-builder)."""
+    status.set_callback(params.pop("_status_callback", None))
+    status.emit("Creating", "Generating EPUB with chapters...")
     manager = _get_manager()
-    chapters = params.get("chapters") or []
-    title = params.get("title") or "Untitled"
-    author = params.get("author") or "Unknown"
-    if not chapters:
-        return {"success": False, "error": "chapters (list of {title, content}) is required"}
     result = manager.generate_epub_with_chapters(
-        chapters=chapters,
-        title=title,
-        author=author,
+        chapters=params["chapters"],
+        title=params.get("title") or "Untitled",
+        author=params.get("author") or "Unknown",
         description=params.get("description"),
         language=params.get("language", "en"),
         output_path=params.get("output_path"),
@@ -107,22 +82,14 @@ def generate_epub_with_chapters_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return _result_to_dict(result)
 
 
+@tool_wrapper(required_params=["markdown_path"])
 def generate_html_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate HTML from a markdown file.
-
-    Args:
-        params: markdown_path (required), title, standalone (default True), output_path
-
-    Returns:
-        success, file_path, error, format, metadata
-    """
+    """Generate HTML from a markdown file."""
+    status.set_callback(params.pop("_status_callback", None))
+    status.emit("Creating", "Generating HTML...")
     manager = _get_manager()
-    markdown_path = params.get("markdown_path")
-    if not markdown_path:
-        return {"success": False, "error": "markdown_path is required"}
     result = manager.generate_html(
-        markdown_path=markdown_path,
+        markdown_path=params["markdown_path"],
         title=params.get("title"),
         standalone=params.get("standalone", True),
         output_path=params.get("output_path"),
@@ -130,46 +97,29 @@ def generate_html_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return _result_to_dict(result)
 
 
+@tool_wrapper(required_params=["markdown_path"])
 def generate_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate DOCX from a markdown file.
-
-    Args:
-        params: markdown_path (required), title, output_path
-
-    Returns:
-        success, file_path, error, format, metadata
-    """
+    """Generate DOCX from a markdown file."""
+    status.set_callback(params.pop("_status_callback", None))
+    status.emit("Creating", "Generating DOCX...")
     manager = _get_manager()
-    markdown_path = params.get("markdown_path")
-    if not markdown_path:
-        return {"success": False, "error": "markdown_path is required"}
     result = manager.generate_docx(
-        markdown_path=markdown_path,
+        markdown_path=params["markdown_path"],
         title=params.get("title"),
         output_path=params.get("output_path"),
     )
     return _result_to_dict(result)
 
 
+@tool_wrapper(required_params=["content"])
 def generate_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate presentation (PPTX/PDF) from content.
-
-    Args:
-        params: content (required, markdown/text), title (required), n_slides, export_as (pptx/pdf), tone
-
-    Returns:
-        success, file_path, error, format, metadata
-    """
+    """Generate presentation (PPTX/PDF) from content."""
+    status.set_callback(params.pop("_status_callback", None))
+    status.emit("Creating", "Generating presentation...")
     manager = _get_manager()
-    content = params.get("content")
-    title = params.get("title") or "Presentation"
-    if not content:
-        return {"success": False, "error": "content is required"}
     result = manager.generate_presentation(
-        content=content,
-        title=title,
+        content=params["content"],
+        title=params.get("title") or "Presentation",
         n_slides=params.get("n_slides", 10),
         export_as=params.get("export_as", "pptx"),
         tone=params.get("tone", "professional"),
@@ -177,36 +127,19 @@ def generate_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return _result_to_dict(result)
 
 
+@tool_wrapper(required_params=["markdown_path", "formats"])
 def generate_all_formats_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate multiple formats from one markdown file.
-
-    Args:
-        params: markdown_path (required), formats (required, list e.g. ["pdf","epub","html"]),
-                title (required), author
-
-    Returns:
-        success (true if any succeeded), summary (total, successful, failed, file_paths), results per format
-    """
+    """Generate multiple formats from one markdown file."""
+    status.set_callback(params.pop("_status_callback", None))
+    status.emit("Creating", "Generating multiple formats...")
     manager = _get_manager()
-    markdown_path = params.get("markdown_path")
-    formats_list = params.get("formats") or []
-    title = params.get("title") or "Document"
-    if not markdown_path:
-        return {"success": False, "error": "markdown_path is required"}
-    if not formats_list:
-        return {
-            "success": False,
-            "error": 'formats (list) is required, e.g. ["pdf", "epub", "html"]',
-        }
     results = manager.generate_all(
-        markdown_path=markdown_path,
-        formats=formats_list,
-        title=title,
+        markdown_path=params["markdown_path"],
+        formats=params["formats"],
+        title=params.get("title") or "Document",
         author=params.get("author"),
     )
     summary = manager.get_summary(results)
-    # Serialize per-format results for the response
     results_dict = {fmt: _result_to_dict(res) for fmt, res in results.items()}
     return {
         "success": summary.get("successful", 0) > 0,

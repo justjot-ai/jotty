@@ -7,6 +7,15 @@ Exposes OutputChannelManager as registry tools for Telegram, WhatsApp, and multi
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    result_to_tool_dict,
+    tool_error,
+)
+
+status = SkillStatus("messaging-tools")
+
 _manager: Optional[Any] = None
 
 
@@ -21,29 +30,17 @@ def _get_manager() -> Any:
 
 def _result_to_dict(result: Any) -> Dict[str, Any]:
     """Convert ChannelDeliveryResult to dict for tool response."""
-    return {
-        "success": result.success,
-        "channel": getattr(result, "channel", ""),
-        "message_id": getattr(result, "message_id", None),
-        "error": getattr(result, "error", None),
-        "metadata": getattr(result, "metadata", None) or {},
-    }
+    return result_to_tool_dict(result, include=("channel", "message_id"))
 
 
+@async_tool_wrapper()
 async def send_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Send a message or file to Telegram.
-
-    Args:
-        params: file_path (optional), message (optional), caption, chat_id, parse_mode (HTML/Markdown).
-                At least one of file_path or message is required.
-
-    Returns:
-        success, channel, message_id, error, metadata
-    """
-    manager = _get_manager()
+    """Send a message or file to Telegram."""
+    status.set_callback(params.pop("_status_callback", None))
     if not params.get("file_path") and not params.get("message"):
-        return {"success": False, "error": "Either file_path or message must be provided"}
+        return tool_error("Either file_path or message must be provided")
+    status.sending("Telegram")
+    manager = _get_manager()
     result = await manager.send_to_telegram(
         file_path=params.get("file_path"),
         message=params.get("message"),
@@ -54,25 +51,16 @@ async def send_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return _result_to_dict(result)
 
 
+@async_tool_wrapper(required_params=["to"])
 async def send_to_whatsapp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Send a message or file to WhatsApp.
-
-    Args:
-        params: to (required, phone with country code), file_path, message, caption, provider (auto/baileys/business).
-                At least one of file_path or message is required.
-
-    Returns:
-        success, channel, message_id, error, metadata
-    """
-    manager = _get_manager()
-    to = params.get("to")
-    if not to:
-        return {"success": False, "error": "to (recipient phone with country code) is required"}
+    """Send a message or file to WhatsApp."""
+    status.set_callback(params.pop("_status_callback", None))
     if not params.get("file_path") and not params.get("message"):
-        return {"success": False, "error": "Either file_path or message must be provided"}
+        return tool_error("Either file_path or message must be provided")
+    status.sending("WhatsApp")
+    manager = _get_manager()
     result = await manager.send_to_whatsapp(
-        to=to,
+        to=params["to"],
         file_path=params.get("file_path"),
         message=params.get("message"),
         caption=params.get("caption"),
@@ -81,35 +69,17 @@ async def send_to_whatsapp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return _result_to_dict(result)
 
 
+@async_tool_wrapper(required_params=["channels"])
 async def send_to_all_channels_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Send a message or file to multiple channels (Telegram, WhatsApp, etc.).
-
-    Args:
-        params: channels (required, list e.g. ["telegram","whatsapp"]), file_path, message, caption,
-                telegram_chat_id, whatsapp_to, whatsapp_provider.
-
-    Returns:
-        success (true if any succeeded), summary (total, successful, failed, successful_channels, errors), results per channel
-    """
+    """Send a message or file to multiple channels (Telegram, WhatsApp, etc.)."""
+    status.set_callback(params.pop("_status_callback", None))
     manager = _get_manager()
-    channels = params.get("channels") or []
-    if not channels:
-        return {
-            "success": False,
-            "error": 'channels (list) is required, e.g. ["telegram", "whatsapp"]',
-        }
     channel_params = {}
-    if params.get("telegram_chat_id") is not None:
-        channel_params["telegram_chat_id"] = params["telegram_chat_id"]
-    if params.get("telegram_parse_mode") is not None:
-        channel_params["telegram_parse_mode"] = params["telegram_parse_mode"]
-    if params.get("whatsapp_to") is not None:
-        channel_params["whatsapp_to"] = params["whatsapp_to"]
-    if params.get("whatsapp_provider") is not None:
-        channel_params["whatsapp_provider"] = params["whatsapp_provider"]
+    for key in ("telegram_chat_id", "telegram_parse_mode", "whatsapp_to", "whatsapp_provider"):
+        if params.get(key) is not None:
+            channel_params[key] = params[key]
     results = await manager.send_to_all(
-        channels=channels,
+        channels=params["channels"],
         file_path=params.get("file_path"),
         message=params.get("message"),
         caption=params.get("caption"),

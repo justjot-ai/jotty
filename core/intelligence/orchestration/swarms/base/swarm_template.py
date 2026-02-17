@@ -496,10 +496,13 @@ class SwarmTemplate(SwarmLearning):
             task_type = self.__class__.__name__
 
             # Coalition formation: for PARALLEL teams with 2+ agents,
-            # form a coalition so agents are tracked as a coordinated unit
+            # form a coalition so agents are tracked as a coordinated unit.
+            # Guard: skip if coalitions were already formed by
+            # _coordinate_pre_execution() to avoid double formation.
             if (
                 self.AGENT_TEAM.pattern == CoordinationPattern.PARALLEL
                 and len(self.AGENT_TEAM) >= 2
+                and not si.coalitions
             ):
                 try:
                     agent_names = [

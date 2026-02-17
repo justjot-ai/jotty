@@ -1497,10 +1497,14 @@ class TestSearXNGSearch:
         """Dynamically load the web-search tools module."""
         import importlib.util
 
+        repo_root = Path(__file__).resolve().parents[2]
+        tools_path = repo_root / "skills" / "web-search" / "tools.py"
         spec = importlib.util.spec_from_file_location(
             "web_search_tools",
-            os.path.join(os.path.dirname(__file__), "..", "skills", "web-search", "tools.py"),
+            str(tools_path),
         )
+        if not spec or not spec.loader:
+            raise ImportError(f"Failed to load module spec for {tools_path}")
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return mod
@@ -1863,28 +1867,22 @@ class TestVisualVerificationProtocol:
 
     def test_protocol_constant_exists(self):
         """VISUAL_VERIFICATION_PROTOCOL constant is defined."""
-        import os
-
-        tools_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "skills", "visual-inspector", "tools.py"
+        tools_path = (
+            Path(__file__).resolve().parents[2] / "skills" / "visual-inspector" / "tools.py"
         )
 
         # Read the file and check for the constant
-        with open(tools_path, "r") as f:
-            content = f.read()
+        content = tools_path.read_text()
         assert "VISUAL_VERIFICATION_PROTOCOL" in content
         assert "WHEN TO VISUALLY VERIFY" in content
         assert "PRINCIPLE:" in content
 
     def test_protocol_has_key_sections(self):
         """Protocol contains all expected guidance sections."""
-        import os
-
-        tools_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "skills", "visual-inspector", "tools.py"
+        tools_path = (
+            Path(__file__).resolve().parents[2] / "skills" / "visual-inspector" / "tools.py"
         )
-        with open(tools_path, "r") as f:
-            content = f.read()
+        content = tools_path.read_text()
 
         assert "state-changing actions" in content
         assert "irreversible" in content
@@ -1893,16 +1891,16 @@ class TestVisualVerificationProtocol:
 
     def test_guidance_helper_function_exists(self):
         """get_visual_verification_guidance function is exported."""
-        import os
-
-        tools_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "skills", "visual-inspector", "tools.py"
+        tools_path = (
+            Path(__file__).resolve().parents[2] / "skills" / "visual-inspector" / "tools.py"
         )
-        with open(tools_path, "r") as f:
-            content = f.read()
+        content = tools_path.read_text()
 
         assert "def get_visual_verification_guidance" in content
-        assert "'get_visual_verification_guidance'" in content  # in __all__
+        assert (
+            '"get_visual_verification_guidance"' in content
+            or "'get_visual_verification_guidance'" in content
+        )  # in __all__
 
 
 # =============================================================================
@@ -4003,12 +4001,13 @@ class TestSmartTruncate:
 
         config = SwarmConfig()
         # Patch DSPy import to avoid needing a configured LM
-        with patch("Jotty.core.agents.inspector._get_dspy") as mock_dspy:
+        with patch("Jotty.core.intelligence.reasoning.tools.inspector._get_dspy") as mock_dspy:
             mock_dspy_mod = MagicMock()
             mock_dspy_mod.ChainOfThought = MagicMock(return_value=MagicMock())
             mock_dspy.return_value = mock_dspy_mod
             with patch(
-                "Jotty.core.agents.inspector._get_reviewer_signature", return_value=MagicMock()
+                "Jotty.core.intelligence.reasoning.tools.inspector._get_reviewer_signature",
+                return_value=MagicMock(),
             ):
                 agent = ValidatorAgent(
                     md_path=Path("/nonexistent/test.md"),
@@ -6279,7 +6278,7 @@ class TestSemanticParamResolver:
         result = resolver.resolve("query", "Search for data", {"step_0": {"text": "hello"}})
         assert result is None
 
-    @patch("Jotty.core.agents.base.step_processors._DSPY_AVAILABLE", False)
+    @patch("Jotty.core.intelligence.reasoning.executors.step_processors._DSPY_AVAILABLE", False)
     def test_no_dspy_returns_none(self):
         """Without DSPy, resolver returns None gracefully."""
         from Jotty.core.intelligence.reasoning.executors.step_processors import (
@@ -7677,18 +7676,24 @@ class TestShellExecCwdFix:
 
 
 def _load_claude_api_module():
-    """Load claude-api-llm tools module via sys.path (dashed dir name)."""
+    """Load claude-api-llm tools module directly from file path."""
+    import importlib.util
     import sys
 
-    skill_path = str(Path(__file__).parent.parent / "skills" / "claude-api-llm")
-    if skill_path not in sys.path:
-        sys.path.insert(0, skill_path)
-    # Force reimport to avoid stale state
-    if "tools" in sys.modules and hasattr(sys.modules["tools"], "ClaudeAPIClient"):
-        return sys.modules["tools"]
-    import importlib
+    repo_root = Path(__file__).resolve().parents[2]
+    tools_path = repo_root / "skills" / "claude-api-llm" / "tools.py"
+    module_name = "claude_api_llm_tools_test"
 
-    mod = importlib.import_module("tools")
+    if module_name in sys.modules and hasattr(sys.modules[module_name], "ClaudeAPIClient"):
+        return sys.modules[module_name]
+
+    spec = importlib.util.spec_from_file_location(module_name, str(tools_path))
+    if not spec or not spec.loader:
+        raise ImportError(f"Failed to load module spec for {tools_path}")
+
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = mod
+    spec.loader.exec_module(mod)
     return mod
 
 

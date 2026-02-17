@@ -1460,8 +1460,10 @@ class SkillsRegistry:
                 f" Skill '{skill_name}' failed to load: {e}. " f"Fix: check imports in {tools_file}"
             )
 
-            # Fallback: create mock tools based on file content
-            tools = self._create_mock_tools_from_file(tools_file)
+            # Fail closed: do NOT fabricate mock-success tools for broken imports.
+            # Returning an empty tool set makes the failure explicit and prevents
+            # false-positive executions that appear successful.
+            return {}
 
         return tools
 
@@ -1515,42 +1517,6 @@ class SkillsRegistry:
     def get_failed_skills(self) -> Dict[str, str]:
         """Return dict of skill_name -> error_message for skills that failed to load."""
         return getattr(self, "_failed_skills", {})
-
-    def _create_mock_tools_from_file(self, tools_file: Path) -> Dict[str, Callable]:
-        """
-        Create mock tools from file content (for testing/fallback).
-
-        In production, proper tool loading would be used.
-        This is for testing integration only.
-        """
-        content = tools_file.read_text()
-        tools: Dict[str, Callable] = {}
-
-        # Extract tool names from file (simplified)
-        import re
-
-        tool_matches = re.findall(r"def\s+(\w+)\s*\(|(\w+)\s*=\s*tool\(", content)
-
-        for match in tool_matches:
-            tool_name = match[0] or match[1]
-            if tool_name:
-                # Create mock execute function
-                tools[tool_name] = self._create_mock_executor(tool_name)
-
-        return tools
-
-    def _create_mock_executor(self, tool_name: str) -> Callable:
-        """Create mock executor for testing."""
-
-        async def mock_execute(params: Dict[str, Any]) -> Dict[str, Any]:
-            return {
-                "success": True,
-                "tool": tool_name,
-                "params": params,
-                "message": f"Tool {tool_name} executed (mock - implement in tools.py)",
-            }
-
-        return mock_execute
 
     def _load_claude_code_skill(
         self, skill_dir: Path, skill_name: str, skill_md_content: str
@@ -1871,6 +1837,12 @@ class SkillsRegistry:
             if not skill.is_available(task_context):
                 continue
 
+            # Suppress deprecated skills when their toolkit is available
+            if self.is_deprecated(skill.name) and self.loaded_skills.get(
+                self._TOOLKIT_ALIASES.get(skill.name, "")
+            ):
+                continue
+
             name_lower = skill.name.lower()
             desc_lower = (skill.description or "").lower()
 
@@ -1919,6 +1891,11 @@ class SkillsRegistry:
                     score += 1
                 elif skill.skill_type == SkillType.DERIVED:
                     score += 1
+
+                # Toolkit boost: consolidated toolkits get a relevance edge
+                # because they contain more tools and are the canonical source
+                if skill.name.endswith("-toolkit"):
+                    score += 2
 
                 scored.append((score, skill))
             else:

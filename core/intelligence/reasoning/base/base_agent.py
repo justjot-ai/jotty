@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -29,10 +28,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Module-level lock for DSPy LM initialization.
-# Prevents race conditions when multiple agents/swarms concurrently
-# try to configure the global dspy.settings.lm.
-_dspy_lm_lock = threading.Lock()
+# Re-export for backward compatibility — other modules import this lock
+# from base_agent (e.g. swarm_learning.py line 165).
 
 
 # =============================================================================
@@ -161,6 +158,11 @@ class BaseAgent(ABC):
     # Error patterns that are never worth LLM-analyzing (just retry)
     _BLIND_RETRY_PATTERNS = ("rate limit", "429", "overloaded", "capacity")
 
+    # Sentinel for "not yet set" — distinguishes from an explicit ``None``
+    # injected by a swarm.  Lazy properties only create new instances when
+    # the field is _UNSET; an explicit ``None`` or real value is respected.
+    _UNSET: Any = object()
+
     def __init__(self, config: AgentRuntimeConfig = None) -> None:  # type: ignore[assignment]
         """
         Initialize BaseAgent with optional configuration.
@@ -172,12 +174,14 @@ class BaseAgent(ABC):
         if not self.config.name:
             self.config.name = self.__class__.__name__
 
-        # Lazy-initialized infrastructure
-        self._memory = None
+        # Lazy-initialized infrastructure — _UNSET means "create on first access".
+        # When a swarm injects resources via the property setters, the sentinel
+        # is replaced and lazy creation is skipped.
+        self._memory = self._UNSET
         self._memory_persistence = None
-        self._context_manager = None
+        self._context_manager = self._UNSET
         self._cost_tracker = None
-        self._skills_registry = None
+        self._skills_registry = self._UNSET
         self._lm = None
         self._safety_validator = None  # Safety gates (ValidatorAgent)
 
@@ -230,119 +234,35 @@ class BaseAgent(ABC):
 
     def _load_api_keys(self) -> Any:
         """Load API keys from .env.anthropic and .env files if not in environment."""
-        import os
-        from pathlib import Path
+        from Jotty.core.infrastructure.foundation.dspy_init import load_api_keys
 
-        # Look for env files in project root (4 levels up from this file)
-        project_root = Path(__file__).parents[4]
-        for env_name in (".env.anthropic", ".env"):
-            env_file = project_root / env_name
-            if env_file.exists():
-                try:
-                    with open(env_file) as f:
-                        for line in f:
-                            line = line.strip()
-                            if not line or line.startswith("#"):
-                                continue
-                            if "=" in line:
-                                key_name, key_val = line.split("=", 1)
-                                key_name, key_val = key_name.strip(), key_val.strip()
-                                if key_val and key_name not in os.environ:
-                                    os.environ[key_name] = key_val
-                                    logger.debug(f"Loaded {key_name} from {env_file}")
-                except Exception as e:
-                    logger.warning(f"Failed to load API keys from {env_file}: {e}")
+        load_api_keys()
 
     def _init_dspy_lm(self) -> None:
         """Auto-configure DSPy LM if not already set.
 
-        Thread-safe: uses _dspy_lm_lock to prevent races when multiple
-        agents/swarms initialize concurrently.
-
-        Uses UnifiedLMProvider for consistent multi-provider support.
+        Thread-safe: delegates to the shared ``dspy_init.init_dspy_lm()``
+        which uses a module-level lock.
         """
-        try:
-            import dspy
-        except ImportError:
-            logger.debug("DSPy not available, skipping LM configuration")
-            return
+        from Jotty.core.infrastructure.foundation.dspy_init import init_dspy_lm
 
-        with _dspy_lm_lock:
-            # Re-check inside lock — another thread may have configured it
-            if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
-                self._lm = dspy.settings.lm
-                return
+        provider = self.config.llm_provider or None  # None → auto-detect
+        lm = init_dspy_lm(
+            provider=provider,
+            model=self.config.model,
+            max_tokens=self.config.max_tokens,
+            temperature=self.config.temperature,
+            timeout=int(self.config.timeout),
+        )
+        if lm is not None:
+            self._lm = lm
 
-            # Load API keys from .env.anthropic if not in environment
-            import os
+    @staticmethod
+    def _auto_detect_provider() -> str:
+        """Auto-detect available LM provider from environment."""
+        from Jotty.core.infrastructure.foundation.dspy_init import auto_detect_provider
 
-            if not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("OPENROUTER_API_KEY"):
-                self._load_api_keys()
-
-            # Use UnifiedLMProvider for consistent LM initialization
-            try:
-                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
-                    UnifiedLMProvider,
-                )
-
-                # Determine provider (from config, env, or auto-detect)
-                provider = self.config.llm_provider or self._auto_detect_provider()
-
-                # Create LM via UnifiedLMProvider
-                self._lm = UnifiedLMProvider.create_lm(
-                    provider=provider,
-                    model=self.config.model,
-                    max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
-                    timeout=int(self.config.timeout),
-                )
-                dspy.configure(lm=self._lm)
-                logger.info(
-                    f"✓ Configured DSPy LM via UnifiedLMProvider "
-                    f"(provider={provider}, model={self.config.model})"
-                )
-                return
-            except Exception as e:
-                logger.warning(f"UnifiedLMProvider initialization failed: {e}")
-                # Fall back to configure_dspy_lm (auto-detect)
-                try:
-                    from Jotty.core.infrastructure.foundation.unified_lm_provider import (
-                        configure_dspy_lm,
-                    )
-
-                    self._lm = configure_dspy_lm()
-                    logger.info("✓ Configured DSPy LM via auto-detection")
-                except Exception as e2:
-                    logger.error(f"LM initialization failed completely: {e2}")
-
-    def _auto_detect_provider(self) -> str:
-        """Auto-detect available LM provider from environment.
-
-        Priority:
-        1. Anthropic (if ANTHROPIC_API_KEY set)
-        2. OpenAI (if OPENAI_API_KEY set)
-        3. Groq (if GROQ_API_KEY set)
-        4. OpenRouter (if OPENROUTER_API_KEY set)
-        5. Zen (if OPENCODE_ZEN_API_KEY set)
-
-        Returns:
-            Provider name (e.g., "anthropic", "openai")
-        """
-        import os
-
-        if os.environ.get("ANTHROPIC_API_KEY"):
-            return "anthropic"
-        elif os.environ.get("OPENAI_API_KEY"):
-            return "openai"
-        elif os.environ.get("GROQ_API_KEY"):
-            return "groq"
-        elif os.environ.get("OPENROUTER_API_KEY"):
-            return "openrouter"
-        elif os.environ.get("OPENCODE_ZEN_API_KEY"):
-            return "zen"
-        else:
-            # Default to anthropic (will fail gracefully if no key)
-            return "anthropic"
+        return auto_detect_provider()
 
     def _init_safety_gates(self) -> None:
         """Initialize safety gates (ValidatorAgent) with default constraints.
@@ -490,71 +410,105 @@ class BaseAgent(ABC):
 
     @property
     def memory(self) -> Any:
-        """Lazy-load SwarmMemory with disk persistence."""
-        if self._memory is None and self.config.enable_memory:
-            try:
-                from pathlib import Path
+        """Lazy-load SwarmMemory with disk persistence.
 
-                from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
-                from Jotty.core.intelligence.memory.cortex import SwarmMemory
-                from Jotty.core.intelligence.memory.memory_persistence import (
-                    enable_memory_persistence,
-                )
+        Uses sentinel pattern: only creates a new instance when the field
+        is ``_UNSET``.  If a swarm injects a shared memory instance via
+        the setter, it is respected and lazy creation is skipped.
+        """
+        if self._memory is not self._UNSET:
+            return self._memory
+        if not self.config.enable_memory:
+            return None
+        try:
+            from pathlib import Path
 
-                # Use the shared _jotty_config if one was injected, otherwise
-                # fall back to a default. This prevents creating N independent
-                # SwarmConfig instances with potentially different defaults.
-                jotty_config = getattr(self, "_jotty_config", None) or SwarmConfig()
-                self._memory = SwarmMemory(config=jotty_config, agent_name=self.config.name)
+            from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+            from Jotty.core.intelligence.memory.cortex import SwarmMemory
+            from Jotty.core.intelligence.memory.memory_persistence import (
+                enable_memory_persistence,
+            )
 
-                # Enable persistence — loads existing memories from disk
-                persistence_dir = Path.home() / "jotty" / "memory" / self.config.name
-                self._memory_persistence = enable_memory_persistence(
-                    memory=self._memory,
-                    persistence_dir=persistence_dir,
-                )
-                logger.debug(f"Initialized SwarmMemory with persistence for {self.config.name}")
-            except Exception as e:
-                logger.warning(f"Could not initialize memory: {e}")
+            jotty_config = getattr(self, "_jotty_config", None) or SwarmConfig()
+            self._memory = SwarmMemory(config=jotty_config, agent_name=self.config.name)
+
+            persistence_dir = Path.home() / "jotty" / "memory" / self.config.name
+            self._memory_persistence = enable_memory_persistence(
+                memory=self._memory,
+                persistence_dir=persistence_dir,
+            )
+            logger.debug(f"Initialized SwarmMemory with persistence for {self.config.name}")
+        except Exception as e:
+            logger.warning(f"Could not initialize memory: {e}")
+            self._memory = None
         return self._memory
+
+    @memory.setter
+    def memory(self, value: Any) -> None:
+        """Allow swarms to inject a shared memory instance."""
+        self._memory = value
 
     @property
     def context(self) -> Any:
-        """Lazy-load context manager (SmartContextManager preferred, SharedContext fallback)."""
-        if self._context_manager is None and self.config.enable_context:
-            # Try SmartContextManager first (unified context management)
+        """Lazy-load context manager (SmartContextManager preferred, SharedContext fallback).
+
+        Uses sentinel pattern: if a swarm injects a context manager via
+        the setter, lazy creation is skipped.
+        """
+        if self._context_manager is not self._UNSET:
+            return self._context_manager
+        if not self.config.enable_context:
+            return None
+        try:
+            from Jotty.core.infrastructure.context.facade import get_context_manager
+
+            self._context_manager = get_context_manager()
+            logger.debug(f"Initialized SmartContextManager for {self.config.name}")
+        except Exception:
             try:
-                from Jotty.core.infrastructure.context.facade import get_context_manager
+                from Jotty.core.infrastructure.persistence.shared_context import (
+                    SharedContext,  # type: ignore[import]
+                )
 
-                self._context_manager = get_context_manager()
-                logger.debug(f"Initialized SmartContextManager for {self.config.name}")
-            except Exception:
-                # Fall back to SharedContext
-                try:
-                    from Jotty.core.infrastructure.persistence.shared_context import (
-                        SharedContext,  # type: ignore[import]
-                    )
-
-                    self._context_manager = SharedContext()
-                    logger.debug(f"Initialized SharedContext for {self.config.name}")
-                except Exception as e:
-                    logger.warning(f"Could not initialize context: {e}")
+                self._context_manager = SharedContext()
+                logger.debug(f"Initialized SharedContext for {self.config.name}")
+            except Exception as e:
+                logger.warning(f"Could not initialize context: {e}")
+                self._context_manager = None
         return self._context_manager
+
+    @context.setter
+    def context(self, value: Any) -> None:
+        """Allow swarms to inject a shared context manager."""
+        self._context_manager = value
 
     @property
     def skills_registry(self) -> Any:
-        """Lazy-load SkillsRegistry."""
-        if self._skills_registry is None and self.config.enable_skills:
-            try:
-                from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+        """Lazy-load SkillsRegistry.
 
-                self._skills_registry = get_skills_registry()
-                if not self._skills_registry.initialized:  # type: ignore[attr-defined]
-                    self._skills_registry.init()  # type: ignore[attr-defined]
-                logger.debug(f"Initialized SkillsRegistry for {self.config.name}")
-            except Exception as e:
-                logger.warning(f"Could not initialize skills registry: {e}")
+        Uses sentinel pattern: if a swarm injects a registry via the
+        setter, lazy creation is skipped.
+        """
+        if self._skills_registry is not self._UNSET:
+            return self._skills_registry
+        if not self.config.enable_skills:
+            return None
+        try:
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
+            self._skills_registry = get_skills_registry()
+            if not self._skills_registry.initialized:  # type: ignore[attr-defined]
+                self._skills_registry.init()  # type: ignore[attr-defined]
+            logger.debug(f"Initialized SkillsRegistry for {self.config.name}")
+        except Exception as e:
+            logger.warning(f"Could not initialize skills registry: {e}")
+            self._skills_registry = None
         return self._skills_registry
+
+    @skills_registry.setter
+    def skills_registry(self, value: Any) -> None:
+        """Allow swarms to inject a shared skills registry."""
+        self._skills_registry = value
 
     # =========================================================================
     # EXECUTION WITH RETRY LOGIC

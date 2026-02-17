@@ -7,7 +7,7 @@ Reduces boilerplate validation and error handling.
 
 Usage:
     from Jotty.core.infrastructure.utils.tool_helpers import (
-        tool_response, tool_error, validate_params, require_params
+        tool_response, tool_error, result_to_tool_dict, require_params, validate_params
     )
 
     def my_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -22,7 +22,7 @@ Usage:
 
 import functools
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +103,31 @@ def tool_error(error: str, code: Optional[str] = None, **kwargs: Any) -> Dict[st
         result["code"] = code
     result.update(kwargs)
     return result
+
+
+def result_to_tool_dict(
+    result: Any,
+    include: Optional[Tuple[str, ...]] = None,
+) -> Dict[str, Any]:
+    """
+    Convert a result-like object (with .success, .error, .metadata) to a tool response dict.
+
+    Args:
+        result: Object with at least success, error, metadata attributes
+        include: Optional tuple of extra attribute names to include (e.g. ("format", "file_path"))
+
+    Returns:
+        Dict with success, error, metadata, and any included attributes
+    """
+    out: Dict[str, Any] = {
+        "success": getattr(result, "success", False),
+        "error": getattr(result, "error", None),
+        "metadata": getattr(result, "metadata", None) or {},
+    }
+    if include:
+        for key in include:
+            out[key] = getattr(result, key, None)
+    return out
 
 
 def require_params(params: Dict[str, Any], required: List[str]) -> Optional[Dict[str, Any]]:

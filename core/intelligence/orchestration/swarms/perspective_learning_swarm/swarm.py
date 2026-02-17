@@ -28,10 +28,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .._base._output_mixin import TELEGRAM_AVAILABLE, OutputMixin
 from .._base.swarm_learning import AgentRole, register_swarm
 from ..base import PhaseExecutor, SwarmTemplate, TeamCoordinator
 from .agents import (
@@ -59,41 +59,11 @@ from .types import (
     PerspectiveType,
 )
 
-# Telegram support
-try:
-    import sys
-
-    sys.path.insert(
-        0, str(Path(__file__).parent.parent.parent.parent / "skills" / "telegram-sender")
-    )
-    from tools import send_telegram_file_tool, send_telegram_message_tool
-
-    TELEGRAM_AVAILABLE = True
-except ImportError:
-    TELEGRAM_AVAILABLE = False
-    send_telegram_message_tool = None
-    send_telegram_file_tool = None
-
 logger = logging.getLogger(__name__)
-
-# Log Telegram availability at import time
-if TELEGRAM_AVAILABLE:
-    _has_token = bool(os.environ.get("TELEGRAM_TOKEN"))
-    _has_chat = bool(os.environ.get("TELEGRAM_CHAT_ID"))
-    if _has_token and _has_chat:
-        logger.info("Telegram: available (token + chat_id present)")
-    else:
-        logger.warning(
-            f"Telegram: tools imported but env vars missing "
-            f"(TELEGRAM_TOKEN={'set' if _has_token else 'MISSING'}, "
-            f"TELEGRAM_CHAT_ID={'set' if _has_chat else 'MISSING'})"
-        )
-else:
-    logger.info("Telegram: tools not available (import failed)")
 
 
 @register_swarm("perspective_learning")
-class PerspectiveLearningSwarm(SwarmTemplate):
+class PerspectiveLearningSwarm(OutputMixin, SwarmTemplate):
     """
     Multi-Perspective Learning Swarm.
 
@@ -1040,27 +1010,16 @@ class PerspectiveLearningSwarm(SwarmTemplate):
         content: LessonContent,
     ) -> Optional[str]:
         """Generate professional PDF from lesson content."""
-        try:
-            from .pdf_generator import generate_perspective_pdf
+        from .pdf_generator import generate_perspective_pdf
 
-            safe_topic = topic.replace(" ", "_").replace(":", "").replace(",", "")[:50]
-            output_path = (
-                f"/tmp/perspective_{safe_topic}_{student_name.replace(' ', '_')}_lesson.pdf"
-            )
-
-            pdf_path = await generate_perspective_pdf(
-                content=content,
-                output_path=output_path,
-                celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
-            )
-
-            if pdf_path:
-                logger.info(f"Generated PDF: {pdf_path}")
-            return pdf_path
-
-        except Exception as e:
-            logger.warning(f"PDF generation failed: {e}")
-            return None
+        return await self._generate_output_pdf(
+            generator_fn=generate_perspective_pdf,
+            topic=topic,
+            student_name=student_name,
+            prefix="perspective",
+            content=content,
+            celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
+        )
 
     async def _generate_html(
         self,
@@ -1069,31 +1028,55 @@ class PerspectiveLearningSwarm(SwarmTemplate):
         content: LessonContent,
     ) -> Optional[str]:
         """Generate interactive HTML from lesson content."""
-        try:
-            from .pdf_generator import generate_perspective_html
+        from .pdf_generator import generate_perspective_html
 
-            safe_topic = topic.replace(" ", "_").replace(":", "").replace(",", "")[:50]
-            output_path = (
-                f"/tmp/perspective_{safe_topic}_{student_name.replace(' ', '_')}_slides.html"
-            )
-
-            html_path = await generate_perspective_html(
-                content=content,
-                output_path=output_path,
-                celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
-            )
-
-            if html_path:
-                logger.info(f"Generated HTML: {html_path}")
-            return html_path
-
-        except Exception as e:
-            logger.warning(f"HTML generation failed: {e}")
-            return None
+        return await self._generate_output_html(
+            generator_fn=generate_perspective_html,
+            topic=topic,
+            student_name=student_name,
+            prefix="perspective",
+            content=content,
+            celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
+        )
 
     # =========================================================================
     # TELEGRAM
     # =========================================================================
+
+    def _build_telegram_summary(
+        self,
+        topic: str,
+        student_name: str,
+        content: LessonContent,
+        pdf_path: Optional[str] = None,
+        html_path: Optional[str] = None,
+    ) -> str:
+        """Build domain-specific Telegram summary message."""
+        has_pdf = pdf_path and Path(pdf_path).exists()
+        has_html = html_path and Path(html_path).exists()
+        files_label = ""
+        if has_pdf:
+            files_label += " + PDF"
+        if has_html:
+            files_label += " + HTML"
+
+        header = f"*Lesson: {topic}*\n"
+        header += f"*Student:* {student_name}\n\n"
+
+        stats = f"*{len(content.perspectives)} perspectives* | "
+        stats += f"*{len(content.language_sections)} languages* | "
+        stats += f"*{len(content.key_concepts)} concepts*\n"
+        stats += f"*{content.total_words} words*{files_label}\n\n"
+
+        insights = ""
+        if content.key_insights:
+            insights = f"*Key Insights ({self.config.celebration_word})*\n"  # type: ignore[attr-defined]
+            for i, ins in enumerate(content.key_insights[:4], 1):
+                if ins:
+                    insights += f"{i}. {ins[:150]}\n"
+            insights += "\n"
+
+        return header + stats + insights
 
     async def _send_to_telegram(
         self,
@@ -1105,97 +1088,16 @@ class PerspectiveLearningSwarm(SwarmTemplate):
         html_path: Optional[str] = None,
     ) -> Any:
         """Send lesson summary + PDF + HTML to Telegram."""
-        if not TELEGRAM_AVAILABLE:
-            logger.warning("Telegram tools not available")
-            return
-
-        try:
-            has_pdf = pdf_path and Path(pdf_path).exists()
-            has_html = html_path and Path(html_path).exists()
-            files_label = ""
-            if has_pdf:
-                files_label += " + PDF"
-            if has_html:
-                files_label += " + HTML"
-
-            # Summary message
-            header = f"*Lesson: {topic}*\n"
-            header += f"*Student:* {student_name}\n\n"
-
-            stats = f"*{len(content.perspectives)} perspectives* | "
-            stats += f"*{len(content.language_sections)} languages* | "
-            stats += f"*{len(content.key_concepts)} concepts*\n"
-            stats += f"*{content.total_words} words*{files_label}\n\n"
-
-            insights = ""
-            if content.key_insights:
-                insights = f"*Key Insights ({self.config.celebration_word})*\n"  # type: ignore[attr-defined]
-                for i, ins in enumerate(content.key_insights[:4], 1):
-                    if ins:
-                        insights += f"{i}. {ins[:150]}\n"
-                insights += "\n"
-
-            message = header + stats + insights
-            if len(message) > 4000:
-                message = message[:3950] + "\n..."
-
-            result = await send_telegram_message_tool(
-                {"message": message, "parse_mode": "Markdown"}
-            )
-
-            if result.get("success"):
-                logger.info("Sent summary to Telegram")
-            else:
-                logger.error(f"Telegram message failed: {result.get('error')}")
-
-            # Send PDF
-            if has_pdf:
-                file_result = await send_telegram_file_tool(
-                    {
-                        "file_path": pdf_path,
-                        "caption": f"{topic} - Learning Guide for {student_name}",
-                    }
-                )
-                if file_result.get("success"):
-                    logger.info("Sent PDF to Telegram")
-
-            # Send HTML
-            if has_html:
-                file_result = await send_telegram_file_tool(
-                    {
-                        "file_path": html_path,
-                        "caption": f"{topic} - Interactive Slides for {student_name}",
-                    }
-                )
-                if file_result.get("success"):
-                    logger.info("Sent HTML to Telegram")
-
-            # Fallback: send markdown if no PDF
-            if not has_pdf:
-                safe_topic = topic.replace(" ", "_").replace(":", "")[:40]
-                temp_path = Path(
-                    f"/tmp/perspective_{safe_topic}_{student_name.replace(' ', '_')}.md"
-                )
-                with open(temp_path, "w") as f:
-                    f.write(full_content)
-
-                file_result = await send_telegram_file_tool(
-                    {
-                        "file_path": str(temp_path),
-                        "caption": f"{topic} - Lesson for {student_name} (Markdown)",
-                    }
-                )
-
-                try:
-                    temp_path.unlink()
-                except Exception:
-                    pass
-
-        except Exception as e:
-            logger.error(f"Telegram send error: {e}")
-            import traceback
-
-            traceback.print_exc()
+        summary = self._build_telegram_summary(topic, student_name, content, pdf_path, html_path)
+        await self._deliver_to_telegram(
+            topic=topic,
+            student_name=student_name,
+            summary_message=summary,
+            full_content=full_content,
+            prefix="perspective",
+            pdf_path=pdf_path,
+            html_path=html_path,
+        )
 
     # =========================================================================
     # GOLD STANDARDS

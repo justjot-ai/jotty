@@ -7,7 +7,7 @@ Tests for:
 2. ChatMessage, ChatContext (core/use_cases/chat/chat_context.py)
 3. WorkflowTask, WorkflowContext (core/use_cases/workflow/workflow_context.py)
 4. CommandInfo, CommandExecutionResult, CommandService (core/services/command_service.py)
-5. JottyAPI (core/api/unified.py)
+5. JottyAPI (core/interface/api/unified.py)
 
 Target: ~150 tests across all classes.
 """

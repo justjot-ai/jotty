@@ -141,6 +141,8 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 
             # 4. Analyze tool success rates via ToolManager
             tool_analysis = self._manage_tools()  # type: ignore[attr-defined]
+            # Cache for reuse in _post_execute_learning (avoids redundant recomputation)
+            self._cached_tool_analysis = tool_analysis
             learned_context["tool_performance"] = stats.get("tool_success_rates", {})
             learned_context["weak_tools"] = tool_analysis.get("weak_tools", [])
             learned_context["strong_tools"] = tool_analysis.get("strong_tools", [])
@@ -327,8 +329,11 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 # Note: morph_score_history is a deque(maxlen=100), self-bounding.
                 # No manual truncation needed.
 
-            # 3. Re-analyze tools and update assignments
-            self._manage_tools()  # type: ignore[attr-defined]
+            # 3. Re-analyze tools and update assignments.
+            # Reuse cached analysis from _pre_execute_learning if available
+            # (the tool set doesn't change between pre and post).
+            if not getattr(self, "_cached_tool_analysis", None):
+                self._manage_tools()  # type: ignore[attr-defined]
 
             # 3a. Post-execution coordination protocols (byzantine verify,
             #     circuit breakers, gossip broadcast, coalition cleanup,

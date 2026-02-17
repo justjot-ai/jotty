@@ -80,7 +80,7 @@ class JottyAPIServer:
     def _get_mode_router(self) -> Any:
         """Lazy-load ModeRouter (used for all task/skill execution)."""
         if self._router is None:
-            # Use absolute imports — works both when run as Jotty.cli.api.server
+            # Use absolute imports — works both when run as Jotty.apps.api.simple_server
             # and when run standalone (background process with sys.path insert)
             from Jotty.core.interface.api.mode_router import get_mode_router
 

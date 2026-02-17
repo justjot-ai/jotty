@@ -47,7 +47,7 @@ class JottyAPI:
     def _get_cli(self) -> Any:
         """Get shared JottyCLI instance for command execution."""
         if self._cli is None:
-            from Jotty.cli.app import JottyCLI
+            from Jotty.apps.cli.app import JottyCLI
 
             self._cli = JottyCLI(no_color=True)  # No color for web output
         return self._cli
@@ -55,7 +55,7 @@ class JottyAPI:
     def _get_session_registry(self) -> Any:
         """Get session registry."""
         if self._registry is None:
-            from Jotty.cli.repl.session import get_session_registry
+            from Jotty.apps.cli.repl.session import get_session_registry
 
             self._registry = get_session_registry()
         return self._registry
@@ -314,7 +314,7 @@ class JottyAPI:
         Returns:
             Response dict with content, output_path, etc.
         """
-        from Jotty.cli.repl.session import InterfaceType
+        from Jotty.apps.cli.repl.session import InterfaceType
 
         # Get session
         registry = self._get_session_registry()
@@ -332,7 +332,7 @@ class JottyAPI:
                     image_descriptions.append(f"[Attached image: {att.get('name', 'image')}]")
                 elif att.get("type") == "document" and att.get("docId"):
                     try:
-                        from Jotty.web.documents import get_document_processor
+                        from Jotty.apps.api.documents import get_document_processor
 
                         processor = get_document_processor()
                         doc_text = processor.get_document_text(att["docId"])
@@ -478,7 +478,7 @@ class JottyAPI:
 
     def get_commands(self) -> List[Dict[str, Any]]:
         """Get available CLI commands."""
-        from Jotty.cli.commands import CommandRegistry, register_all_commands
+        from Jotty.apps.cli.commands import CommandRegistry, register_all_commands
 
         registry = CommandRegistry()
         register_all_commands(registry)
@@ -597,7 +597,7 @@ class JottyAPI:
         """Get all sessions with metadata."""
         import json
 
-        from Jotty.cli.repl.session import SessionManager
+        from Jotty.apps.cli.repl.session import SessionManager
 
         manager = SessionManager()
         sessions = manager.list_sessions()
@@ -619,7 +619,7 @@ class JottyAPI:
 
     def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get session details."""
-        from Jotty.cli.repl.session import InterfaceType
+        from Jotty.apps.cli.repl.session import InterfaceType
 
         registry = self._get_session_registry()
         session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
@@ -633,7 +633,7 @@ class JottyAPI:
 
     def clear_session(self, session_id: str) -> bool:
         """Clear session history."""
-        from Jotty.cli.repl.session import InterfaceType
+        from Jotty.apps.cli.repl.session import InterfaceType
 
         registry = self._get_session_registry()
         session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
@@ -646,7 +646,7 @@ class JottyAPI:
 
     def delete_session(self, session_id: str) -> bool:
         """Delete a session."""
-        from Jotty.cli.repl.session import SessionManager
+        from Jotty.apps.cli.repl.session import SessionManager
 
         registry = self._get_session_registry()
         registry.remove_session(session_id)
@@ -657,7 +657,7 @@ class JottyAPI:
 
     def update_session(self, session_id: str, updates: Dict[str, Any]) -> bool:
         """Update session metadata (title, isPinned, isArchived, folderId)."""
-        from Jotty.cli.repl.session import SessionManager
+        from Jotty.apps.cli.repl.session import SessionManager
 
         manager = SessionManager()
         session_file = manager.session_dir / f"{session_id}.json"

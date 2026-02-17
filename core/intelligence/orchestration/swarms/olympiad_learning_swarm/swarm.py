@@ -35,6 +35,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .._base._output_mixin import TELEGRAM_AVAILABLE, OutputMixin
 from .._base.swarm_learning import AgentRole, register_swarm
 from ..base import PhaseExecutor, SwarmTemplate, TeamCoordinator
 from .agents import (
@@ -69,26 +70,11 @@ from .types import (
     tier_to_level,
 )
 
-# Telegram support
-try:
-    import sys
-
-    sys.path.insert(
-        0, str(Path(__file__).parent.parent.parent.parent / "skills" / "telegram-sender")
-    )
-    from tools import send_telegram_file_tool, send_telegram_message_tool
-
-    TELEGRAM_AVAILABLE = True
-except ImportError:
-    TELEGRAM_AVAILABLE = False
-    send_telegram_message_tool = None
-    send_telegram_file_tool = None
-
 logger = logging.getLogger(__name__)
 
 
 @register_swarm("olympiad_learning")
-class OlympiadLearningSwarm(SwarmTemplate):
+class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
     """
     World-Class Olympiad Learning Swarm.
 
@@ -1521,31 +1507,18 @@ class OlympiadLearningSwarm(SwarmTemplate):
         content: LessonContent,
         learning_time: str,
     ) -> Optional[str]:
-        """Generate professional PDF from lesson content.
+        """Generate professional PDF from lesson content."""
+        from .pdf_generator import generate_lesson_pdf
 
-        Returns:
-            Path to generated PDF, or None on failure.
-        """
-        try:
-            from .pdf_generator import generate_lesson_pdf
-
-            safe_topic = topic.replace(" ", "_").replace(":", "").replace(",", "")[:50]
-            output_path = f"/tmp/olympiad_{safe_topic}_{student_name.replace(' ', '_')}_lesson.pdf"
-
-            pdf_path = await generate_lesson_pdf(
-                content=content,
-                output_path=output_path,
-                celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
-                learning_time=learning_time,
-            )
-
-            if pdf_path:
-                logger.info(f"Generated PDF: {pdf_path}")
-            return pdf_path
-
-        except Exception as e:
-            logger.warning(f"PDF generation failed: {e}")
-            return None
+        return await self._generate_output_pdf(
+            generator_fn=generate_lesson_pdf,
+            topic=topic,
+            student_name=student_name,
+            prefix="olympiad",
+            content=content,
+            celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
+            learning_time=learning_time,
+        )
 
     async def _generate_html(
         self,
@@ -1554,35 +1527,69 @@ class OlympiadLearningSwarm(SwarmTemplate):
         content: LessonContent,
         learning_time: str,
     ) -> Optional[str]:
-        """Generate interactive HTML from lesson content.
+        """Generate interactive HTML from lesson content."""
+        from .pdf_generator import generate_lesson_html
 
-        Returns:
-            Path to generated HTML, or None on failure.
-        """
-        try:
-            from .pdf_generator import generate_lesson_html
-
-            safe_topic = topic.replace(" ", "_").replace(":", "").replace(",", "")[:50]
-            output_path = f"/tmp/olympiad_{safe_topic}_{student_name.replace(' ', '_')}_slides.html"
-
-            html_path = await generate_lesson_html(
-                content=content,
-                output_path=output_path,
-                celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
-                learning_time=learning_time,
-            )
-
-            if html_path:
-                logger.info(f"Generated HTML: {html_path}")
-            return html_path
-
-        except Exception as e:
-            logger.warning(f"HTML generation failed: {e}")
-            return None
+        return await self._generate_output_html(
+            generator_fn=generate_lesson_html,
+            topic=topic,
+            student_name=student_name,
+            prefix="olympiad",
+            content=content,
+            celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
+            learning_time=learning_time,
+        )
 
     # =========================================================================
     # TELEGRAM
     # =========================================================================
+
+    def _build_telegram_summary(
+        self,
+        topic: str,
+        student_name: str,
+        content: LessonContent,
+        pdf_path: Optional[str] = None,
+        html_path: Optional[str] = None,
+    ) -> str:
+        """Build domain-specific Telegram summary message."""
+        celebration = self.config.celebration_word  # type: ignore[attr-defined]
+        subject_str = content.subject.value if content.subject else "general"
+
+        has_pdf = pdf_path and Path(pdf_path).exists()
+        has_html = html_path and Path(html_path).exists()
+        files_label = ""
+        if has_pdf:
+            files_label += " + PDF"
+        if has_html:
+            files_label += " + HTML"
+
+        header = f"*Lesson: {topic}*\n"
+        header += f"*Subject:* {subject_str.title()}\n"
+        header += f"*Student:* {student_name}\n\n"
+
+        stats = f"*{len(content.core_concepts)} concepts* | "
+        stats += f"*{len(content.problems)} problems* | "
+        stats += f"*{len(content.patterns)} patterns* | "
+        stats += f"*{len(content.strategies)} strategies*\n"
+        stats += f"*{content.total_words} words*{files_label}\n\n"
+
+        insights = ""
+        if content.key_insights:
+            insights = f"*Key Insights ({celebration})*\n"
+            for i, ins in enumerate(content.key_insights[:4], 1):
+                if ins:
+                    insights += f"{i}. {ins[:150]}\n"
+            insights += "\n"
+
+        concepts_section = ""
+        if content.building_blocks:
+            concepts_section = "*Building Blocks:*\n"
+            for b in content.building_blocks[:5]:
+                concepts_section += f"- {b.name}\n"
+            concepts_section += "\n"
+
+        return header + stats + insights + concepts_section
 
     async def _send_to_telegram(
         self,
@@ -1593,132 +1600,17 @@ class OlympiadLearningSwarm(SwarmTemplate):
         pdf_path: Optional[str] = None,
         html_path: Optional[str] = None,
     ) -> Any:
-        """Send lesson summary + PDF + HTML to Telegram.
-
-        Args:
-            topic: Topic name
-            student_name: Student name
-            content: LessonContent data
-            full_content: Full markdown text
-            pdf_path: Path to generated PDF (if any)
-            html_path: Path to generated HTML (if any)
-        """
-        if not TELEGRAM_AVAILABLE:
-            logger.warning("Telegram tools not available")
-            return
-
-        try:
-            celebration = self.config.celebration_word  # type: ignore[attr-defined]
-            subject_str = content.subject.value if content.subject else "general"
-
-            # Determine what files we have
-            has_pdf = pdf_path and Path(pdf_path).exists()
-            has_html = html_path and Path(html_path).exists()
-            files_label = ""
-            if has_pdf:
-                files_label += " + PDF"
-            if has_html:
-                files_label += " + HTML"
-
-            # =================================================================
-            # SEND SUMMARY MESSAGE
-            # =================================================================
-            header = f"*Lesson: {topic}*\n"
-            header += f"*Subject:* {subject_str.title()}\n"
-            header += f"*Student:* {student_name}\n\n"
-
-            stats = f"*{len(content.core_concepts)} concepts* | "
-            stats += f"*{len(content.problems)} problems* | "
-            stats += f"*{len(content.patterns)} patterns* | "
-            stats += f"*{len(content.strategies)} strategies*\n"
-            stats += f"*{content.total_words} words*{files_label}\n\n"
-
-            insights = ""
-            if content.key_insights:
-                insights = f"*Key Insights ({celebration})*\n"
-                for i, ins in enumerate(content.key_insights[:4], 1):
-                    if ins:
-                        insights += f"{i}. {ins[:150]}\n"
-                insights += "\n"
-
-            concepts_section = ""
-            if content.building_blocks:
-                concepts_section = "*Building Blocks:*\n"
-                for b in content.building_blocks[:5]:
-                    concepts_section += f"- {b.name}\n"
-                concepts_section += "\n"
-
-            message = header + stats + insights + concepts_section
-            if len(message) > 4000:
-                message = message[:3950] + "\n..."
-
-            result = await send_telegram_message_tool(
-                {"message": message, "parse_mode": "Markdown"}
-            )
-
-            if result.get("success"):
-                logger.info(f"Sent summary to Telegram: message_id {result.get('message_id')}")
-            else:
-                logger.error(f"Telegram message failed: {result.get('error')}")
-
-            # =================================================================
-            # SEND PDF FILE
-            # =================================================================
-            if has_pdf:
-                file_result = await send_telegram_file_tool(
-                    {
-                        "file_path": pdf_path,
-                        "caption": f"{topic} - Learning Guide for {student_name}",
-                    }
-                )
-                if file_result.get("success"):
-                    logger.info("Sent PDF to Telegram")
-                else:
-                    logger.error(f"PDF send failed: {file_result.get('error')}")
-
-            # =================================================================
-            # SEND HTML FILE
-            # =================================================================
-            if has_html:
-                file_result = await send_telegram_file_tool(
-                    {
-                        "file_path": html_path,
-                        "caption": f"{topic} - Interactive Slides for {student_name}",
-                    }
-                )
-                if file_result.get("success"):
-                    logger.info("Sent HTML to Telegram")
-                else:
-                    logger.error(f"HTML send failed: {file_result.get('error')}")
-
-            # =================================================================
-            # FALLBACK: SEND MARKDOWN IF NO PDF
-            # =================================================================
-            if not has_pdf:
-                safe_topic = topic.replace(" ", "_").replace(":", "")[:40]
-                temp_path = Path(f"/tmp/olympiad_{safe_topic}_{student_name.replace(' ', '_')}.md")
-                with open(temp_path, "w") as f:
-                    f.write(full_content)
-
-                file_result = await send_telegram_file_tool(
-                    {
-                        "file_path": str(temp_path),
-                        "caption": f"{topic} - Lesson for {student_name} (Markdown)",
-                    }
-                )
-                if file_result.get("success"):
-                    logger.info("Sent markdown to Telegram")
-
-                try:
-                    temp_path.unlink()
-                except Exception:
-                    pass
-
-        except Exception as e:
-            logger.error(f"Telegram send error: {e}")
-            import traceback
-
-            traceback.print_exc()
+        """Send lesson summary + PDF + HTML to Telegram."""
+        summary = self._build_telegram_summary(topic, student_name, content, pdf_path, html_path)
+        await self._deliver_to_telegram(
+            topic=topic,
+            student_name=student_name,
+            summary_message=summary,
+            full_content=full_content,
+            prefix="olympiad",
+            pdf_path=pdf_path,
+            html_path=html_path,
+        )
 
     # =========================================================================
     # GOLD STANDARDS

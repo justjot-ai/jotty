@@ -134,74 +134,12 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         if self._initialized:
             return
 
-        # Load API keys from .env / .env.anthropic if not already in environment
-        import os
+        # Shared DSPy/API-key initialization (delegates to dspy_init module)
+        from Jotty.core.infrastructure.foundation.dspy_init import init_dspy_lm
 
-        if not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("OPENROUTER_API_KEY"):
-            from pathlib import Path as _Path
-
-            for env_name in (".env.anthropic", ".env"):
-                env_file = _Path(__file__).parents[4] / env_name
-                if env_file.exists():
-                    try:
-                        with open(env_file) as f:
-                            for _line in f:
-                                _line = _line.strip()
-                                if not _line or _line.startswith("#"):
-                                    continue
-                                if "=" in _line:
-                                    _key, _val = _line.split("=", 1)
-                                    _key, _val = _key.strip(), _val.strip()
-                                    if _val and _key not in os.environ:
-                                        os.environ[_key] = _val
-                                        logger.debug(f"Loaded {_key} from {env_file}")
-                    except Exception as e:
-                        logger.warning(f"Failed to load API keys from {env_file}: {e}")
-
-        # Auto-configure DSPy if needed (thread-safe via shared lock)
-        try:
-            import dspy
-
-            from Jotty.core.intelligence.reasoning.base.base_agent import _dspy_lm_lock
-
-            with _dspy_lm_lock:
-                if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
-                    # Use UnifiedLMProvider for consistent multi-provider support
-                    try:
-                        from Jotty.core.infrastructure.foundation.unified_lm_provider import (
-                            UnifiedLMProvider,
-                        )
-
-                        # Auto-detect provider or use explicit config
-                        provider = (
-                            getattr(self.config, "llm_provider", None)
-                            or self._auto_detect_provider()
-                        )
-                        model = getattr(self.config, "model", "haiku")
-
-                        lm = UnifiedLMProvider.create_lm(
-                            provider=provider,
-                            model=model,
-                            max_tokens=8192,
-                        )
-                        dspy.configure(lm=lm)
-                        logger.info(
-                            f"✓ Auto-configured DSPy via UnifiedLMProvider (provider={provider}, model={model})"
-                        )
-                    except Exception as e:
-                        logger.warning(f"UnifiedLMProvider initialization failed: {e}")
-                        # Fallback to auto-detection
-                        try:
-                            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
-                                configure_dspy_lm,
-                            )
-
-                            lm = configure_dspy_lm()
-                            logger.info("✓ Auto-configured DSPy via configure_dspy_lm()")
-                        except Exception as e2:
-                            logger.warning(f"Could not configure DSPy LM: {e2}")
-        except ImportError:
-            logger.warning("DSPy not available, skipping LM auto-configuration")
+        provider = getattr(self.config, "llm_provider", None)
+        model = getattr(self.config, "model", "haiku")
+        init_dspy_lm(provider=provider, model=model, max_tokens=8192)
 
         # Initialize shared resources (use self.config's jotty_config if available,
         # otherwise create a default — but avoid creating multiple independent configs)
@@ -233,24 +171,12 @@ class SwarmLearning(SwarmLearningMixin, ABC):
 
         self._initialized = True
 
-    def _auto_detect_provider(self) -> str:
-        """Auto-detect available LM provider from environment.
-        Priority: Anthropic > OpenAI > Groq > OpenRouter > Zen
-        """
-        import os
+    @staticmethod
+    def _auto_detect_provider() -> str:
+        """Auto-detect available LM provider from environment."""
+        from Jotty.core.infrastructure.foundation.dspy_init import auto_detect_provider
 
-        if os.environ.get("ANTHROPIC_API_KEY"):
-            return "anthropic"
-        elif os.environ.get("OPENAI_API_KEY"):
-            return "openai"
-        elif os.environ.get("GROQ_API_KEY"):
-            return "groq"
-        elif os.environ.get("OPENROUTER_API_KEY"):
-            return "openrouter"
-        elif os.environ.get("OPENCODE_ZEN_API_KEY"):
-            return "zen"
-        else:
-            return "anthropic"  # Default fallback
+        return auto_detect_provider()
 
     def _init_self_improvement(self) -> None:
         """Initialize self-improvement loop components."""

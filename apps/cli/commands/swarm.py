@@ -195,7 +195,7 @@ class SwarmCommand(BaseCommand):
             try:
                 from ..ui.progress import SwarmDashboard
             except ImportError:
-                from Jotty.cli.ui.progress import SwarmDashboard
+                from Jotty.apps.cli.ui.progress import SwarmDashboard
 
             try:
                 from Jotty.core.intelligence.orchestration.swarms.coding_swarm import (
