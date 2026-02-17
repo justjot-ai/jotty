@@ -34,6 +34,23 @@ class BudgetScope(Enum):
     OPERATION = "operation"  # Per operation type
 
 
+class BudgetStatus(Enum):
+    """
+    Survival status tiers inspired by ClawWork's economic pressure model.
+
+    Agents receiving this status in their system prompt self-regulate:
+    - ABUNDANT: full capability, normal verbosity
+    - NORMAL: standard operation
+    - CONSTRAINED: reduce tool calls, be more concise
+    - CRITICAL: minimal output, essential actions only
+    """
+
+    ABUNDANT = "abundant"  # < 50% of budget used
+    NORMAL = "normal"  # 50-80% of budget used
+    CONSTRAINED = "constrained"  # 80-95% of budget used
+    CRITICAL = "critical"  # > 95% of budget used
+
+
 class BudgetExceededError(Exception):
     """Raised when a budget limit is exceeded."""
 
@@ -197,6 +214,10 @@ class BudgetTracker:
         self._episode_usage = BudgetUsage()
         self._agent_usage: Dict[str, BudgetUsage] = defaultdict(BudgetUsage)
 
+        # Per-task cost tracking (inspired by ClawWork economic accountability)
+        self._task_usage: Dict[str, BudgetUsage] = {}
+        self._current_task_id: Optional[str] = None
+
         # Current episode
         self._current_episode: Optional[str] = None
 
@@ -306,6 +327,97 @@ class BudgetTracker:
 
             return True
 
+    def start_task(self, task_id: str) -> None:
+        """Start tracking costs for a specific task."""
+        with self._lock:
+            self._current_task_id = task_id
+            if task_id not in self._task_usage:
+                self._task_usage[task_id] = BudgetUsage()
+
+    def end_task(self) -> Optional[Dict[str, Any]]:
+        """End task tracking. Returns task cost summary."""
+        with self._lock:
+            task_id = self._current_task_id
+            self._current_task_id = None
+            if task_id and task_id in self._task_usage:
+                return {"task_id": task_id, **self._task_usage[task_id].to_dict()}
+            return None
+
+    def get_task_costs(self, task_id: str) -> Dict[str, Any]:
+        """Get cost breakdown for a specific task."""
+        with self._lock:
+            if task_id in self._task_usage:
+                return {"task_id": task_id, **self._task_usage[task_id].to_dict()}
+            return {"task_id": task_id, "calls": 0, "estimated_cost_usd": 0.0}
+
+    def get_budget_status(self) -> BudgetStatus:
+        """
+        Compute the current survival status tier based on budget usage.
+
+        Returns:
+            BudgetStatus enum: ABUNDANT, NORMAL, CONSTRAINED, or CRITICAL
+        """
+        with self._lock:
+            ep = self._episode_usage
+            call_ratio = ep.calls / max(1, self.config.max_llm_calls_per_episode)
+            token_ratio = ep.total_tokens / max(1, self.config.max_total_tokens_per_episode)
+
+            # Use the worse of call or token ratio
+            usage_ratio = max(call_ratio, token_ratio)
+
+            # Also consider cost ratio if cost limit is set
+            if self.config.max_cost_per_episode and self.config.max_cost_per_episode > 0:
+                cost_ratio = ep.estimated_cost_usd / self.config.max_cost_per_episode
+                usage_ratio = max(usage_ratio, cost_ratio)
+
+            if usage_ratio >= 0.95:
+                return BudgetStatus.CRITICAL
+            elif usage_ratio >= 0.80:
+                return BudgetStatus.CONSTRAINED
+            elif usage_ratio >= 0.50:
+                return BudgetStatus.NORMAL
+            else:
+                return BudgetStatus.ABUNDANT
+
+    def get_economic_context(self) -> str:
+        """
+        Build a cost-awareness string for agent system prompts.
+
+        Inspired by ClawWork: agents that see their own costs self-regulate
+        token usage and make more efficient tool-calling decisions.
+        Includes survival status tier for behavioral adaptation.
+        """
+        with self._lock:
+            ep = self._episode_usage
+            remaining_calls = max(0, self.config.max_llm_calls_per_episode - ep.calls)
+            remaining_tokens = max(0, self.config.max_total_tokens_per_episode - ep.total_tokens)
+
+        # get_budget_status acquires its own lock
+        status = self.get_budget_status()
+
+        with self._lock:
+            ep = self._episode_usage
+            parts = [
+                f"[Budget] Status: {status.value} | "
+                f"{ep.calls} calls, {ep.total_tokens} tokens, "
+                f"${ep.estimated_cost_usd:.4f} spent.",
+                f"[Budget] Remaining: {remaining_calls} calls, " f"{remaining_tokens} tokens.",
+            ]
+
+            if status == BudgetStatus.CONSTRAINED:
+                parts.append("[Budget] CONSTRAINED: Reduce tool calls, be concise.")
+            elif status == BudgetStatus.CRITICAL:
+                parts.append(
+                    "[Budget] CRITICAL: Minimal output only. "
+                    "Essential actions only — budget nearly exhausted."
+                )
+
+            if self.config.max_cost_per_episode:
+                cost_remaining = self.config.max_cost_per_episode - ep.estimated_cost_usd
+                parts.append(f"[Budget] Cost limit: ${cost_remaining:.4f} remaining.")
+
+            return "\n".join(parts)
+
     def record_call(
         self,
         agent_name: str,
@@ -313,6 +425,7 @@ class BudgetTracker:
         tokens_output: int = 0,
         model: str = "",
         cost_override: Optional[float] = None,
+        task_id: Optional[str] = None,
     ) -> None:
         """
         Record an LLM call and update usage.
@@ -323,6 +436,7 @@ class BudgetTracker:
             tokens_output: Number of output tokens
             model: Model name (for future model-specific pricing)
             cost_override: Override automatic cost calculation
+            task_id: Optional task identifier for per-task cost attribution
 
         Raises:
             BudgetExceededError: If budget exceeded and enforcement enabled
@@ -357,6 +471,18 @@ class BudgetTracker:
             agent_usage.tokens_output += tokens_output
             agent_usage.estimated_cost_usd += cost
             agent_usage.last_call_time = current_time
+
+            # Update per-task usage
+            effective_task = task_id or self._current_task_id
+            if effective_task:
+                if effective_task not in self._task_usage:
+                    self._task_usage[effective_task] = BudgetUsage()
+                task_usage = self._task_usage[effective_task]
+                task_usage.calls += 1
+                task_usage.tokens_input += tokens_input
+                task_usage.tokens_output += tokens_output
+                task_usage.estimated_cost_usd += cost
+                task_usage.last_call_time = current_time
 
             # Check limits and emit warnings/errors
             self._check_limits(agent_name)

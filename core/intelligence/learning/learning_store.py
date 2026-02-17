@@ -288,6 +288,17 @@ class LearningStore:
         )
         conn.commit()
 
+    def get_episode_count(self, domain: Optional[str] = None) -> int:
+        """Get total number of recorded episodes, optionally filtered by domain."""
+        conn = self._get_conn()
+        if domain:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM episodes WHERE domain = ?", (domain,)
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT COUNT(*) FROM episodes").fetchone()
+        return row[0] if row else 0
+
     def query_episodes(
         self,
         domain: Optional[str] = None,

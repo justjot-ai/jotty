@@ -63,3 +63,4 @@ catboost_info/
 expert_data/
 .mypy_cache/
 .backup/
+tests/e2e/results/

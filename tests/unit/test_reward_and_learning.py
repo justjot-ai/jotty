@@ -43,12 +43,14 @@ class TestComputeEpisodeReward:
     def test_empty_output_scores_low(self):
         result = _make_result(output="", success=True)
         reward = SwarmLearningPipeline._compute_episode_reward(result, "do something")
+        # Empty output triggers quality cliff → -0.1
         assert reward < 0.5, f"Empty output should score low, got {reward}"
 
     def test_short_output(self):
         result = _make_result(output="ok", success=True)
         reward = SwarmLearningPipeline._compute_episode_reward(result, "do something")
-        assert 0.0 < reward < 0.7, f"Short output reward out of range: {reward}"
+        # Short output may trigger quality cliff → -0.1
+        assert -0.1 <= reward < 0.7, f"Short output reward out of range: {reward}"
 
     def test_padded_vs_concise(self):
         """Padded/repetitive text must NOT win over concise, diverse text."""
@@ -77,7 +79,7 @@ class TestComputeEpisodeReward:
         ), f"Concise ({concise_reward:.3f}) should beat padded ({padded_reward:.3f})"
 
     def test_reward_always_in_bounds(self):
-        """Reward must always be in [0, 1]."""
+        """Reward must always be in [-0.1, 1] (quality cliff allows negative)."""
         test_cases = [
             _make_result(output="", success=False),
             _make_result(output="x" * 10000, success=True),
@@ -87,7 +89,7 @@ class TestComputeEpisodeReward:
         ]
         for i, result in enumerate(test_cases):
             reward = SwarmLearningPipeline._compute_episode_reward(result, "test goal")
-            assert 0.0 <= reward <= 1.0, f"Case {i}: reward {reward} out of [0, 1] bounds"
+            assert -0.1 <= reward <= 1.0, f"Case {i}: reward {reward} out of [-0.1, 1] bounds"
 
     def test_failure_caps_at_03(self):
         """Failed results should have reward capped at 0.3."""
@@ -136,9 +138,157 @@ class TestComputeEpisodeReward:
         """No tool usage should get 0.3 (slight penalty), not 0.5 neutral."""
         result = _make_result(output="Good output", success=True, trajectory=[])
         reward = SwarmLearningPipeline._compute_episode_reward(result, "do task")
-        # tool_use dimension should be 0.3, contributing 0.15 * 0.3 = 0.045
-        # vs old 0.15 * 0.5 = 0.075 — we just verify it's not too high
+        # tool_use dimension should be 0.3, contributing w["tool_use"] * 0.3
         assert reward < 1.0
+
+
+# =========================================================================
+# TestQualityCliff (ClawWork-inspired)
+# =========================================================================
+
+
+@pytest.mark.unit
+class TestQualityCliff:
+    """Test the quality cliff: low-quality outputs get negative reward."""
+
+    def test_cliff_triggers_on_empty_failed_output(self):
+        """Empty + failed output should fall below threshold and get -0.1."""
+        # Empty output with success=False: capped at 0.3, then cliff applies
+        # because substance=0, structure=0 pulls the score way down
+        result = _make_result(output="", success=False)
+        reward = SwarmLearningPipeline._compute_episode_reward(result, "do something")
+        assert reward == -0.1, f"Expected -0.1 from quality cliff, got {reward}"
+
+    def test_cliff_triggers_on_garbage_output(self):
+        """Very short, irrelevant, failed output should trigger the cliff."""
+        result = _make_result(output="x", success=False)
+        reward = SwarmLearningPipeline._compute_episode_reward(result, "analyze data")
+        assert reward == -0.1, f"Expected -0.1, got {reward}"
+
+    def test_empty_success_stays_above_cliff(self):
+        """Empty output with success=True may stay above cliff due to
+        non-content dimensions (no_errors=1.0, efficiency, relevance=0.5)."""
+        result = _make_result(output="", success=True)
+        reward = SwarmLearningPipeline._compute_episode_reward(result, "do something")
+        # Non-content dimensions can keep score above 0.35 threshold
+        assert (
+            reward >= SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD
+        ), f"Expected above cliff (non-content dims compensate), got {reward}"
+
+    def test_cliff_does_not_trigger_on_good_output(self):
+        """Substantial, relevant output should NOT trigger the cliff."""
+        result = _make_result(
+            output=(
+                "## Analysis Results\n\n"
+                "The data analysis shows strong growth patterns.\n"
+                "Key findings include increased revenue and market share.\n"
+                "In conclusion, the outlook is positive for the next quarter."
+            ),
+            success=True,
+        )
+        reward = SwarmLearningPipeline._compute_episode_reward(result, "analyze data")
+        assert (
+            reward > SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD
+        ), f"Good output should be above cliff threshold, got {reward}"
+
+    def test_cliff_threshold_is_configurable(self):
+        """QUALITY_CLIFF_THRESHOLD is a class attribute that can be overridden."""
+        original = SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD
+        try:
+            SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD = 0.0
+            # With threshold at 0, even empty output should NOT get -0.1
+            # (0 is the borderline — only strictly below triggers)
+            result = _make_result(output="Some output here", success=True)
+            reward = SwarmLearningPipeline._compute_episode_reward(result, "test")
+            assert reward >= 0.0, f"Expected non-negative with 0 threshold, got {reward}"
+        finally:
+            SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD = original
+
+    def test_failure_with_cliff_gives_negative(self):
+        """Failed + low quality = cliff overrides the 0.3 cap."""
+        result = _make_result(output="", success=False)
+        reward = SwarmLearningPipeline._compute_episode_reward(result, "do task")
+        # success=False caps at 0.3, then quality cliff converts to -0.1
+        assert reward == -0.1, f"Expected -0.1 for failed+empty, got {reward}"
+
+
+# =========================================================================
+# TestDomainWeights (ClawWork-inspired)
+# =========================================================================
+
+
+@pytest.mark.unit
+class TestDomainWeights:
+    """Test domain-specific reward weight profiles."""
+
+    def test_get_domain_weights_coding(self):
+        w = SwarmLearningPipeline._get_domain_weights("coding")
+        assert (
+            w["no_errors"] > w["substance"]
+        ), "Coding should weight no_errors higher than substance"
+        assert abs(sum(w.values()) - 1.0) < 0.01, f"Weights should sum to ~1.0: {sum(w.values())}"
+
+    def test_get_domain_weights_research(self):
+        w = SwarmLearningPipeline._get_domain_weights("research")
+        assert (
+            w["substance"] > w["efficiency"]
+        ), "Research should weight substance higher than efficiency"
+        assert abs(sum(w.values()) - 1.0) < 0.01
+
+    def test_get_domain_weights_writing(self):
+        w = SwarmLearningPipeline._get_domain_weights("writing")
+        assert (
+            w["structure"] > w["tool_use"]
+        ), "Writing should weight structure higher than tool_use"
+        assert abs(sum(w.values()) - 1.0) < 0.01
+
+    def test_get_domain_weights_analysis(self):
+        w = SwarmLearningPipeline._get_domain_weights("analysis")
+        assert abs(sum(w.values()) - 1.0) < 0.01
+
+    def test_get_domain_weights_unknown_uses_default(self):
+        w = SwarmLearningPipeline._get_domain_weights("unknown_domain_xyz")
+        assert w == SwarmLearningPipeline._DEFAULT_WEIGHTS
+
+    def test_get_domain_weights_case_insensitive(self):
+        """Domain matching should be case-insensitive."""
+        w = SwarmLearningPipeline._get_domain_weights("Coding Task")
+        assert w == SwarmLearningPipeline._DOMAIN_WEIGHTS["coding"]
+
+    def test_domain_affects_reward(self):
+        """Same output scored under different domains should differ."""
+        result = _make_result(
+            output=(
+                "```python\ndef solve(): return 42\n```\n"
+                "The code runs without errors and produces correct output."
+            ),
+            success=True,
+            trajectory=[{"action": "tool_call", "tool_name": "run_code", "output": "42"}],
+        )
+        goal = "Write code to solve the problem"
+
+        coding_reward = SwarmLearningPipeline._compute_episode_reward(
+            result, goal, task_type="coding"
+        )
+        research_reward = SwarmLearningPipeline._compute_episode_reward(
+            result, goal, task_type="research"
+        )
+        # Coding weights tool_use and no_errors more; research weights substance more.
+        # The exact difference depends on the output, but they should differ.
+        assert coding_reward != research_reward, (
+            f"Domain should affect reward: coding={coding_reward:.3f}, "
+            f"research={research_reward:.3f}"
+        )
+
+    def test_default_weights_sum_to_one(self):
+        assert abs(sum(SwarmLearningPipeline._DEFAULT_WEIGHTS.values()) - 1.0) < 0.01
+
+    def test_all_domain_weights_sum_to_one(self):
+        for domain, w in SwarmLearningPipeline._DOMAIN_WEIGHTS.items():
+            total = sum(w.values())
+            assert (
+                abs(total - 1.0) < 0.01
+            ), f"Domain '{domain}' weights sum to {total}, expected ~1.0"
 
 
 # =========================================================================

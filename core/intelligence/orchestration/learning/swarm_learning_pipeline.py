@@ -662,11 +662,71 @@ class SwarmLearningPipeline:
                 logger.debug(f"Could not auto-save MAS learnings: {e}")
 
     # =========================================================================
-    # REWARD COMPUTATION — continuous signal instead of binary {0, 1}
+    # REWARD COMPUTATION — continuous signal with quality cliff
     # =========================================================================
 
+    # Quality threshold below which reward is replaced with a negative signal.
+    # Inspired by ClawWork: payment only awarded if score >= threshold.
+    # Prevents garbage-in/garbage-out in the learning feedback loop.
+    QUALITY_CLIFF_THRESHOLD = 0.35
+
+    # Domain-specific weight profiles — different task types prioritize
+    # different quality dimensions (inspired by ClawWork's 44-occupation
+    # rubrics with weighted completeness/correctness/quality/domain dims).
+    _DOMAIN_WEIGHTS: Dict[str, Dict[str, float]] = {
+        "coding": {
+            "substance": 0.15,
+            "efficiency": 0.05,
+            "tool_use": 0.20,
+            "structure": 0.15,
+            "no_errors": 0.30,
+            "relevance": 0.15,
+        },
+        "research": {
+            "substance": 0.30,
+            "efficiency": 0.05,
+            "tool_use": 0.15,
+            "structure": 0.15,
+            "no_errors": 0.10,
+            "relevance": 0.25,
+        },
+        "analysis": {
+            "substance": 0.25,
+            "efficiency": 0.05,
+            "tool_use": 0.20,
+            "structure": 0.15,
+            "no_errors": 0.15,
+            "relevance": 0.20,
+        },
+        "writing": {
+            "substance": 0.30,
+            "efficiency": 0.05,
+            "tool_use": 0.05,
+            "structure": 0.25,
+            "no_errors": 0.15,
+            "relevance": 0.20,
+        },
+    }
+    _DEFAULT_WEIGHTS: Dict[str, float] = {
+        "substance": 0.25,
+        "efficiency": 0.10,
+        "tool_use": 0.15,
+        "structure": 0.10,
+        "no_errors": 0.20,
+        "relevance": 0.20,
+    }
+
+    @classmethod
+    def _get_domain_weights(cls, task_type: str) -> Dict[str, float]:
+        """Get domain-specific dimension weights for reward computation."""
+        lower = task_type.lower() if task_type else ""
+        for domain, weights in cls._DOMAIN_WEIGHTS.items():
+            if domain in lower:
+                return weights
+        return cls._DEFAULT_WEIGHTS
+
     @staticmethod
-    def _compute_episode_reward(result: Any, goal: str) -> float:
+    def _compute_episode_reward(result: Any, goal: str, task_type: str = "general") -> float:
         """
         Compute a continuous reward in [0, 1] from the execution result.
 
@@ -674,13 +734,17 @@ class SwarmLearningPipeline:
         and relevance scoring. Each dimension is cheap to compute (no LLM call)
         and provides real gradient information for the learning algorithms.
 
-        Dimensions (weighted average):
-          substance  (0.25): Information density (unique 4-grams ratio)
-          efficiency (0.10): How fast relative to a 120s baseline?
-          tool_use   (0.15): Did tool calls produce useful output?
-          structure  (0.10): Does output have organized structure?
-          no_errors  (0.20): Absence of error indicators in output
-          relevance  (0.20): Does output address the goal?
+        Dimensions (domain-weighted):
+          substance:  Information density (unique 4-grams ratio)
+          efficiency: How fast relative to a 120s baseline?
+          tool_use:   Did tool calls produce useful output?
+          structure:  Does output have organized structure?
+          no_errors:  Absence of error indicators in output
+          relevance:  Does output address the goal?
+
+        Quality cliff: if raw reward < QUALITY_CLIFF_THRESHOLD, the reward
+        is replaced with a negative signal (-0.1) to prevent the learning
+        pipeline from reinforcing low-quality behavior.
 
         The success flag is a floor: if the agent reports failure,
         the max reward is capped at 0.3 (allowing partial credit for
@@ -810,29 +874,40 @@ class SwarmLearningPipeline:
         else:
             relevance = 0.5  # No goal words to check — neutral
 
-        # --- Weighted combination ---
+        # --- Domain-weighted combination ---
+        w = SwarmLearningPipeline._get_domain_weights(task_type)
         reward = (
-            0.25 * substance
-            + 0.10 * efficiency
-            + 0.15 * tool_use
-            + 0.10 * structure
-            + 0.20 * no_errors
-            + 0.20 * relevance
+            w["substance"] * substance
+            + w["efficiency"] * efficiency
+            + w["tool_use"] * tool_use
+            + w["structure"] * structure
+            + w["no_errors"] * no_errors
+            + w["relevance"] * relevance
         )
 
         # Success floor/ceiling: failure caps at 0.3, success has no cap
         if not success:
             reward = min(reward, 0.3)
 
-        # Clamp to [0, 1]
-        reward = max(0.0, min(1.0, reward))
+        # Quality cliff: below threshold → negative signal to prevent
+        # reinforcing garbage output (inspired by ClawWork's 0.6 payment cliff)
+        if reward < SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD:
+            logger.debug(
+                f"Quality cliff triggered: raw={reward:.3f} < "
+                f"threshold={SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD}. "
+                f"Applying negative reward signal."
+            )
+            reward = -0.1
+
+        # Clamp to [-0.1, 1]
+        reward = max(-0.1, min(1.0, reward))
 
         logger.debug(
             f"Episode reward: {reward:.3f} "
             f"(substance={substance:.2f}, efficiency={efficiency:.2f}, "
             f"tool_use={tool_use:.2f}, structure={structure:.2f}, "
             f"no_errors={no_errors:.2f}, relevance={relevance:.2f}, "
-            f"success={success})"
+            f"success={success}, domain={task_type})"
         )
 
         return reward
@@ -936,11 +1011,11 @@ class SwarmLearningPipeline:
         - Individual JSON-based stores (backward-compatible, per-component)
         """
         self.episode_count += 1
-        episode_reward = self._compute_episode_reward(result, goal)
         try:
             task_type = self.transfer_learning.extractor.extract_task_type(goal)
         except Exception:
             task_type = "general"
+        episode_reward = self._compute_episode_reward(result, goal, task_type=task_type)
         agent_name = getattr(result, "agent_name", agents[0].name if agents else "unknown")
         execution_time = getattr(result, "execution_time", 0.0)
 

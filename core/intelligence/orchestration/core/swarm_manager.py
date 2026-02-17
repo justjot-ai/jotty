@@ -2893,11 +2893,25 @@ class Orchestrator:
             except Exception as e:
                 logger.debug(f"Pre-execution learning guidance failed: {e}")
 
+        # ── PRE-EXECUTION: inject budget awareness (ClawWork-inspired) ──
+        # Agents that see their own cost/budget self-regulate token usage.
+        try:
+            from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
+
+            budget = BudgetTracker.get_instance()
+            budget_ctx = budget.get_economic_context()
+            if budget_ctx:
+                kwargs.setdefault("learning_context", "")
+                kwargs["learning_context"] += "\n" + budget_ctx
+        except Exception as e:
+            logger.debug(f"Budget context injection skipped: {e}")
+
         execution_mode = (
             "pipeline" if stages else "swarm" if swarm else "agent" if agent else "auto"
         )
 
         # ── EXECUTION: route to the appropriate path ──
+        result = None
         if stages is not None:
             result = await self._run_pipeline(
                 goal, stages=stages, status_callback=status_callback, **kwargs
@@ -2916,6 +2930,10 @@ class Orchestrator:
         else:
             kwargs["status_callback"] = status_callback
             result = await self._ensure_engine().run(goal, **kwargs)
+
+        # ── RECOVERY: salvage partial results on failure (ClawWork wrap-up inspired) ──
+        if result and isinstance(result, EpisodeResult) and not result.success:
+            result = self._attempt_recovery(result, goal)
 
         # ── POST-EXECUTION: learning (fire-and-forget, never blocks result) ──
         if learn:
@@ -3452,6 +3470,79 @@ class Orchestrator:
         return self._agent_factory.create_zero_config_agents(task, status_callback)
 
     # _should_auto_ensemble — see _ensemble_mixin.py
+
+    # =========================================================================
+    # RECOVERY — ClawWork-inspired wrap-up on failure
+    # =========================================================================
+
+    def _attempt_recovery(self, result: EpisodeResult, goal: str) -> EpisodeResult:
+        """
+        Attempt to salvage partial results from a failed execution.
+
+        Inspired by ClawWork's wrap-up workflow: when an agent fails to
+        complete within its iteration budget, a secondary pass extracts
+        whatever partial work was produced (trajectory outputs, tagged
+        outputs) and surfaces it as a degraded-but-usable result instead
+        of a hard failure.
+
+        This method is synchronous and cheap — no LLM calls. It inspects
+        the trajectory and tagged_outputs for any salvageable content.
+
+        Args:
+            result: The failed EpisodeResult
+            goal: Original goal string
+
+        Returns:
+            The same EpisodeResult, possibly with output updated to include
+            salvaged partial content. success remains False.
+        """
+        try:
+            existing_output = str(result.output or "")
+
+            # Already has substantial output — nothing to recover
+            if len(existing_output) > 100:
+                return result
+
+            # Collect partial outputs from trajectory steps
+            partial_fragments = []
+            for step in result.trajectory or []:
+                if not isinstance(step, dict):
+                    continue
+                for key in ("output", "result", "content"):
+                    fragment = step.get(key)
+                    if fragment and len(str(fragment)) > 20:
+                        partial_fragments.append(str(fragment))
+
+            # Collect from tagged outputs
+            for tagged in result.tagged_outputs or []:
+                content = getattr(tagged, "content", None)
+                if content and len(str(content)) > 20:
+                    partial_fragments.append(str(content))
+
+            if not partial_fragments:
+                return result
+
+            # Build salvaged output
+            salvaged = "[Partial result — execution did not fully succeed]\n\n"
+            salvaged += "\n---\n".join(partial_fragments[:5])  # Cap at 5 fragments
+
+            # Update output with salvaged content
+            if existing_output:
+                result.output = existing_output + "\n\n" + salvaged
+            else:
+                result.output = salvaged
+
+            result.alerts = list(result.alerts or [])
+            result.alerts.append(f"Recovery: salvaged {len(partial_fragments)} partial fragments")
+
+            logger.info(
+                f"Recovery salvaged {len(partial_fragments)} fragments "
+                f"from failed execution of: {goal[:80]}"
+            )
+        except Exception as e:
+            logger.debug(f"Recovery attempt failed (non-fatal): {e}")
+
+        return result
 
     def _post_episode_learning(self, result: EpisodeResult, goal: str) -> Any:
         """Delegate to SwarmLearningPipeline + update intelligence metrics."""

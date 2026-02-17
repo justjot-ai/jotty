@@ -20,6 +20,7 @@ from Jotty.core.infrastructure.utils.budget_tracker import (
     BudgetConfig,
     BudgetExceededError,
     BudgetScope,
+    BudgetStatus,
     BudgetTracker,
     BudgetUsage,
     get_budget_tracker,
@@ -1586,3 +1587,234 @@ class TestSerialization:
         assert d["calls"] == 10
         assert d["total_tokens"] == 7000
         assert d["estimated_cost_usd"] == 0.11
+
+
+# =============================================================================
+# ClawWork-Inspired: Per-Task Cost Tracking Tests
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestTaskCostTracking:
+    """Tests for per-task cost attribution (ClawWork-inspired)."""
+
+    @pytest.fixture(autouse=True)
+    def tracker(self):
+        """Fresh BudgetTracker for each test."""
+        BudgetTracker.reset_instances()
+        return BudgetTracker(config=BudgetConfig())
+
+    def test_start_and_end_task(self, tracker):
+        """start_task/end_task lifecycle returns cost summary."""
+        tracker.start_task("task-1")
+        tracker.record_call("agent", tokens_input=100, tokens_output=50)
+        summary = tracker.end_task()
+
+        assert summary is not None
+        assert summary["task_id"] == "task-1"
+        assert summary["calls"] == 1
+        assert summary["tokens_input"] == 100
+        assert summary["tokens_output"] == 50
+
+    def test_end_task_without_start_returns_none(self, tracker):
+        """Ending a task without starting returns None."""
+        assert tracker.end_task() is None
+
+    def test_task_costs_isolated(self, tracker):
+        """Each task tracks its own costs independently."""
+        tracker.start_task("task-a")
+        tracker.record_call("agent", tokens_input=100, tokens_output=50)
+        tracker.end_task()
+
+        tracker.start_task("task-b")
+        tracker.record_call("agent", tokens_input=200, tokens_output=100)
+        tracker.end_task()
+
+        costs_a = tracker.get_task_costs("task-a")
+        costs_b = tracker.get_task_costs("task-b")
+        assert costs_a["calls"] == 1
+        assert costs_b["calls"] == 1
+        assert costs_b["tokens_input"] == 200
+
+    def test_get_task_costs_unknown_task(self, tracker):
+        """Unknown task returns zero costs."""
+        costs = tracker.get_task_costs("nonexistent")
+        assert costs["calls"] == 0
+        assert costs["estimated_cost_usd"] == 0.0
+
+    def test_explicit_task_id_in_record_call(self, tracker):
+        """record_call with explicit task_id attributes to that task."""
+        tracker.record_call("agent", tokens_input=100, tokens_output=50, task_id="explicit-task")
+        costs = tracker.get_task_costs("explicit-task")
+        assert costs["calls"] == 1
+
+    def test_explicit_task_id_overrides_current(self, tracker):
+        """Explicit task_id in record_call takes priority over current task."""
+        tracker.start_task("current-task")
+        tracker.record_call("agent", tokens_input=100, tokens_output=50, task_id="other-task")
+        tracker.end_task()
+
+        current_costs = tracker.get_task_costs("current-task")
+        other_costs = tracker.get_task_costs("other-task")
+        assert current_costs["calls"] == 0
+        assert other_costs["calls"] == 1
+
+    def test_multiple_calls_accumulate(self, tracker):
+        """Multiple calls within a task accumulate correctly."""
+        tracker.start_task("multi")
+        for _ in range(5):
+            tracker.record_call("agent", tokens_input=100, tokens_output=50)
+        summary = tracker.end_task()
+
+        assert summary["calls"] == 5
+        assert summary["tokens_input"] == 500
+        assert summary["tokens_output"] == 250
+
+
+# =============================================================================
+# ClawWork-Inspired: Economic Context Tests
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestEconomicContext:
+    """Tests for get_economic_context() cost-awareness string."""
+
+    @pytest.fixture(autouse=True)
+    def tracker(self):
+        BudgetTracker.reset_instances()
+        return BudgetTracker(config=BudgetConfig())
+
+    def test_fresh_tracker_shows_zero_usage(self, tracker):
+        """Fresh tracker should show 0 calls, 0 tokens."""
+        ctx = tracker.get_economic_context()
+        assert "[Budget]" in ctx
+        assert "0 calls" in ctx
+        assert "0 tokens" in ctx
+
+    def test_after_calls_shows_usage(self, tracker):
+        """After recording calls, context reflects usage."""
+        tracker.record_call("agent", tokens_input=1000, tokens_output=500)
+        ctx = tracker.get_economic_context()
+        assert "1 calls" in ctx
+        assert "1500 tokens" in ctx
+
+    def test_constrained_warning_appears(self, tracker):
+        """At 80%+ usage, CONSTRAINED warning appears."""
+        config = BudgetConfig(
+            max_llm_calls_per_episode=10,
+            max_llm_calls_per_agent=10000,
+            enable_enforcement=False,
+        )
+        bt = BudgetTracker(config=config)
+        for _ in range(9):
+            bt.record_call("agent", tokens_input=10, tokens_output=5)
+        ctx = bt.get_economic_context()
+        assert "CONSTRAINED" in ctx
+
+    def test_critical_warning_appears(self, tracker):
+        """At 95%+ usage, CRITICAL warning appears."""
+        config = BudgetConfig(
+            max_llm_calls_per_episode=100,
+            max_llm_calls_per_agent=10000,
+            enable_enforcement=False,
+        )
+        bt = BudgetTracker(config=config)
+        for _ in range(96):
+            bt.record_call("agent", tokens_input=10, tokens_output=5)
+        ctx = bt.get_economic_context()
+        assert "CRITICAL" in ctx
+
+    def test_includes_status_tier(self, tracker):
+        """Context string includes the survival status tier."""
+        ctx = tracker.get_economic_context()
+        assert "abundant" in ctx.lower() or "Status:" in ctx
+
+    def test_cost_limit_shown_when_set(self):
+        """When max_cost_per_episode is set, remaining cost is shown."""
+        config = BudgetConfig(max_cost_per_episode=1.0)
+        bt = BudgetTracker(config=config)
+        ctx = bt.get_economic_context()
+        assert "Cost limit:" in ctx
+
+
+# =============================================================================
+# ClawWork-Inspired: Survival Status Tiers Tests
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestBudgetStatus:
+    """Tests for BudgetStatus enum and get_budget_status()."""
+
+    def test_status_enum_values(self):
+        assert BudgetStatus.ABUNDANT.value == "abundant"
+        assert BudgetStatus.NORMAL.value == "normal"
+        assert BudgetStatus.CONSTRAINED.value == "constrained"
+        assert BudgetStatus.CRITICAL.value == "critical"
+
+    def test_fresh_tracker_is_abundant(self):
+        BudgetTracker.reset_instances()
+        bt = BudgetTracker(config=BudgetConfig())
+        assert bt.get_budget_status() == BudgetStatus.ABUNDANT
+
+    def test_half_used_is_normal(self):
+        config = BudgetConfig(
+            max_llm_calls_per_episode=100,
+            max_llm_calls_per_agent=10000,
+            enable_enforcement=False,
+        )
+        bt = BudgetTracker(config=config)
+        for _ in range(55):
+            bt.record_call("agent", tokens_input=10, tokens_output=5)
+        assert bt.get_budget_status() == BudgetStatus.NORMAL
+
+    def test_80_pct_is_constrained(self):
+        config = BudgetConfig(
+            max_llm_calls_per_episode=100,
+            max_llm_calls_per_agent=10000,
+            enable_enforcement=False,
+        )
+        bt = BudgetTracker(config=config)
+        for _ in range(85):
+            bt.record_call("agent", tokens_input=10, tokens_output=5)
+        assert bt.get_budget_status() == BudgetStatus.CONSTRAINED
+
+    def test_95_pct_is_critical(self):
+        config = BudgetConfig(
+            max_llm_calls_per_episode=100,
+            max_llm_calls_per_agent=10000,
+            enable_enforcement=False,
+        )
+        bt = BudgetTracker(config=config)
+        for _ in range(96):
+            bt.record_call("agent", tokens_input=10, tokens_output=5)
+        assert bt.get_budget_status() == BudgetStatus.CRITICAL
+
+    def test_cost_ratio_affects_status(self):
+        """Cost ratio should also influence status when cost limit is set."""
+        config = BudgetConfig(
+            max_llm_calls_per_episode=10000,
+            max_llm_calls_per_agent=10000,
+            max_total_tokens_per_episode=10000000,
+            max_cost_per_episode=0.10,
+            enable_enforcement=False,
+        )
+        bt = BudgetTracker(config=config)
+        # Each call: (100/1000)*0.01 + (50/1000)*0.03 = 0.001 + 0.0015 = 0.0025
+        for _ in range(40):  # 40 * 0.0025 = 0.10 → 100% of $0.10
+            bt.record_call("agent", tokens_input=100, tokens_output=50)
+        assert bt.get_budget_status() == BudgetStatus.CRITICAL
+
+    def test_token_ratio_affects_status(self):
+        """Token ratio should influence status even with few calls."""
+        config = BudgetConfig(
+            max_llm_calls_per_episode=10000,
+            max_llm_calls_per_agent=10000,
+            max_total_tokens_per_episode=1000,
+            enable_enforcement=False,
+        )
+        bt = BudgetTracker(config=config)
+        bt.record_call("agent", tokens_input=500, tokens_output=460)
+        # 960/1000 = 96% → CRITICAL
+        assert bt.get_budget_status() == BudgetStatus.CRITICAL
