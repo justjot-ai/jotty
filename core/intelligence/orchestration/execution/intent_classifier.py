@@ -265,7 +265,7 @@ Think carefully about the core intent, not just keywords."""
         if any(op in task for op in ["+", "-", "*", "/", "="]) or any(
             word in task_lower for word in ["calculate", "compute", "sum", "multiply", "divide"]
         ):
-            tools.append("calculator")
+            tools.append("math-toolkit")
 
         # Web search patterns
         if any(

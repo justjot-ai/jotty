@@ -263,7 +263,7 @@ class SkillPlanExecutor:
             "invoke",
             "launch",
         },
-        "calculator": {
+        "math-toolkit": {
             "calculate",
             "compute",
             "math",
@@ -723,7 +723,7 @@ class SkillPlanExecutor:
         # Detect this and replace with the step description which contains
         # the actual math intent.
         if (
-            step.skill_name == "calculator"
+            step.skill_name == "math-toolkit"
             and step.tool_name in ("calculate_tool",)
             and "expression" in resolved_params
         ):
@@ -873,7 +873,7 @@ class SkillPlanExecutor:
                 resolved_params["_dependency_results"] = json.dumps(dep_results, default=str)
 
         # Log resolved params for debugging (especially file paths)
-        if resolved_params and step.skill_name in ("file-operations", "shell-exec", "calculator"):
+        if resolved_params and step.skill_name in ("file-operations", "shell-exec", "math-toolkit"):
             _param_preview = {
                 k: (str(v)[:80] + "..." if len(str(v)) > 80 else str(v))
                 for k, v in resolved_params.items()

@@ -225,6 +225,9 @@ skill_types:
     - arxiv-downloader
     - browser-automation
     - claude-cli-llm
+    - data-format-toolkit
+    - dev-generator-toolkit
+    - encoding-toolkit
     - database-tools
     - discord
     - document-converter
@@ -238,6 +241,7 @@ skill_types:
     - image-generator
     - internal-comms
     - latex-generator
+    - math-toolkit
     - mindmap-generator
     - notion
     - obsidian
@@ -255,6 +259,7 @@ skill_types:
     - telegram-sender
     - terminal-session
     - text-chunker
+    - text-toolkit
     - text-utils
     - time-converter
     - trello
@@ -271,6 +276,7 @@ skill_types:
     - data-validator
     - mcp-justjot
     - n8n-workflows
+    - network-toolkit
 
   derived:
     - name: auto-sklearn
@@ -504,86 +510,3 @@ skill_metadata:
   spotify:
     requires_auth: true
     env_vars: [SPOTIFY_ACCESS_TOKEN]
-
-# =============================================================================
-# DEPRECATION MAP (v2.0)
-# =============================================================================
-# Skills listed below are superseded by consolidated toolkits.
-# They remain loadable for backward compatibility but should not be used
-# in new development. The registry resolves old skill names to toolkit tools.
-
-deprecated:
-  # Replaced by math-toolkit
-  calculator: {replaced_by: math-toolkit, tool_map: {calculate_tool: calculate_tool, convert_units_tool: convert_units_tool}}
-  unit-converter: {replaced_by: math-toolkit, tool_map: {convert_unit_tool: convert_units_tool}}
-  bmi-calculator: {replaced_by: math-toolkit, tool_map: {bmi_tool: bmi_tool}}
-  tip-calculator: {replaced_by: math-toolkit, tool_map: {tip_tool: tip_tool}}
-  mortgage-calculator: {replaced_by: math-toolkit, tool_map: {mortgage_tool: mortgage_tool}}
-  loan-amortization-calculator: {replaced_by: math-toolkit, tool_map: {amortization_schedule_tool: amortization_schedule_tool}}
-  statistics-calculator: {replaced_by: math-toolkit, tool_map: {statistics_tool: statistics_tool}}
-  number-base-converter: {replaced_by: math-toolkit, tool_map: {convert_base_tool: convert_number_base_tool}}
-  binary-converter: {replaced_by: math-toolkit, tool_map: {binary_tool: convert_number_base_tool}}
-  roman-numeral-converter: {replaced_by: math-toolkit, tool_map: {roman_tool: roman_numeral_tool}}
-
-  # Replaced by encoding-toolkit
-  base64-encoder: {replaced_by: encoding-toolkit, tool_map: {base64_encode_tool: base64_encode_tool, base64_decode_tool: base64_decode_tool}}
-  hash-calculator: {replaced_by: encoding-toolkit, tool_map: {hash_tool: hash_tool, verify_hash_tool: verify_hash_tool}}
-  jwt-decoder: {replaced_by: encoding-toolkit, tool_map: {decode_jwt_tool: decode_jwt_tool}}
-  password-generator: {replaced_by: encoding-toolkit, tool_map: {generate_password_tool: generate_password_tool, generate_passphrase_tool: generate_passphrase_tool}}
-  uuid-generator: {replaced_by: encoding-toolkit, tool_map: {generate_uuid_tool: generate_uuid_tool, generate_ulid_tool: generate_ulid_tool}}
-  checksum-verifier: {replaced_by: encoding-toolkit, tool_map: {checksum_tool: verify_hash_tool}}
-  encryption-tool: {replaced_by: encoding-toolkit, tool_map: {encryption_tool: encryption_tool}}
-
-  # Replaced by network-toolkit
-  dns-lookup: {replaced_by: network-toolkit, tool_map: {dns_lookup_tool: dns_lookup_tool, dns_all_records_tool: dns_all_records_tool}}
-  ip-lookup: {replaced_by: network-toolkit, tool_map: {ip_lookup_tool: ip_lookup_tool}}
-  port-scanner: {replaced_by: network-toolkit, tool_map: {scan_ports: scan_ports_tool}}
-  ssl-certificate-checker: {replaced_by: network-toolkit, tool_map: {check_ssl_tool: check_ssl_tool}}
-  url-parser: {replaced_by: network-toolkit, tool_map: {parse_url_tool: parse_url_tool, build_url_tool: build_url_tool, url_encode_tool: url_encode_tool}}
-  http-status-lookup: {replaced_by: network-toolkit}
-
-  # Replaced by text-toolkit
-  string-case-converter: {replaced_by: text-toolkit, tool_map: {convert_case_tool: convert_case_tool}}
-  slug-generator: {replaced_by: text-toolkit, tool_map: {slugify_tool: slugify_tool}}
-  text-statistics: {replaced_by: text-toolkit, tool_map: {analyze_text_tool: analyze_text_tool}}
-  word-frequency-analyzer: {replaced_by: text-toolkit, tool_map: {word_frequency_tool: word_frequency_tool}}
-  regex-tester: {replaced_by: text-toolkit, tool_map: {regex_match_tool: regex_match_tool, regex_replace_tool: regex_replace_tool, regex_split_tool: regex_split_tool}}
-  regex-builder: {replaced_by: text-toolkit}
-  color-converter: {replaced_by: text-toolkit, tool_map: {color_convert_tool: color_convert_tool}}
-  lorem-ipsum-generator: {replaced_by: text-toolkit}
-
-  # Replaced by dev-generator-toolkit
-  dockerfile-generator: {replaced_by: dev-generator-toolkit, tool_map: {generate_dockerfile_tool: generate_dockerfile_tool}}
-  nginx-config-generator: {replaced_by: dev-generator-toolkit, tool_map: {generate_nginx_config_tool: generate_nginx_config_tool}}
-  ci-cd-pipeline-builder: {replaced_by: dev-generator-toolkit, tool_map: {generate_ci_cd_tool: generate_ci_cd_tool}}
-  gitignore-generator: {replaced_by: dev-generator-toolkit, tool_map: {generate_gitignore_tool: generate_gitignore_tool}}
-  readme-generator: {replaced_by: dev-generator-toolkit, tool_map: {generate_readme_tool: generate_readme_tool}}
-  license-generator: {replaced_by: dev-generator-toolkit, tool_map: {generate_license_tool: generate_license_tool}}
-  robots-txt-generator: {replaced_by: dev-generator-toolkit}
-  sitemap-generator: {replaced_by: dev-generator-toolkit}
-  api-docs-generator: {replaced_by: dev-generator-toolkit}
-  env-config-manager: {replaced_by: dev-generator-toolkit, tool_map: {generate_env_template_tool: generate_env_template_tool}}
-  db-seed-generator: {replaced_by: dev-generator-toolkit}
-
-  # Replaced by data-format-toolkit
-  csv-to-json: {replaced_by: data-format-toolkit, tool_map: {csv_to_json_tool: csv_to_json_tool}}
-  json-transformer: {replaced_by: data-format-toolkit}
-  toml-parser: {replaced_by: data-format-toolkit, tool_map: {toml_parse_tool: toml_parse_tool}}
-  yaml-validator: {replaced_by: data-format-toolkit, tool_map: {yaml_validate_tool: yaml_validate_tool}}
-  csv-analyzer: {replaced_by: data-format-toolkit}
-  json-diff: {replaced_by: data-format-toolkit, tool_map: {json_diff_tool: json_diff_tool}}
-  markdown-to-html: {replaced_by: data-format-toolkit, tool_map: {markdown_to_html_tool: markdown_to_html_tool}}
-  markdown-table-generator: {replaced_by: data-format-toolkit, tool_map: {markdown_table_tool: markdown_table_tool}}
-  html-table-generator: {replaced_by: data-format-toolkit, tool_map: {html_table_tool: html_table_tool}}
-
-  # Trivial skills (LLM handles natively - marked for removal)
-  palindrome-checker: {status: trivial, reason: "LLMs can check palindromes natively"}
-  fibonacci-generator: {status: trivial, reason: "LLMs can generate Fibonacci sequences natively"}
-  prime-number-tool: {status: trivial, reason: "LLMs can determine primality natively"}
-  nato-phonetic-alphabet: {status: trivial, reason: "LLMs know the NATO alphabet"}
-  morse-code-translator: {status: trivial, reason: "LLMs know Morse code"}
-  ascii-art-generator: {status: trivial, reason: "LLMs generate ASCII art natively"}
-  emoji-lookup: {status: trivial, reason: "LLMs know emoji codes"}
-  countdown-timer: {status: trivial, reason: "Not useful as an async tool"}
-  pomodoro-timer: {status: trivial, reason: "Not useful as an async tool"}
-  sorting-visualizer: {status: trivial, reason: "LLMs explain sorting algorithms natively"}

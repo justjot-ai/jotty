@@ -10,7 +10,7 @@ Usage:
     composer = PromptComposer(model="claude-sonnet-4-20250514")
     prompt = composer.compose(
         identity="You are a research agent specializing in finance.",
-        tools=["web-search", "calculator"],
+        tools=["web-search", "math-toolkit"],
         learning_context=["Past success: used web-search for stock data"],
         constraints=["Never invent data. Always cite sources."],
         task="Research current S&P 500 trends",

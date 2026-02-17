@@ -903,7 +903,7 @@ class TierExecutor:
                 "browser-automation",  # Form filling, JS execution, table extraction
                 "document-converter",  # PDF/doc conversion
                 "pdf-tools",  # Advanced PDF parsing and text extraction
-                "calculator",  # Mathematical calculations
+                "math-toolkit",  # Mathematical calculations
                 "file-operations",  # File I/O
                 "openai-whisper-api",  # Audio transcription for tasks with .mp3
                 "youtube-downloader",  # YouTube transcript download for video tasks (CORRECT NAME!)

@@ -592,7 +592,7 @@ class SkillsRegistry:
     _TOP_SKILLS = [
         "web-search",
         "claude-cli-llm",
-        "calculator",
+        "math-toolkit",
         "file-operations",
         "document-converter",
     ]
@@ -1837,12 +1837,6 @@ class SkillsRegistry:
             if not skill.is_available(task_context):
                 continue
 
-            # Suppress deprecated skills when their toolkit is available
-            if self.is_deprecated(skill.name) and self.loaded_skills.get(
-                self._TOOLKIT_ALIASES.get(skill.name, "")
-            ):
-                continue
-
             name_lower = skill.name.lower()
             desc_lower = (skill.description or "").lower()
 
@@ -1891,11 +1885,6 @@ class SkillsRegistry:
                     score += 1
                 elif skill.skill_type == SkillType.DERIVED:
                     score += 1
-
-                # Toolkit boost: consolidated toolkits get a relevance edge
-                # because they contain more tools and are the canonical source
-                if skill.name.endswith("-toolkit"):
-                    score += 2
 
                 scored.append((score, skill))
             else:

@@ -487,11 +487,11 @@ Filename: {filename}
                 "claude-cli-llm",
                 "arxiv-downloader",
             ],
-            TaskType.COMPARISON: ["web-search", "claude-cli-llm", "calculator"],
+            TaskType.COMPARISON: ["web-search", "claude-cli-llm", "math-toolkit"],
             TaskType.CREATION: ["claude-cli-llm", "file-operations", "docx-tools", "text-utils"],
             TaskType.ANALYSIS: [
                 "claude-cli-llm",
-                "calculator",
+                "math-toolkit",
                 "web-search",
             ],  # claude-cli-llm first for general analysis
             TaskType.COMMUNICATION: ["claude-cli-llm", "http-client"],
@@ -499,13 +499,13 @@ Filename: {filename}
             TaskType.UNKNOWN: [
                 "claude-cli-llm",
                 "web-search",
-                "calculator",
+                "math-toolkit",
             ],  # Default fallback for unknown
         }
 
         # Get priority list for this task type (claude-cli-llm is always a safe fallback)
         priority_skills = priority_map.get(
-            task_type, ["claude-cli-llm", "web-search", "calculator"]
+            task_type, ["claude-cli-llm", "web-search", "math-toolkit"]
         )
 
         # Sort skills: originally selected skills FIRST, then priority skills

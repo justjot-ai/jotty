@@ -342,7 +342,7 @@ class SkillSelectionMixin:
             return matched[:max_skills], f"Keyword fallback: {matched}"
 
         # Last resort
-        for preferred in ["claude-cli-llm", "calculator", "web-search"]:
+        for preferred in ["claude-cli-llm", "math-toolkit", "web-search"]:
             if preferred in available_names:
                 return [preferred], f"Fallback: {preferred}"
 

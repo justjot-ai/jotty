@@ -1165,7 +1165,7 @@ class SkillQTable:
 
     Usage:
         q = SkillQTable()
-        best = q.select("research", ["web-search", "calculator", "pdf-gen"])
+        best = q.select("research", ["web-search", "math-toolkit", "pdf-gen"])
         # ... execute skill ...
         q.update("research", "web-search", reward=0.9)
     """

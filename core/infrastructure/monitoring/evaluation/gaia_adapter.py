@@ -225,7 +225,7 @@ def _required_skills_for_gaia(question: str, attachment_paths: list) -> list:
             "subtract",
         ]
     ):
-        skills.append("calculator")
+        skills.append("math-toolkit")
 
     # YouTube transcript for video questions (CRITICAL for narrated content!)
     if any(

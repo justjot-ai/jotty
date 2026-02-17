@@ -557,10 +557,10 @@ class AutonomousAgent(BaseAgent):
         _KNOWLEDGE_USEFUL = {
             "claude-cli-llm",
             "file-operations",
-            "calculator",
+            "math-toolkit",
             "text-utils",
             "shell-exec",
-            "unit-converter",
+            "text-toolkit",
         }
 
         task_lower = task.lower()
@@ -641,8 +641,8 @@ class AutonomousAgent(BaseAgent):
         skill_names = {s["name"] for s in skills}
         _direct_llm_only = {
             "claude-cli-llm",
-            "calculator",
-            "unit-converter",
+            "math-toolkit",
+            "text-toolkit",
             "text-utils",
             "file-operations",
             "shell-exec",

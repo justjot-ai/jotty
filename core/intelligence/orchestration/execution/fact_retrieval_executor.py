@@ -259,7 +259,7 @@ Analysis:"""
         if any(op in question for op in ["+", "-", "*", "/", "="]) or any(
             word in q_lower for word in ["calculate", "compute", "sum", "multiply", "divide"]
         ):
-            tools.append("calculator")
+            tools.append("math-toolkit")
 
         # Web search
         if any(
@@ -306,10 +306,10 @@ Analysis:"""
             "document_reader": "document-converter",
             "doc_reader": "document-converter",
             "pdf": "document-converter",
-            # Calculator
-            "calculator": "calculator",
-            "calc": "calculator",
-            "math": "calculator",
+            # Math toolkit
+            "calculator": "math-toolkit",
+            "calc": "math-toolkit",
+            "math": "math-toolkit",
             # Vision/OCR
             "vision": "image-generator",  # Check if there's a vision skill
             "image": "image-generator",
