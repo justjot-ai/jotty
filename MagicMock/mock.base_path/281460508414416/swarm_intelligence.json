@@ -1,0 +1,38 @@
+{
+  "agent_profiles": {},
+  "collective_memory": [],
+  "stigmergy": {
+    "signals": {},
+    "decay_rate": 0.1
+  },
+  "benchmarks": {
+    "single_agent_runs": {},
+    "multi_agent_runs": {},
+    "communication_events": [],
+    "cooperation_events": [],
+    "iteration_history": []
+  },
+  "curriculum": {
+    "difficulty_by_type": {},
+    "total_generated": 0,
+    "tasks_by_difficulty": {},
+    "tool_success_rates": {},
+    "feedback_history": []
+  },
+  "morph_score_history": [],
+  "tool_manager": {
+    "tool_assignments": {},
+    "deactivated_tools": {},
+    "tool_registry": {}
+  },
+  "byzantine": {
+    "claim_history": [],
+    "verified_count": 0,
+    "inconsistent_count": 0
+  },
+  "circuit_breakers": {},
+  "consensus_history": [],
+  "handoff_history": [],
+  "tree_built": false,
+  "priority_queue": []
+}
