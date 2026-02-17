@@ -1,5 +1,4 @@
 ---
-name: formatting-transcripts
 description: "Clean raw transcripts with speaker labels, timestamps, and paragraph breaks. Use when the user wants to clean transcript, format transcript, add speaker labels."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: generating-qr-codes
 description: "Generate QR codes as SVG or ASCII art from text or URLs. Pure Python, no external deps. Use when the user wants to generate QR code, create QR."
 ---
 

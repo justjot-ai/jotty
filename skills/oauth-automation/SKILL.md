@@ -1,5 +1,4 @@
 ---
-name: automating-oauth
 description: "This skill automates OAuth authentication flows using browser automation. It can handle: - Google OAuth (used by NotebookLM) - Custom OAuth providers - Credential storage and management - Headless/Docker environments. Use when the user wants to oauth, authentication, authorize."
 ---
 

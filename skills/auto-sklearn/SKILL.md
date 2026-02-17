@@ -1,5 +1,4 @@
 ---
-name: running-auto-sklearn
 description: "**Description:** AutoML using auto-sklearn with ensemble selection."
 ---
 

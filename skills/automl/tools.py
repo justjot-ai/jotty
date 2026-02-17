@@ -28,7 +28,7 @@ status = SkillStatus("automl")
 
 
 @async_tool_wrapper()
-async def automl_train(params: Dict[str, Any]) -> Dict[str, Any]:
+async def automl_train_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Train ML model using AutoML (AutoGluon or FLAML).
 
@@ -98,7 +98,7 @@ async def automl_train(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @async_tool_wrapper()
-async def hyperparameter_optimize(params: Dict[str, Any]) -> Dict[str, Any]:
+async def hyperparameter_optimize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Optimize hyperparameters using Optuna/Hyperopt.
 
@@ -150,7 +150,7 @@ async def hyperparameter_optimize(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @async_tool_wrapper()
-async def backtest_strategy(params: Dict[str, Any]) -> Dict[str, Any]:
+async def backtest_strategy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Backtest trading strategy with ML predictions.
 
@@ -205,7 +205,7 @@ async def backtest_strategy(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @async_tool_wrapper()
-async def feature_engineering(params: Dict[str, Any]) -> Dict[str, Any]:
+async def feature_engineering_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Automated feature engineering and selection.
 
@@ -263,8 +263,8 @@ async def feature_engineering(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = [
-    "automl_train",
-    "hyperparameter_optimize",
-    "backtest_strategy",
-    "feature_engineering",
+    "automl_train_tool",
+    "hyperparameter_optimize_tool",
+    "backtest_strategy_tool",
+    "feature_engineering_tool",
 ]

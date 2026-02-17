@@ -1,5 +1,4 @@
 ---
-name: managing-files
 description: "Provides essential file system operations: read, write, list directories, create/delete files and directories, search files, and get file metadata. Use when the user wants to read file, write file, create file."
 ---
 

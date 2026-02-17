@@ -1,5 +1,4 @@
 ---
-name: sending-commodities-to-telegram
 description: "Fetches latest commodities prices from investing.com and sends to Telegram. Use when the user wants to send to telegram, telegram message, notify via telegram."
 ---
 

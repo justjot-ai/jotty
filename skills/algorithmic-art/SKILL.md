@@ -1,5 +1,4 @@
 ---
-name: creating-algorithmic-art
 description: "Generative art toolkit using Pillow and numpy for creating various types of algorithmic and procedural art including noise-based images, flow fields, geometric patterns, fractals, and landscapes. Also includes artistic filters to transform existing images."
 ---
 

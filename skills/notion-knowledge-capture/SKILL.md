@@ -1,5 +1,4 @@
 ---
-name: capturing-notion-knowledge
 description: "This skill captures insights, decisions, and knowledge from chat context, formats them appropriately, and saves to Notion wikis or databases with proper organization and linking for easy discovery. Use when the user wants to save to notion, notion page, create notion."
 ---
 

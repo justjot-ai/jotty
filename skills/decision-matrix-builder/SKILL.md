@@ -1,5 +1,4 @@
 ---
-name: building-decision-matrices
 description: "Build weighted decision matrices to compare options across multiple criteria. Use when the user wants to compare options, decision matrix, weighted scoring, pros cons."
 ---
 

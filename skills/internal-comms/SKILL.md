@@ -1,5 +1,4 @@
 ---
-name: managing-internal-comms
 description: "This skill provides templates and guidelines for writing various types of internal communications including 3P updates (Progress/Plans/Problems), company newsletters, FAQs, status reports, leadership updates, project updates, and incident reports."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: generating-openai-images
 description: "Generate, edit, and create variations of images using OpenAI's DALL-E API. Uses DALL-E 3 for generation and DALL-E 2 for editing and variations. Use when the user wants to generate image, create image, image."
 ---
 

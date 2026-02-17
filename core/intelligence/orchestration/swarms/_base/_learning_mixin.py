@@ -346,6 +346,25 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 task_type=task_type,
             )
 
+            # 3b. Feed tool execution data to learning system
+            try:
+                from Jotty.core.infrastructure.integration.tool_execution_guard import (
+                    get_tool_execution_guard,
+                )
+                from Jotty.core.intelligence.learning.tool_learning import (
+                    get_tool_learning_feedback,
+                )
+
+                guard = get_tool_execution_guard()
+                feedback = get_tool_learning_feedback()
+                for _interceptor in guard.interceptor_registry._interceptors.values():
+                    if _interceptor.get_all_calls():
+                        feedback.feed_from_interceptor(_interceptor)
+                # Clear after feeding to avoid double-counting
+                guard.interceptor_registry.clear_all()
+            except Exception as e:
+                logger.debug(f"Tool learning feedback skipped: {e}")
+
             # 4. Evaluate output against gold standard (centralized for all swarms)
             evaluation = None
             if success and output_data and self.config.enable_self_improvement:  # type: ignore[attr-defined]

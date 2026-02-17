@@ -1,5 +1,4 @@
 ---
-name: creating-themes
 description: "This skill provides a curated collection of professional themes with carefully selected color palettes and font pairings. Each theme includes cohesive colors and complementary fonts suitable for different contexts and audiences."
 ---
 

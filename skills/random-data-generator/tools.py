@@ -86,7 +86,7 @@ def _address() -> Dict[str, str]:
 
 
 @tool_wrapper(required_params=["type"])
-def generate_random_data(params: Dict[str, Any]) -> Dict[str, Any]:
+def generate_random_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Generate random test data of a given type."""
     status.set_callback(params.pop("_status_callback", None))
     dtype = params["type"].lower()
@@ -102,4 +102,4 @@ def generate_random_data(params: Dict[str, Any]) -> Dict[str, Any]:
     return tool_response(items=items, count=count, type=dtype)
 
 
-__all__ = ["generate_random_data"]
+__all__ = ["generate_random_data_tool"]

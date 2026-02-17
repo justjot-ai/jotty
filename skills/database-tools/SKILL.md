@@ -1,5 +1,4 @@
 ---
-name: managing-databases
 description: "Multi-database skill using SQLAlchemy with connection pooling, safe parameterized queries, and natural language query support. Use when the user wants to query database, run sql, database query."
 ---
 

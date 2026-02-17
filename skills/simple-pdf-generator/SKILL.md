@@ -1,5 +1,4 @@
 ---
-name: generating-simple-pdfs
 description: "Template for converting text/markdown content to PDF. Use when the user wants to create pdf, generate pdf, convert to pdf."
 ---
 

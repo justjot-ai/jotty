@@ -1,5 +1,4 @@
 ---
-name: launching-products-pipeline
 description: "This composite skill combines: 1. **Domain Brainstorming** (Source): domain-name-brainstormer 2. **Lead Research** (Processor): lead-research-assistant 3. **Competitor Analysis** (Processor): competitive-ads-extractor 4. **Content Creation** (Sink): content-research-writer."
 ---
 

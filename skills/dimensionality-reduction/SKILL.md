@@ -1,5 +1,4 @@
 ---
-name: reducing-dimensionality
 description: "**Description:** Dimensionality reduction techniques for visualization and feature extraction."
 ---
 

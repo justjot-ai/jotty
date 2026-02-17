@@ -1,5 +1,4 @@
 ---
-name: running-pycaret
 description: "**Description:** Full AutoML pipeline using PyCaret - compare models, tune, ensemble, deploy."
 ---
 

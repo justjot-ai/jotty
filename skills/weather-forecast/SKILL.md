@@ -1,5 +1,4 @@
 ---
-name: weatherforecast
 description: "Fetch weather forecast for any location using OpenWeather API. Provides current conditions, temperature, humidity, and 5-day forecast. Use when user wants to check weather, get forecast."
 ---
 

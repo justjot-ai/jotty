@@ -1,5 +1,4 @@
 ---
-name: managing-github
 description: "Provides tools for interacting with GitHub repositories using the `gh` CLI. Supports pull requests, issues, repository information, and GitHub Actions workflows. Use when the user wants to create pr, list issues, pull request."
 ---
 

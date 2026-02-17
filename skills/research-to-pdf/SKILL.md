@@ -1,5 +1,4 @@
 ---
-name: researchtopdf
 description: "Research a topic, create comprehensive report, and optionally send to Telegram. Use when user wants to research and create PDF report."
 ---
 

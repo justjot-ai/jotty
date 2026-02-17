@@ -1,5 +1,4 @@
 ---
-name: processing-voice
 description: "Multi-provider voice skill for speech-to-text (STT) and text-to-speech (TTS) capabilities. Supports cloud providers (ElevenLabs, OpenAI Whisper) and local providers (Piper TTS, Whisper.cpp STT). Inspired by OpenClaw's voice architecture with automatic provider selection."
 ---
 

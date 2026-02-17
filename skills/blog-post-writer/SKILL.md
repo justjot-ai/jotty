@@ -1,5 +1,4 @@
 ---
-name: writing-blog-posts
 description: "Generate blog post outlines with SEO metadata, headings, and section templates. Use when the user wants to write blog post, blog outline, article structure."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: picking-raffle-winners
 description: "This skill randomly selects winners from lists, spreadsheets, or CSV files for giveaways and contests. Uses cryptographically secure random selection and provides transparent results."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: editing-pptx
 description: "Editing toolkit for existing PowerPoint (.pptx) files using python-pptx. This skill is focused on modifying existing presentations, unlike slide-generator which creates new presentations from scratch. Use when the user wants to create."
 ---
 

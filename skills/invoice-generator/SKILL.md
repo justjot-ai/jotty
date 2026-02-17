@@ -1,5 +1,4 @@
 ---
-name: generating-invoices
 description: "Generate invoice data as structured JSON with line items, taxes, and totals. Use when the user wants to create invoice, generate bill, invoice template."
 ---
 

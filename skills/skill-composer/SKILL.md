@@ -1,5 +1,4 @@
 ---
-name: composing-skills
 description: "Compose multiple skills into sequential, parallel, or conditional workflows."
 ---
 

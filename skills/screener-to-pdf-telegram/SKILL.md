@@ -1,5 +1,4 @@
 ---
-name: screening-to-pdf-telegram
 description: "Complete pipeline that fetches financial data from screener.in, analyzes it with Claude LLM, generates PDF, and sends to Telegram. Use when the user wants to create pdf, generate pdf, convert to pdf."
 ---
 

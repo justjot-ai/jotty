@@ -1,5 +1,4 @@
 ---
-name: managing-dev-workflow
 description: "This composite skill combines: 1. **Changelog Generation** (Source): changelog-generator 2. **Skill Creation** (Processor): skill-creator 3. **Webapp Testing** (Sink): webapp-testing."
 ---
 

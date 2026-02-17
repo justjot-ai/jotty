@@ -1,5 +1,4 @@
 ---
-name: visualizing-financials
 description: "This skill extracts structured financial data from research results and generates: - **Financial Charts**: Price trends, revenue growth, profitability metrics, peer comparisons - **Data Tables**: Financial statements, valuation metrics, key ratios, peer comparisons - **Visual Analytics**: Trend analysis, comparative charts, performance dashboards. Use when the user wants to financial, finance, investment."
 ---
 

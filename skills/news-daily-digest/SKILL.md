@@ -1,5 +1,4 @@
 ---
-name: newsdailydigest
 description: "Aggregate news, summarize with AI, format beautifully, send via email. Use when user wants daily news digest."
 ---
 

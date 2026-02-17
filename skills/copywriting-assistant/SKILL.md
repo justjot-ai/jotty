@@ -1,5 +1,4 @@
 ---
-name: assisting-copywriting
 description: "Generate marketing copy using proven frameworks: AIDA, PAS, BAB, 4Ps, FAB. Use when the user wants to write marketing copy, ad copy, sales copy, AIDA framework."
 ---
 

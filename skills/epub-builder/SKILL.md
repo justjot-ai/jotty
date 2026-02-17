@@ -1,5 +1,4 @@
 ---
-name: building-epub-books
 description: "Build EPUB e-books from text or markdown content using stdlib zipfile. Use when the user wants to create epub, build ebook, convert text to epub."
 ---
 

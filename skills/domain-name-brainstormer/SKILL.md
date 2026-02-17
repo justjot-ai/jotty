@@ -1,5 +1,4 @@
 ---
-name: brainstorming-domain-names
 description: "This skill helps you find the perfect domain name for your project by generating creative options and checking what's actually available to register. Saves hours of brainstorming and manual checking. Use when the user wants to generate."
 ---
 

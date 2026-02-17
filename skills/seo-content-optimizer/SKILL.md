@@ -1,5 +1,4 @@
 ---
-name: optimizing-seo-content
 description: "Analyze text for SEO: keyword density, readability score, meta tag suggestions. Use when the user wants to check SEO, keyword density, readability, optimize content."
 ---
 

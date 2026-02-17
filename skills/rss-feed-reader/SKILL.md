@@ -1,5 +1,4 @@
 ---
-name: reading-rss-feeds
 description: "Fetch and parse RSS/Atom feeds to extract articles, titles, and summaries. Use when the user wants to read RSS, parse feed, get news feed, Atom feed."
 ---
 

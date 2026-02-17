@@ -44,7 +44,7 @@ def _resolve_hour(h: str, m: str, ampm: str) -> tuple:
 
 
 @tool_wrapper(required_params=["schedule"])
-def schedule_to_cron(params: Dict[str, Any]) -> Dict[str, Any]:
+def schedule_to_cron_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Convert a human-readable schedule to a cron expression."""
     status.set_callback(params.pop("_status_callback", None))
     text = params["schedule"].strip().lower()
@@ -91,7 +91,7 @@ def schedule_to_cron(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["cron"])
-def cron_to_human(params: Dict[str, Any]) -> Dict[str, Any]:
+def cron_to_human_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Convert a cron expression to human-readable text."""
     status.set_callback(params.pop("_status_callback", None))
     parts = params["cron"].strip().split()
@@ -122,4 +122,4 @@ def cron_to_human(params: Dict[str, Any]) -> Dict[str, Any]:
     return tool_response(human=" ".join(pieces) if pieces else params["cron"], cron=params["cron"])
 
 
-__all__ = ["schedule_to_cron", "cron_to_human"]
+__all__ = ["schedule_to_cron_tool", "cron_to_human_tool"]

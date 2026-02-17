@@ -1,5 +1,4 @@
 ---
-name: evaluating-model-metrics
 description: "**Description:** Comprehensive model evaluation metrics for classification, regression, and ranking."
 ---
 

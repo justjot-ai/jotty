@@ -25,7 +25,7 @@ def _cyclomatic(node: ast.AST) -> int:
 
 
 @tool_wrapper(required_params=["source"])
-def analyze_complexity(params: Dict[str, Any]) -> Dict[str, Any]:
+def analyze_complexity_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze Python source code complexity.
 
     Params:
@@ -88,4 +88,4 @@ def analyze_complexity(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-__all__ = ["analyze_complexity"]
+__all__ = ["analyze_complexity_tool"]

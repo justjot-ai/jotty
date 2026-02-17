@@ -1,5 +1,4 @@
 ---
-name: comparing-text
 description: "Compare two texts or files and show differences. Use when the user wants to diff, compare, text difference."
 ---
 

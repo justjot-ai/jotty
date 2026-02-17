@@ -75,7 +75,7 @@ def _parse_package_json(content: str) -> List[Dict[str, Any]]:
 
 
 @tool_wrapper(required_params=["content"])
-def check_dependencies(params: Dict[str, Any]) -> Dict[str, Any]:
+def check_dependencies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Parse and check dependencies for issues.
 
     Params:
@@ -108,4 +108,4 @@ def check_dependencies(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-__all__ = ["check_dependencies"]
+__all__ = ["check_dependencies_tool"]

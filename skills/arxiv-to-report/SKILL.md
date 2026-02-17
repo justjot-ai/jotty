@@ -1,5 +1,4 @@
 ---
-name: arxivtoreport
 description: "Download ArXiv papers, analyze with AI, create comprehensive report. Use when user wants to research academic papers."
 ---
 

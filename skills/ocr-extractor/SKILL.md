@@ -1,5 +1,4 @@
 ---
-name: extracting-ocr-text
 description: "Extract text from images using OCR. Requires pytesseract and Tesseract engine. Use when the user wants to OCR, extract text from image, read image text."
 ---
 

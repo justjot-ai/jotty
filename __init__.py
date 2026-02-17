@@ -63,6 +63,12 @@ warnings.filterwarnings(
 )
 warnings.filterwarnings("ignore", category=UserWarning, message=".*Pydantic serializer warnings.*")
 
+# Suppress FontTools DEBUG/INFO noise from WeasyPrint font subsetting
+import logging as _logging
+
+_logging.getLogger("fontTools").setLevel(_logging.WARNING)
+_logging.getLogger("fonttools").setLevel(_logging.WARNING)
+
 __version__ = "3.0.0"
 __author__ = "Jotty AI"
 
@@ -159,6 +165,9 @@ _LAZY_IMPORTS: dict[str, str] = {
     "ParadigmExecutor": ".core.intelligence.orchestration.coordination.paradigm_executor",
     "EnsembleManager": ".core.intelligence.orchestration.coordination.ensemble_manager",
     "ModelTierRouter": ".core.intelligence.orchestration.routing.model_tier_router",
+    # --- PROVIDER HEALTH & TOOL GUARD ---
+    "ProviderHealthManager": ".core.infrastructure.utils.provider_health",
+    "ToolExecutionGuard": ".core.infrastructure.integration.tool_execution_guard",
 }
 
 

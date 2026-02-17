@@ -1,5 +1,4 @@
 ---
-name: brokering-pmi
 description: "List connected brokers, check connection status, and refresh authentication tokens."
 ---
 

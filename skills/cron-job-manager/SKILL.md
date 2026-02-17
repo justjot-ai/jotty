@@ -1,5 +1,4 @@
 ---
-name: managing-cron-jobs
 description: "Create, validate, and explain cron expressions. Use when the user wants to create cron, schedule, crontab, explain cron."
 ---
 

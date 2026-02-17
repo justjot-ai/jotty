@@ -32,7 +32,7 @@ def _build_where(conditions: List[Dict[str, Any]]) -> str:
 
 
 @tool_wrapper(required_params=["operation", "table"])
-def build_sql_query(params: Dict[str, Any]) -> Dict[str, Any]:
+def build_sql_query_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Build a SQL query string from structured parameters.
 
     Params:
@@ -90,4 +90,4 @@ def build_sql_query(params: Dict[str, Any]) -> Dict[str, Any]:
     return tool_response(query=sql, operation=op, table=table)
 
 
-__all__ = ["build_sql_query"]
+__all__ = ["build_sql_query_tool"]

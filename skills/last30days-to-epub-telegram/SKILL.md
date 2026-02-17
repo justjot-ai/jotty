@@ -1,5 +1,4 @@
 ---
-name: sending-last30days-epub-telegram
 description: "This composite skill combines: 1. **last30days-claude-cli**: Research topics from last 30 days 2. **document-converter**: Convert markdown to EPUB 3. **telegram-sender**: Send EPUB to Telegram. Use when the user wants to send to telegram, telegram message, notify via telegram."
 ---
 

@@ -18,6 +18,9 @@ from typing import TYPE_CHECKING, Dict, Optional
 if TYPE_CHECKING:
     from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker  # type: ignore[import]
     from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache  # type: ignore[import]
+    from Jotty.core.infrastructure.utils.provider_health import (
+        ProviderHealthManager,  # type: ignore[import]
+    )
     from Jotty.core.infrastructure.utils.timeouts import CircuitBreaker  # type: ignore[import]
     from Jotty.core.infrastructure.utils.tokenizer import SmartTokenizer  # type: ignore[import]
 
@@ -89,6 +92,20 @@ def get_tokenizer(encoding_name: Optional[str] = None) -> "SmartTokenizer":
     return _singletons[key]
 
 
+def get_provider_health() -> "ProviderHealthManager":
+    """
+    Return a ProviderHealthManager for central provider circuit breaking.
+
+    Tracks per-provider health with exponential backoff deferral.
+
+    Returns:
+        ProviderHealthManager instance.
+    """
+    from Jotty.core.infrastructure.utils.provider_health import get_provider_health as _get
+
+    return _get()
+
+
 def list_components() -> Dict[str, str]:
     """
     List all utility components with descriptions.
@@ -106,4 +123,5 @@ def list_components() -> Dict[str, str]:
         "DeadLetterQueue": "Queue for failed operations (retry later)",
         "AdaptiveTimeout": "Timeouts that adapt based on historical latency",
         "StatusReporter": "Safe callback wrapper for status updates",
+        "ProviderHealthManager": "Per-provider circuit breakers with exponential backoff deferral",
     }

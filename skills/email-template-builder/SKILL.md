@@ -1,5 +1,4 @@
 ---
-name: building-email-templates
 description: "Create HTML email templates with inline CSS for cross-client compatibility. Use when the user wants to build email, create email template, HTML email."
 ---
 

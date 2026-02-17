@@ -1,5 +1,4 @@
 ---
-name: analyzing-logs
 description: "Parse and summarize log files, find errors, count patterns. Pure Python. Use when the user wants to analyze logs, find errors, parse log file."
 ---
 

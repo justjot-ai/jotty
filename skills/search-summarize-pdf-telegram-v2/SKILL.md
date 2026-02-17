@@ -1,5 +1,4 @@
 ---
-name: searching-summarizing-pdf-telegram-v2
 description: "This skill uses the generic pipeline framework (`core/registry/pipeline_skill.py`) to define workflows declaratively as arrays of source/processor/sink steps. Use when the user wants to create pdf, generate pdf, convert to pdf."
 ---
 

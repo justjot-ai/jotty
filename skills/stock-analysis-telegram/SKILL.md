@@ -1,5 +1,4 @@
 ---
-name: stockanalysistelegram
 description: "Fetch stock data, analyze with AI, create chart, and send to Telegram. Use when user wants stock analysis report."
 ---
 

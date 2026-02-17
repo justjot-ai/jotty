@@ -317,31 +317,51 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Search cache HIT: {query_display}")
         return cached
 
-    # Priority 1: Serper API
+    # Priority 1: Serper API (with provider health check)
     if SERPER_API_KEY and provider_pref in ("auto", "serper"):
         try:
-            results = _serper_search(query, max_results)
-            if results:
-                response = tool_response(
-                    results=results, count=len(results), query=query, provider="serper"
-                )
-                _search_cache.set(cache_key, response)
-                return response
-        except Exception as e:
-            logger.warning(f"Serper API failed: {e}, falling back")
+            from Jotty.core.infrastructure.utils.provider_health import get_provider_health
 
-    # Priority 2: SearXNG (self-hosted, open-source)
+            _serper_healthy = get_provider_health().is_healthy("serper")
+        except Exception:
+            _serper_healthy = True  # Degrade: assume healthy
+
+        if _serper_healthy:
+            try:
+                results = _serper_search(query, max_results)
+                if results:
+                    response = tool_response(
+                        results=results, count=len(results), query=query, provider="serper"
+                    )
+                    _search_cache.set(cache_key, response)
+                    return response
+            except Exception as e:
+                logger.warning(f"Serper API failed: {e}, falling back")
+        else:
+            logger.info("Serper deferred (provider unhealthy), skipping to next provider")
+
+    # Priority 2: SearXNG (self-hosted, open-source, with provider health check)
     if SEARXNG_URL and provider_pref in ("auto", "searxng"):
         try:
-            results = _searxng_search(query, max_results)
-            if results:
-                response = tool_response(
-                    results=results, count=len(results), query=query, provider="searxng"
-                )
-                _search_cache.set(cache_key, response)
-                return response
-        except Exception as e:
-            logger.warning(f"SearXNG failed: {e}, falling back to DuckDuckGo")
+            from Jotty.core.infrastructure.utils.provider_health import get_provider_health
+
+            _searxng_healthy = get_provider_health().is_healthy("searxng")
+        except Exception:
+            _searxng_healthy = True
+
+        if _searxng_healthy:
+            try:
+                results = _searxng_search(query, max_results)
+                if results:
+                    response = tool_response(
+                        results=results, count=len(results), query=query, provider="searxng"
+                    )
+                    _search_cache.set(cache_key, response)
+                    return response
+            except Exception as e:
+                logger.warning(f"SearXNG failed: {e}, falling back to DuckDuckGo")
+        else:
+            logger.info("SearXNG deferred (provider unhealthy), skipping to next provider")
 
     # Priority 3: DuckDuckGo library
     if DDG_AVAILABLE and provider_pref in ("auto", "duckduckgo"):

@@ -28,7 +28,7 @@ status = SkillStatus("data-extractor")
 
 
 @async_tool_wrapper()
-async def extract_data(params: Dict[str, Any]) -> Dict[str, Any]:
+async def extract_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract data from any format using multiple strategies.
 
@@ -102,7 +102,7 @@ async def extract_data(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @async_tool_wrapper()
-async def extract_from_file(params: Dict[str, Any]) -> Dict[str, Any]:
+async def extract_from_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract data from a file (JSON, CSV, text, etc.).
 
@@ -167,7 +167,7 @@ async def extract_from_file(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @async_tool_wrapper()
-async def extract_from_object(params: Dict[str, Any]) -> Dict[str, Any]:
+async def extract_from_object_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract data from Python object using introspection.
 
@@ -220,7 +220,7 @@ async def extract_from_object(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = [
-    "extract_data",
-    "extract_from_file",
-    "extract_from_object",
+    "extract_data_tool",
+    "extract_from_file_tool",
+    "extract_from_object_tool",
 ]

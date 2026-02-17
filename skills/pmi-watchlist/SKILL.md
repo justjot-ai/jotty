@@ -1,5 +1,4 @@
 ---
-name: managing-pmi-watchlist
 description: "Create, manage, and monitor stock watchlists. Add/remove symbols and refresh live prices."
 ---
 

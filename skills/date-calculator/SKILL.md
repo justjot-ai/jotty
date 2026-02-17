@@ -1,5 +1,4 @@
 ---
-name: calculating-dates
 description: "Calculate date differences, add/subtract durations, format dates, find business days. Use when the user wants to calculate date, days between, add days."
 ---
 

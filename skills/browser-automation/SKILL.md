@@ -1,5 +1,4 @@
 ---
-name: automating-browser
 description: "Comprehensive browser automation supporting navigation, screenshots, form filling, clicking, data extraction, JavaScript execution, and PDF generation. Supports both Playwright (async, faster) and Selenium with CDP (for Electron embedding). Use when the user wants to open browser, automate browser, navigate to."
 ---
 

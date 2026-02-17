@@ -1,5 +1,4 @@
 ---
-name: tracking-crypto-prices
 description: "Fetch cryptocurrency prices from CoinGecko free API. Use when the user wants to check crypto price, bitcoin price, ethereum price."
 ---
 

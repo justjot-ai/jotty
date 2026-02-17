@@ -1,5 +1,4 @@
 ---
-name: building-pivot-tables
 description: "Create pivot tables from data with row/column grouping and aggregation. Pure Python. Use when the user wants to pivot table, group by, aggregate data."
 ---
 

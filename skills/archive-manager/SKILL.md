@@ -1,5 +1,4 @@
 ---
-name: managing-archives
 description: "Create and extract ZIP, TAR, and GZIP archives using Python stdlib. Use when the user wants to zip, unzip, tar, extract archive, compress files."
 ---
 

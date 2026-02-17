@@ -1,5 +1,4 @@
 ---
-name: analyzing-ab-tests
 description: "Calculate statistical significance, p-values, and confidence intervals for A/B tests. Use when the user wants to analyze A/B test, p-value, significance."
 ---
 

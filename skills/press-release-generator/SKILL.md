@@ -1,5 +1,4 @@
 ---
-name: generating-press-releases
 description: "Generate press release templates following AP style with proper structure. Use when the user wants to write press release, news release, PR template."
 ---
 

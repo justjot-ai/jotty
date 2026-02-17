@@ -1,5 +1,4 @@
 ---
-name: calculating-taxes
 description: "Calculate US federal income tax using current brackets, standard deduction, and effective rates. Use when the user wants to calculate tax, income tax, tax brackets, federal tax."
 ---
 

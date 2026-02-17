@@ -1,5 +1,4 @@
 ---
-name: anonymizing-data
 description: "Anonymize PII by masking emails, phone numbers, names, IPs, and credit card numbers. Use when the user wants to anonymize, mask PII, redact data."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: generating-charts
 description: "Generate ASCII bar and line charts from data. Pure Python. Use when the user wants to create chart, bar chart, line chart, visualize data."
 ---
 

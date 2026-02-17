@@ -1,5 +1,4 @@
 ---
-name: tracking-habits
 description: "Track daily habits with streaks, completion rates, and statistics. Uses JSON storage. Use when the user wants to track habit, habit streak, daily tracker."
 ---
 

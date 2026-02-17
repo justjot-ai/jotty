@@ -27,7 +27,7 @@ status = SkillStatus("semantic-layer")
 
 
 @tool_wrapper(required_params=["question"])
-def query_database_natural_language(params: Dict[str, Any]) -> Dict[str, Any]:
+def query_database_natural_language_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert natural language question to SQL/MongoDB query using semantic layer.
 
@@ -112,7 +112,7 @@ def query_database_natural_language(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["question"])
-def suggest_related_queries(params: Dict[str, Any]) -> Dict[str, Any]:
+def suggest_related_queries_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate suggested queries based on schema.
 
@@ -170,7 +170,7 @@ def suggest_related_queries(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["ddl"])
-def analyze_ddl_schema(params: Dict[str, Any]) -> Dict[str, Any]:
+def analyze_ddl_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Parse and analyze DDL (Data Definition Language) schema.
 
@@ -254,7 +254,7 @@ def analyze_ddl_schema(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["db_type", "database"])
-def extract_database_schema(params: Dict[str, Any]) -> Dict[str, Any]:
+def extract_database_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract and analyze database schema from live connection.
 
@@ -318,7 +318,7 @@ def extract_database_schema(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["ddl"])
-def generate_lookml_from_ddl(params: Dict[str, Any]) -> Dict[str, Any]:
+def generate_lookml_from_ddl_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate LookML semantic model from DDL.
 
@@ -377,7 +377,7 @@ def generate_lookml_from_ddl(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["question"])
-def visualize_data_from_query(params: Dict[str, Any]) -> Dict[str, Any]:
+def visualize_data_from_query_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate visualizations from natural language query + data source.
 
@@ -453,7 +453,7 @@ def visualize_data_from_query(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["questions"])
-def create_dashboard(params: Dict[str, Any]) -> Dict[str, Any]:
+def create_dashboard_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a multi-chart dashboard from multiple questions.
 
@@ -521,13 +521,13 @@ def create_dashboard(params: Dict[str, Any]) -> Dict[str, Any]:
 
 __all__ = [
     # SQL/MongoDB Queries
-    "query_database_natural_language",
-    "suggest_related_queries",
+    "query_database_natural_language_tool",
+    "suggest_related_queries_tool",
     # Schema Analysis
-    "analyze_ddl_schema",
-    "extract_database_schema",
-    "generate_lookml_from_ddl",
+    "analyze_ddl_schema_tool",
+    "extract_database_schema_tool",
+    "generate_lookml_from_ddl_tool",
     # Visualization
-    "visualize_data_from_query",
-    "create_dashboard",
+    "visualize_data_from_query_tool",
+    "create_dashboard_tool",
 ]

@@ -1,5 +1,4 @@
 ---
-name: inferring-data-schemas
 description: "Infer JSON Schema from sample data. Pure Python. Use when the user wants to generate schema, infer types, JSON schema from data."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: converting-documents
 description: "Converts documents between various formats: Markdown, PDF, EPUB, DOCX, HTML. Uses Pandoc for conversions. Use when the user wants to convert, transform, export."
 ---
 

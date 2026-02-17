@@ -1,5 +1,4 @@
 ---
-name: converting-time
 description: "Convert time between timezones and formats. Use when the user wants to convert, transform, export."
 ---
 

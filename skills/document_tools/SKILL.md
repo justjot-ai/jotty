@@ -1,5 +1,4 @@
 ---
-name: document-tools
 description: "Multi-format document generation (PDF, EPUB, HTML, DOCX, PPTX) from markdown. Use when the user wants to generate documents, convert markdown to PDF/EPUB/HTML, or create presentations."
 ---
 

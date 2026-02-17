@@ -1,5 +1,4 @@
 ---
-name: messaging-discord
 description: "This skill provides tools to send messages, read channels, create threads, and interact with Discord servers using the Discord API via requests. Use when the user wants to send discord, discord message, post to discord."
 ---
 

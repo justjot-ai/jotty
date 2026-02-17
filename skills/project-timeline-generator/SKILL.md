@@ -1,5 +1,4 @@
 ---
-name: generating-project-timelines
 description: "Generate text-based Gantt charts and project timelines from task lists. Use when the user wants to project timeline, Gantt chart, schedule tasks, project plan."
 ---
 

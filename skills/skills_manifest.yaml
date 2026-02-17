@@ -37,15 +37,15 @@ categories:
       - text-utils
       - text-chunker
       - time-converter
+      - timezone-converter
+      - date-calculator
       - process-manager
       - http-client
-      - skill-discovery
-      - domain-name-brainstormer
-      - skill-creator
-      - mcp-builder
-      - webapp-testing
-      - artifacts-builder
-      - database-tools
+      - archive-manager
+      - diff-tool
+      - cron-job-manager
+      - crontab-scheduler
+      - random-data-generator
 
   search:
     description: "Web search and scraping"
@@ -54,12 +54,15 @@ categories:
       - web-search
       - web-scraper
       - arxiv-downloader
+      - rss-feed-reader
+      - multi-source-aggregator
 
   llm:
     description: "AI/LLM providers and interfaces"
     icon: "🤖"
     skills:
       - claude-cli-llm
+      - claude-api-llm
       - gemini
       - openai-image-gen
       - openai-whisper-api
@@ -74,24 +77,33 @@ categories:
       - docx-tools
       - pptx-editor
       - document-converter
+      - document_tools
       - slide-generator
       - latex-generator
       - presenton
+      - epub-builder
+      - simple-pdf-generator
+      - content-generator
 
   media:
     description: "Image, video, audio, and creative tools"
     icon: "🎨"
     skills:
       - image-generator
+      - image-resizer
+      - image-enhancer
       - gif-creator
       - algorithmic-art
       - youtube-downloader
+      - video-downloader
       - mindmap-generator
+      - chart-generator
+      - qr-code-generator
+      - ocr-extractor
+      - visual-inspector
       - financial-visualization
-      - image-enhancer
       - brand-guidelines
       - theme-factory
-      - video-downloader
       - slack-gif-creator
       - canvas-design
 
@@ -100,10 +112,16 @@ categories:
     icon: "💬"
     skills:
       - telegram-sender
+      - messaging_tools
       - slack
       - discord
+      - whatsapp
+      - whatsapp-reader
       - remarkable-sender
       - remarkable-upload
+      - email-template-builder
+      - notification-aggregator
+      - webhook-dispatcher
 
   productivity:
     description: "Project management and notes"
@@ -119,6 +137,11 @@ categories:
       - invoice-organizer
       - raffle-winner-picker
       - internal-comms
+      - habit-tracker
+      - expense-tracker
+      - decision-matrix-builder
+      - project-timeline-generator
+      - semver-manager
       - notion-knowledge-capture
       - notion-meeting-intelligence
       - notion-research-documentation
@@ -131,7 +154,7 @@ categories:
       - spotify
 
   research:
-    description: "Research and analysis composite skills"
+    description: "Research and analysis"
     icon: "📊"
     skills:
       - stock-research-comprehensive
@@ -145,6 +168,19 @@ categories:
       - meeting-insights-analyzer
       - competitive-ads-extractor
       - content-research-writer
+      - arxiv-to-report
+      - news-daily-digest
+
+  content:
+    description: "Content creation and copywriting"
+    icon: "✍️"
+    skills:
+      - blog-post-writer
+      - copywriting-assistant
+      - press-release-generator
+      - seo-content-optimizer
+      - transcript-formatter
+      - invoice-generator
 
   network:
     description: "Network diagnostics, DNS, SSL, and URL tools"
@@ -152,25 +188,71 @@ categories:
     skills:
       - network-toolkit
 
-  data-formats:
-    description: "Data format conversion and table generation"
+  data:
+    description: "Data processing, profiling, and analysis"
     icon: "📋"
     skills:
       - data-format-toolkit
+      - data-profiler
+      - data-validator
+      - data-anonymizer
+      - data-extractor
+      - data-transformer
+      - data-schema-inferrer
+      - data-structure-tool
+      - semantic-layer
+      - sql-query-builder
+      - pivot-table-builder
+      - log-analyzer
+      - ab-test-analyzer
+      - compression-analyzer
 
-  devops-generators:
-    description: "Developer scaffolds and config generators"
+  devops:
+    description: "Developer tools, scaffolds, and code analysis"
     icon: "⚙️"
     skills:
       - dev-generator-toolkit
+      - dependency-checker
+      - code-complexity-analyzer
+      - algorithm-complexity
+      - graph-algorithms
+      - matrix-calculator
+      - android-automation
+      - database-tools
+      - skill-discovery
+      - skill-creator
+      - skill-writer
+      - skill-composer
+      - mcp-builder
+      - webapp-testing
+      - artifacts-builder
+      - domain-name-brainstormer
 
   finance:
-    description: "Financial data and analysis"
+    description: "Financial data, trading, and analysis"
     icon: "💰"
     skills:
       - investing-commodities
-      - weather-checker
+      - financial-analysis
       - financial-visualization
+      - tax-calculator
+      - crypto-price-tracker
+      - technical-analysis
+      - weather-checker
+      - weather-forecast
+
+  pmi:
+    description: "PlanMyInvesting trading and portfolio management"
+    icon: "📈"
+    skills:
+      - pmi-market-data
+      - pmi-portfolio
+      - pmi-watchlist
+      - pmi-alerts
+      - pmi-trading
+      - pmi-strategies
+      - pmi-broker
+      - stock-analysis-telegram
 
   pipelines:
     description: "End-to-end workflows (Source → Process → Sink)"
@@ -196,6 +278,8 @@ categories:
       - trending-topics-to-ideas
       - search-to-justjot-idea
       - transformer-paper-pipeline
+      - content-pipeline
+      - lida-to-justjot
 
   automation:
     description: "Workflow automation platforms"
@@ -221,62 +305,117 @@ categories:
 
 skill_types:
   base:
+    - ab-test-analyzer
+    - algorithm-complexity
     - algorithmic-art
+    - android-automation
+    - archive-manager
     - arxiv-downloader
+    - blog-post-writer
     - browser-automation
+    - chart-generator
+    - claude-api-llm
     - claude-cli-llm
+    - code-complexity-analyzer
+    - compression-analyzer
+    - content-generator
+    - copywriting-assistant
+    - cron-job-manager
+    - crontab-scheduler
+    - crypto-price-tracker
+    - data-anonymizer
+    - data-extractor
     - data-format-toolkit
-    - dev-generator-toolkit
-    - encoding-toolkit
+    - data-profiler
+    - data-schema-inferrer
+    - data-structure-tool
+    - data-transformer
+    - data-validator
     - database-tools
+    - date-calculator
+    - decision-matrix-builder
+    - dependency-checker
+    - dev-generator-toolkit
+    - diff-tool
     - discord
     - document-converter
     - docx-tools
+    - email-template-builder
+    - encoding-toolkit
+    - epub-builder
+    - expense-tracker
     - file-operations
     - gemini
     - gif-creator
     - github
+    - graph-algorithms
+    - habit-tracker
     - http-client
     - image-enhancer
     - image-generator
+    - image-resizer
     - internal-comms
+    - invoice-generator
     - latex-generator
+    - log-analyzer
     - math-toolkit
+    - matrix-calculator
+    - mcp-justjot
     - mindmap-generator
+    - n8n-workflows
+    - network-toolkit
+    - notification-aggregator
     - notion
     - obsidian
+    - ocr-extractor
     - openai-image-gen
     - openai-whisper-api
+    - oauth-automation
     - pdf-tools
+    - pivot-table-builder
+    - pmi-broker
+    - pmi-market-data
+    - pmi-trading
     - pptx-editor
+    - press-release-generator
     - process-manager
+    - project-timeline-generator
+    - qr-code-generator
+    - random-data-generator
     - remarkable-sender
     - remarkable-upload
+    - rss-feed-reader
+    - semantic-layer
+    - semver-manager
+    - seo-content-optimizer
     - shell-exec
     - slack
     - spotify
+    - sql-query-builder
     - summarize
+    - tax-calculator
+    - technical-analysis
     - telegram-sender
     - terminal-session
     - text-chunker
     - text-toolkit
     - text-utils
     - time-converter
+    - timezone-converter
+    - transcript-formatter
     - trello
     - video-downloader
+    - visual-inspector
     - voice
     - weather-checker
+    - weather-forecast
     - web-scraper
     - web-search
+    - webhook-dispatcher
     - whatsapp
+    - whatsapp-reader
     - xlsx-tools
     - youtube-downloader
-    - oauth-automation
-    - data-profiler
-    - data-validator
-    - mcp-justjot
-    - n8n-workflows
-    - network-toolkit
 
   derived:
     - name: auto-sklearn
@@ -335,6 +474,14 @@ skill_types:
       base_skills: [web-search]
     - name: notebooklm-pdf
       base_skills: [pdf-tools]
+    - name: pmi-alerts
+      base_skills: [pmi-market-data]
+    - name: pmi-portfolio
+      base_skills: [pmi-market-data]
+    - name: pmi-strategies
+      base_skills: [pmi-market-data]
+    - name: pmi-watchlist
+      base_skills: [pmi-market-data]
     - name: presenton
       base_skills: [pptx-editor]
     - name: pycaret
@@ -345,11 +492,15 @@ skill_types:
       base_skills: [web-scraper]
     - name: shap-explainer
       base_skills: [data-profiler]
+    - name: simple-pdf-generator
+      base_skills: [document-converter]
     - name: skill-composer
       base_skills: [file-operations]
     - name: skill-creator
       base_skills: [file-operations]
     - name: skill-discovery
+      base_skills: [file-operations]
+    - name: skill-writer
       base_skills: [file-operations]
     - name: slide-generator
       base_skills: [pptx-editor]
@@ -365,12 +516,18 @@ skill_types:
       base_skills: [browser-automation]
 
   composite:
+    - name: arxiv-to-report
+      base_skills: [arxiv-downloader, document-converter, claude-cli-llm]
     - name: content-branding-pipeline
       base_skills: [claude-cli-llm, brand-guidelines]
     - name: content-pipeline
       base_skills: [web-search, document-converter]
     - name: dev-workflow
       base_skills: [github, shell-exec, file-operations]
+    - name: document_tools
+      base_skills: [document-converter, epub-builder, presenton]
+    - name: financial-analysis
+      base_skills: [pmi-market-data, claude-cli-llm]
     - name: investing-commodities-to-telegram
       base_skills: [investing-commodities, telegram-sender]
     - name: last30days-to-epub-telegram
@@ -385,6 +542,10 @@ skill_types:
       base_skills: [image-generator, voice, video-downloader]
     - name: meeting-intelligence-pipeline
       base_skills: [voice, claude-cli-llm, notion]
+    - name: messaging_tools
+      base_skills: [telegram-sender, whatsapp]
+    - name: news-daily-digest
+      base_skills: [web-search, claude-cli-llm, document-converter]
     - name: notion-knowledge-capture
       base_skills: [web-search, notion]
     - name: notion-knowledge-pipeline
@@ -413,6 +574,8 @@ skill_types:
       base_skills: [web-search, mcp-justjot]
     - name: slack-gif-creator
       base_skills: [gif-creator, slack]
+    - name: stock-analysis-telegram
+      base_skills: [web-search, claude-cli-llm, chart-generator, telegram-sender]
     - name: stock-research-comprehensive
       base_skills: [web-search, claude-cli-llm, document-converter, telegram-sender]
     - name: stock-research-deep
@@ -450,7 +613,11 @@ tags:
 
   stocks:
     description: "Stock market related"
-    skills: [stock-research-comprehensive, stock-research-deep, screener-financials, investing-commodities]
+    skills: [stock-research-comprehensive, stock-research-deep, screener-financials, investing-commodities, stock-analysis-telegram, technical-analysis, financial-analysis]
+
+  pmi:
+    description: "PlanMyInvesting tools"
+    skills: [pmi-market-data, pmi-portfolio, pmi-watchlist, pmi-alerts, pmi-trading, pmi-strategies, pmi-broker]
 
   n8n:
     description: "n8n workflow automation"

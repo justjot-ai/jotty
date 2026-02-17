@@ -24,7 +24,7 @@ status = SkillStatus("data-transformer")
 
 
 @tool_wrapper(required_params=["source", "target_format"])
-def transform_data_format(params: Dict[str, Any]) -> Dict[str, Any]:
+def transform_data_format_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Transform data from one format to another using ReAct agent.
 
@@ -102,7 +102,7 @@ def transform_data_format(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["source"])
-def parse_json_string(params: Dict[str, Any]) -> Dict[str, Any]:
+def parse_json_string_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Parse JSON string with automatic fixing.
 
@@ -144,7 +144,7 @@ def parse_json_string(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["source"])
-def parse_csv_string(params: Dict[str, Any]) -> Dict[str, Any]:
+def parse_csv_string_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Parse CSV string to list of dicts.
 
@@ -191,7 +191,7 @@ def parse_csv_string(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["data"])
-def convert_to_json(params: Dict[str, Any]) -> Dict[str, Any]:
+def convert_to_json_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert any data structure to JSON string.
 
@@ -233,8 +233,8 @@ def convert_to_json(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = [
-    "transform_data_format",
-    "parse_json_string",
-    "parse_csv_string",
-    "convert_to_json",
+    "transform_data_format_tool",
+    "parse_json_string_tool",
+    "parse_csv_string_tool",
+    "convert_to_json_tool",
 ]

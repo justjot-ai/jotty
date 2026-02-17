@@ -1,5 +1,4 @@
 ---
-name: aggregating-notifications
 description: "Route and format notifications for multiple channels: email, webhook, log, console. Use when the user wants to send notifications, route alerts, aggregate messages."
 ---
 

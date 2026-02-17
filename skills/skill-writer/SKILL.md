@@ -1,5 +1,4 @@
 ---
-name: skill-writing
 description: "Creates new Jotty skills from natural language descriptions. Generates SKILL.md and tools.py files. Use when the user wants to create a skill, build a tool, or generate a new capability."
 ---
 

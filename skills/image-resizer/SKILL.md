@@ -1,5 +1,4 @@
 ---
-name: resizing-images
 description: "Resize, crop, and convert images using Pillow. Use when the user wants to resize image, crop image, convert image format, thumbnail."
 ---
 

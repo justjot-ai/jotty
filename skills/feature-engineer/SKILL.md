@@ -1,5 +1,4 @@
 ---
-name: engineering-features
 description: "**Description:** Automatic feature engineering for tabular data. Use when the user wants to feature engineering, extract features, feature selection."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: messaging-slack
 description: "This skill provides tools to send messages, read channels, upload files, and interact with Slack workspaces using the Slack Web API via requests. Use when the user wants to send to slack, slack message, post to slack."
 ---
 

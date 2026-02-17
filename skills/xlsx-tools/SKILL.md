@@ -1,5 +1,4 @@
 ---
-name: processing-xlsx
 description: "Excel file manipulation toolkit using openpyxl and pandas. Provides tools for reading, writing, and manipulating Excel workbooks including cell updates, formulas, and charts."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: validating-test-skills
 description: "[Detailed description of what this skill does and when to use it]. Use when the user wants to run tests, test, testing."
 ---
 

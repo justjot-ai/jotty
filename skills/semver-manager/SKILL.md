@@ -1,5 +1,4 @@
 ---
-name: managing-semver
 description: "Parse, compare, and bump semantic versions (major.minor.patch). Check version constraints."
 ---
 

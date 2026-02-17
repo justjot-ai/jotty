@@ -1,5 +1,4 @@
 ---
-name: automating-android
 description: "Full Android device control: touch, swipe, type, screenshot, UI tree inspection, app lifecycle management, and element-based interaction. Designed for MAS-Bench hybrid mobile agent evaluation. Mirrors browser-automation architecture but targets Android."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: processing-text
 description: "Provides text manipulation, encoding/decoding, formatting, and text processing utilities. Use when the user wants to format text, count words, extract text."
 ---
 

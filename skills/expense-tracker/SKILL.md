@@ -1,5 +1,4 @@
 ---
-name: tracking-expenses
 description: "Track expenses with categorization, budget limits, and summary reports. Uses JSON file storage. Use when the user wants to track expense, log spending, budget tracker."
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: managing-processes
 description: "Provides process management capabilities: list running processes, get process details, and terminate processes. Use when the user wants to process, system process, kill process."
 ---
 

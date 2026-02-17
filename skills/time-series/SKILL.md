@@ -1,5 +1,4 @@
 ---
-name: analyzing-time-series
 description: "**Description:** Time series analysis and forecasting tools. Use when the user wants to convert time, timezone, time zone."
 ---
 

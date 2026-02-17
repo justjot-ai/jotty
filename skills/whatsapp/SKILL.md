@@ -1,5 +1,4 @@
 ---
-name: messaging-whatsapp
 description: "Dual-provider WhatsApp integration supporting both Baileys (open-source) and the official WhatsApp Business Cloud API. Inspired by OpenClaw's approach: prefers Baileys (free, open-source) when available, falls back to Business API. Use when the user wants to whatsapp message, read whatsapp, whatsapp chat."
 ---
 

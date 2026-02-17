@@ -1,5 +1,4 @@
 ---
-name: validating-data
 description: "**Description:** Data validation and quality checking for ML pipelines. Use when the user wants to analyze data, data analysis, dataset."
 ---
 

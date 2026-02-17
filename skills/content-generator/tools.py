@@ -16,7 +16,7 @@ status = SkillStatus("content-generator")
 
 
 @tool_wrapper(required_params=["content", "format"])
-def generate_document(params: Dict[str, Any]) -> Dict[str, Any]:
+def generate_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate a document from content.
 
@@ -60,7 +60,7 @@ def generate_document(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @tool_wrapper(required_params=["slides"])
-def generate_presentation(params: Dict[str, Any]) -> Dict[str, Any]:
+def generate_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate a presentation from slide content.
 
@@ -104,6 +104,6 @@ def generate_presentation(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = [
-    "generate_document",
-    "generate_presentation",
+    "generate_document_tool",
+    "generate_presentation_tool",
 ]

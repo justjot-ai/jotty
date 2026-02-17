@@ -1,5 +1,4 @@
 ---
-name: searching-v2v-trending
 description: "This skill searches V2V.ai for trending topics and generates research reports that can be converted to PDFs and sent to Telegram/reMarkable. Use when the user wants to search for, look up, find information."
 ---
 

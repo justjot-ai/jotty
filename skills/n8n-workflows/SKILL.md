@@ -1,5 +1,4 @@
 ---
-name: managing-n8n-workflows
 description: "This skill integrates with n8n workflow automation to list, trigger, monitor, and manage workflows. Each n8n workflow is also registered as a derived skill for direct discovery by the planner."
 ---
 

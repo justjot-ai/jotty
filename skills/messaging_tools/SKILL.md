@@ -1,5 +1,4 @@
 ---
-name: messaging-tools
 description: "Multi-channel message delivery (Telegram, WhatsApp, etc.). Use when the user wants to send a message or file to Telegram, WhatsApp, or multiple channels at once."
 ---
 

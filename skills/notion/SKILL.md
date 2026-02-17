@@ -1,5 +1,4 @@
 ---
-name: managing-notion
 description: "Integrates with Notion API to search, read, create, and update pages and databases. Supports full CRUD operations on Notion workspace content. Use when the user wants to save to notion, notion page, create notion."
 ---
 

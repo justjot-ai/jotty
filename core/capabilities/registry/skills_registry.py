@@ -428,11 +428,21 @@ class SkillDefinition:
 
     @property
     def tools(self) -> Dict[str, Callable]:
-        """Lazy-load tools on first access."""
+        """Lazy-load tools on first access, wrapped with execution guard."""
         if self._tools is None:
             if self._tool_loader:
                 try:
-                    self._tools = self._tool_loader()
+                    raw_tools = self._tool_loader()
+                    try:
+                        from Jotty.core.infrastructure.integration.tool_execution_guard import (
+                            get_tool_execution_guard,
+                        )
+
+                        self._tools = get_tool_execution_guard().wrap_skill_tools(
+                            self.name, raw_tools
+                        )
+                    except Exception:
+                        self._tools = raw_tools  # Graceful degradation
                     logger.debug(f"Lazy-loaded {len(self._tools)} tools for skill '{self.name}'")
                 except Exception as e:
                     logger.error(f"Failed to lazy-load tools for skill '{self.name}': {e}")

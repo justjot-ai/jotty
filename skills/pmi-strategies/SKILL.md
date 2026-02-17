@@ -1,5 +1,4 @@
 ---
-name: running-pmi-strategies
 description: "List, execute, and monitor trading strategies. Generate trading signals from active strategies."
 ---
 

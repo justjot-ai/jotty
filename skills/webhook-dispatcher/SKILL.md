@@ -1,5 +1,4 @@
 ---
-name: dispatching-webhooks
 description: "Send HTTP webhook payloads with retry logic and authentication. Use when the user wants to send webhook, POST payload, HTTP callback."
 ---
 
