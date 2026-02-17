@@ -806,7 +806,7 @@ class TestSwarmTemplate:
     async def test_execute_team_without_team_raises(self):
         """execute_team() raises when no AGENT_TEAM."""
         swarm = self._make_test_swarm()
-        with pytest.raises(RuntimeError, match="No AGENT_TEAM"):
+        with pytest.raises(RuntimeError, match="No AGENTS"):
             await swarm.execute_team("task")
 
     def test_to_composite(self):

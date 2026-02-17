@@ -632,7 +632,7 @@ async def verify_component_wiring():
     check(
         "CostTracker",
         lambda: __import__(
-            "Jotty.core.infrastructure.monitoring.monitoring.cost_tracker", fromlist=["CostTracker"]
+            "Jotty.core.infrastructure.monitoring.metrics.cost_tracker", fromlist=["CostTracker"]
         ).CostTracker,
     )
 

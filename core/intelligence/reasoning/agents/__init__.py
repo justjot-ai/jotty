@@ -52,6 +52,7 @@ from .pipeline_expert import PipelineExpertAgent
 from .plantuml_agent import PlantUMLAgent
 from .plantuml_expert import PlantUMLExpertAgent
 from .qa_agent import QAAgent
+from .research_team import create_research_team, create_transformer_expert
 from .skill_based_agent import SkillBasedAgent
 from .swarm_agent import SwarmLearningAgent
 from .task_breakdown_agent import TaskBreakdownAgent
@@ -106,4 +107,7 @@ __all__ = [
     "consolidate_improvements",
     "run_improvement_consolidation_cycle",
     "sync_improvements_to_memory",
+    # Research team (academic paper generation DSPy signatures)
+    "create_research_team",
+    "create_transformer_expert",
 ]

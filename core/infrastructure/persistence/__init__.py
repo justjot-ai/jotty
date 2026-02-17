@@ -11,9 +11,9 @@ Modules:
 - shared_context: Shared context across sessions
 """
 
-from .persistence import Vault
 from .session_manager import SessionManager
 from .shared_context import SharedContext
+from .vault import Vault
 
 __all__ = [
     "Vault",

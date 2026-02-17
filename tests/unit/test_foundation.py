@@ -2386,7 +2386,7 @@ class TestTokenCounter:
     def test_init_default_model(self):
         from unittest.mock import patch
 
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         # Ensure dspy.settings.lm is None so TokenCounter uses its default
         with patch("dspy.settings") as mock_settings:
@@ -2395,50 +2395,50 @@ class TestTokenCounter:
         assert counter.model == "gpt-4.1"
 
     def test_init_custom_model(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="claude-3-opus")
         assert counter.model == "claude-3-opus"
 
     def test_map_model_name_direct(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         assert counter.tokencost_model == "gpt-4o"
 
     def test_map_model_name_claude(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="claude-3-opus")
         assert counter.tokencost_model == "claude-3-opus-20240229"
 
     def test_map_model_name_unknown(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="totally-unknown")
         assert counter.tokencost_model == "totally-unknown"
 
     def test_count_tokens_empty(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         assert counter.count_tokens("") == 0
 
     def test_count_tokens_nonempty(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         count = counter.count_tokens("Hello, world!")
         assert count > 0
 
     def test_count_messages_empty(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         assert counter.count_messages([]) == 0
 
     def test_count_messages_nonempty(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         msgs = [{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi"}]
@@ -2446,7 +2446,7 @@ class TestTokenCounter:
         assert count > 0
 
     def test_get_model_limits(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         limits = counter.get_model_limits()
@@ -2455,20 +2455,20 @@ class TestTokenCounter:
         assert limits["max_prompt"] == 128000
 
     def test_will_overflow_false(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         assert counter.will_overflow(1000, 1000) is False
 
     def test_will_overflow_true(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         # gpt-4o has 128000 max_prompt, 90% = 115200
         assert counter.will_overflow(115000, 1000) is True
 
     def test_will_overflow_custom_margin(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         # At 50% margin, 128000*0.5=64000
@@ -2476,7 +2476,7 @@ class TestTokenCounter:
         assert counter.will_overflow(60000, 5000, safety_margin=0.5) is True
 
     def test_get_remaining_tokens(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         remaining = counter.get_remaining_tokens(1000)
@@ -2484,7 +2484,7 @@ class TestTokenCounter:
         assert remaining == 114200
 
     def test_get_remaining_tokens_over_limit(self):
-        from Jotty.core.infrastructure.foundation.token_counter import TokenCounter
+        from Jotty.core.infrastructure.utils.tokenizer import TokenCounter
 
         counter = TokenCounter(model="gpt-4o")
         remaining = counter.get_remaining_tokens(200000)
@@ -2497,25 +2497,25 @@ class TestTokenCounterConvenience:
 
     def setup_method(self):
         """Reset global counter between tests."""
-        import Jotty.core.infrastructure.foundation.token_counter as tc
+        import Jotty.core.infrastructure.utils.tokenizer as tc
 
         tc._default_counter = None
 
     def test_get_token_counter_creates_instance(self):
-        from Jotty.core.infrastructure.foundation.token_counter import get_token_counter
+        from Jotty.core.infrastructure.utils.tokenizer import get_token_counter
 
         counter = get_token_counter()
         assert counter is not None
 
     def test_get_token_counter_caches(self):
-        from Jotty.core.infrastructure.foundation.token_counter import get_token_counter
+        from Jotty.core.infrastructure.utils.tokenizer import get_token_counter
 
         c1 = get_token_counter("gpt-4o")
         c2 = get_token_counter()
         assert c1 is c2
 
     def test_get_token_counter_new_model(self):
-        from Jotty.core.infrastructure.foundation.token_counter import get_token_counter
+        from Jotty.core.infrastructure.utils.tokenizer import get_token_counter
 
         c1 = get_token_counter("gpt-4o")
         c2 = get_token_counter("claude-3-opus")
@@ -2523,53 +2523,54 @@ class TestTokenCounterConvenience:
         assert c2.model == "claude-3-opus"
 
     def test_count_tokens_function(self):
-        from Jotty.core.infrastructure.foundation.token_counter import count_tokens
+        from Jotty.core.infrastructure.utils.tokenizer import count_tokens
 
         count = count_tokens("hello world")
         assert count > 0
 
     def test_count_tokens_accurate_function(self):
-        from Jotty.core.infrastructure.foundation.token_counter import count_tokens_accurate
+        from Jotty.core.infrastructure.utils.tokenizer import count_tokens_accurate
 
         count = count_tokens_accurate("hello world")
         assert count > 0
 
     def test_count_tokens_accurate_empty(self):
-        from Jotty.core.infrastructure.foundation.token_counter import count_tokens_accurate
+        from Jotty.core.infrastructure.utils.tokenizer import count_tokens_accurate
 
         assert count_tokens_accurate("") == 0
 
     def test_estimate_tokens(self):
-        from Jotty.core.infrastructure.foundation.token_counter import estimate_tokens
+        from Jotty.core.infrastructure.utils.tokenizer import estimate_tokens
 
         text = "a" * 100
-        assert estimate_tokens(text) == 26  # 100 // 4 + 1
+        count = estimate_tokens(text)
+        assert count > 0  # Exact count depends on tiktoken availability
 
     def test_estimate_tokens_empty(self):
-        from Jotty.core.infrastructure.foundation.token_counter import estimate_tokens
+        from Jotty.core.infrastructure.utils.tokenizer import estimate_tokens
 
-        assert estimate_tokens("") == 1  # 0 // 4 + 1
+        assert estimate_tokens("") == 0
 
     def test_get_model_limits_function(self):
-        from Jotty.core.infrastructure.foundation.token_counter import get_model_limits
+        from Jotty.core.infrastructure.utils.tokenizer import get_model_limits
 
         limits = get_model_limits("gpt-4o")
         assert limits["max_prompt"] == 128000
 
     def test_will_overflow_function(self):
-        from Jotty.core.infrastructure.foundation.token_counter import will_overflow
+        from Jotty.core.infrastructure.utils.tokenizer import will_overflow
 
         assert will_overflow(1000, 1000, "gpt-4o") is False
 
     def test_count_message_tokens_safe(self):
-        from Jotty.core.infrastructure.foundation.token_counter import count_message_tokens_safe
+        from Jotty.core.infrastructure.utils.tokenizer import count_message_tokens_safe
 
         msgs = [{"role": "user", "content": "hello"}]
         count = count_message_tokens_safe(msgs, "gpt-4o")
         assert count > 0
 
     def test_get_tokenizer_info(self):
-        from Jotty.core.infrastructure.foundation.token_counter import get_tokenizer_info
+        from Jotty.core.infrastructure.utils.tokenizer import get_tokenizer_info
 
         info = get_tokenizer_info("gpt-4o")
         assert "available" in info

@@ -215,22 +215,41 @@ class SwarmTemplate(SwarmLearning):
     """
     Base class for domain-specific swarms.
 
+    A swarm IS a coordinated group of agents (no separate "Team" layer).
     Inherits self-improving loop from SwarmLearning and adds:
-    - Declarative agent team via AGENT_TEAM class attribute
-    - Automatic agent initialization
-    - Team coordination patterns
-    - Template execute() pattern
+    - Declarative agent declaration via AGENTS class attribute
+    - Built-in coordination patterns (pipeline, parallel, debate, etc.)
+    - Integrated LearningService for cross-unit learning
+    - Template execute() pattern with automatic learning hooks
+
+    Architecture:
+        Skills → Agents → Swarm (agents + coordination + learning)
 
     Class Attributes:
-        AGENT_TEAM: Optional TeamCoordinator defining the swarm's agents.
-                    If None, subclass must override _init_agents().
+        AGENTS: AgentCoordinator defining the swarm's agents and coordination.
+                If None, subclass must override _init_agents().
+        AGENT_TEAM: Backward-compat alias for AGENTS.
 
-    Team Coordination:
-        If AGENT_TEAM has a coordination pattern (PIPELINE, PARALLEL, etc.),
-        use execute_team() to leverage automatic coordination.
+    Coordination:
+        If AGENTS has a coordination pattern (PIPELINE, PARALLEL, etc.),
+        use coordinate() to leverage automatic coordination.
+
+    Usage:
+        class CodingSwarm(SwarmTemplate):
+            AGENTS = AgentCoordinator.define(
+                (ArchitectAgent, "Architect"),
+                (DeveloperAgent, "Developer"),
+                pattern=CoordinationPattern.PIPELINE,
+            )
+
+            async def _execute_domain(self, requirements: str, **kwargs):
+                result = await self.coordinate(task=requirements)
+                return CodingResult(code=result.merged_output)
     """
 
-    # Subclasses override this with their agent team
+    # Subclasses override this with their agent declaration + coordination
+    AGENTS: ClassVar[Optional[TeamCoordinator]] = None
+    # Backward-compat alias (old name)
     AGENT_TEAM: ClassVar[Optional[TeamCoordinator]] = None
     # Subclasses set this to a DSPy Signature for typed I/O contracts
     SWARM_SIGNATURE: ClassVar[Optional[Type]] = None
@@ -239,6 +258,16 @@ class SwarmTemplate(SwarmLearning):
     TASK_TYPE: ClassVar[str] = ""
     DEFAULT_TOOLS: ClassVar[List[str]] = []
     RESULT_CLASS: ClassVar[Type[SwarmResult]] = SwarmResult
+
+    @classmethod
+    def _resolve_agents(cls) -> Optional[TeamCoordinator]:
+        """Resolve AGENTS or AGENT_TEAM (backward compat)."""
+        return cls.AGENTS or getattr(cls, "AGENT_TEAM", None)
+
+    # Backward-compat property: AGENT_TEAM -> AGENTS
+    @property
+    def _agent_coordinator(self) -> Optional[TeamCoordinator]:
+        return self._resolve_agents()
 
     # Defensive utilities available as static methods on all swarms
     _split_field = staticmethod(_split_field)
@@ -255,10 +284,11 @@ class SwarmTemplate(SwarmLearning):
         super().__init__(config)
         self._agents_initialized = False
         self._learning_recorded = False
+        self._learning_service = None  # Lazy-init LearningService
 
     def _init_agents(self) -> None:
         """
-        Initialize agents from AGENT_TEAM definition.
+        Initialize agents from AGENTS (or AGENT_TEAM) definition.
 
         Called automatically by execute() before domain logic.
         Can be overridden for custom initialization.
@@ -268,11 +298,22 @@ class SwarmTemplate(SwarmLearning):
 
         self._init_shared_resources()
 
-        # Auto-initialize agents from team definition
-        if self.AGENT_TEAM:
+        # Initialize LearningService
+        try:
+            from Jotty.core.intelligence.learning.learning_service import LearningService
+
+            self._learning_service = LearningService.get_instance()
+        except Exception as e:
+            logger.debug(f"LearningService not available: {e}")
+
+        # Resolve AGENTS or AGENT_TEAM (backward compat)
+        coordinator = self._resolve_agents()
+
+        # Auto-initialize agents from declaration
+        if coordinator:
             agent_instances = {}
 
-            for attr_name, spec in self.AGENT_TEAM:
+            for attr_name, spec in coordinator:
                 try:
                     agent = self._create_agent(spec)
                     setattr(self, attr_name, agent)
@@ -282,8 +323,8 @@ class SwarmTemplate(SwarmLearning):
                     logger.error(f"Failed to initialize {spec.display_name}: {e}")
                     raise
 
-            # Pass instances to team for coordination
-            self.AGENT_TEAM.set_instances(agent_instances)
+            # Pass instances for coordination
+            coordinator.set_instances(agent_instances)
 
         self._agents_initialized = True
         logger.info(f"{self.__class__.__name__} agents initialized")
@@ -338,12 +379,13 @@ class SwarmTemplate(SwarmLearning):
         Returns:
             Dict mapping attribute names to agent instances
         """
-        if not self.AGENT_TEAM:
+        coordinator = self._resolve_agents()
+        if not coordinator:
             return {}
 
         return {
             attr_name: getattr(self, attr_name, None)
-            for attr_name, _ in self.AGENT_TEAM
+            for attr_name, _ in coordinator
             if hasattr(self, attr_name)
         }
 
@@ -403,52 +445,52 @@ class SwarmTemplate(SwarmLearning):
                         result.output[field_name] = coerced
 
     # =========================================================================
-    # TEAM COORDINATION
+    # COORDINATION (replaces "Team" layer — swarm IS the coordinated team)
     # =========================================================================
 
-    async def execute_team(
+    async def coordinate(
         self, task: Any, context: Dict[str, Any] | None = None, **kwargs: Any
     ) -> TeamResult:
         """
-        Execute the agent team with its configured coordination pattern.
+        Coordinate agents using the swarm's configured pattern.
 
-        This method leverages the team's coordination pattern (PIPELINE,
-        PARALLEL, CONSENSUS, etc.) to orchestrate agent execution.
-        Also wires in coalition formation and smart routing from
-        SwarmIntelligence when available.
+        A swarm IS a coordinated group of agents. This method runs the
+        coordination pattern (PIPELINE, PARALLEL, CONSENSUS, DEBATE, etc.)
+        defined in AGENTS. Also wires in coalition formation, smart routing,
+        and LearningService integration.
 
         Supports AUTO pattern selection: if pattern=AUTO, analyzes task
-        and selects optimal pattern using learning from memory, TD-Lambda,
-        and Swarm Intelligence.
+        and selects optimal pattern using LearningService data.
 
         Args:
-            task: The task/input for the team
+            task: The task/input for agents
             context: Additional context for agents
             **kwargs: Additional arguments passed to agents
 
         Returns:
-            TeamResult with outputs from all agents and merged result
+            CoordinationResult (alias: TeamResult) with outputs and merged result
 
         Example:
             class ReviewSwarm(SwarmTemplate):
-                AGENT_TEAM = TeamCoordinator.define(
+                AGENTS = AgentCoordinator.define(
                     (SecurityReviewer, "Security"),
                     (PerformanceReviewer, "Performance"),
                     pattern=CoordinationPattern.PARALLEL,
                 )
 
                 async def _execute_domain(self, code: str, **kwargs):
-                    result = await self.execute_team(task=code)
+                    result = await self.coordinate(task=code)
                     return ReviewResult(findings=result.merged_output)
         """
-        if not self.AGENT_TEAM:
-            raise RuntimeError("No AGENT_TEAM defined for this swarm")
+        coordinator = self._resolve_agents()
+        if not coordinator:
+            raise RuntimeError("No AGENTS (or AGENT_TEAM) defined for this swarm")
 
         if not self._agents_initialized:
             self._init_agents()
 
         # AUTO pattern selection
-        if self.AGENT_TEAM.pattern == CoordinationPattern.AUTO:
+        if coordinator.pattern == CoordinationPattern.AUTO:
             from .._base.pattern_selector import PatternSelector
 
             selector = PatternSelector(
@@ -458,32 +500,53 @@ class SwarmTemplate(SwarmLearning):
                 swarm_name=self.config.name or "base_swarm",
             )
             selected_pattern = await selector.select_pattern(
-                task=task, context=context, agent_count=len(self.AGENT_TEAM)
+                task=task, context=context, agent_count=len(coordinator)
             )
 
             # Temporarily set pattern for this execution
-            original_pattern = self.AGENT_TEAM.pattern
-            self.AGENT_TEAM.pattern = selected_pattern
+            original_pattern = coordinator.pattern
+            coordinator.pattern = selected_pattern
             logger.info(f"AUTO selected pattern: {selected_pattern.value}")
 
             try:
-                result = await self._execute_team_with_pattern(task, context, **kwargs)
+                result = await self._execute_coordinated(task, context, coordinator, **kwargs)
                 # Store learned pattern success
                 await self._record_pattern_success(
                     task=task, pattern=selected_pattern, success=result.success
                 )
                 return result
             finally:
-                # Restore AUTO pattern
-                self.AGENT_TEAM.pattern = original_pattern
+                coordinator.pattern = original_pattern
         else:
-            return await self._execute_team_with_pattern(task, context, **kwargs)
+            return await self._execute_coordinated(task, context, coordinator, **kwargs)
 
-    async def _execute_team_with_pattern(
-        self, task: Any, context: Dict[str, Any] | None = None, **kwargs: Any
+    # Backward-compat alias
+    execute_team = coordinate
+
+    async def _execute_coordinated(
+        self,
+        task: Any,
+        context: Dict[str, Any] | None = None,
+        coordinator: Optional[TeamCoordinator] = None,
+        **kwargs: Any,
     ) -> TeamResult:
-        """Execute team with current pattern (separated for AUTO selection)."""
+        """Execute with current coordination pattern."""
+        coordinator = coordinator or self._resolve_agents()
+        if not coordinator:
+            raise RuntimeError("No AGENTS defined")
+
         context = context or {}
+
+        # Inject LearningService context
+        if self._learning_service:
+            domain = getattr(self.config, "domain", "") or ""
+            learning_ctx = self._learning_service.build_context_string(
+                domain=domain,
+                task_type=self.TASK_TYPE or self.__class__.__name__,
+                unit_name=self.config.name or "",
+            )
+            if learning_ctx:
+                context["learning_context"] = learning_ctx
 
         # Build context with swarm's shared context
         if self._context:
@@ -495,19 +558,15 @@ class SwarmTemplate(SwarmLearning):
             task_str = str(task)[:200] if task else ""
             task_type = self.__class__.__name__
 
-            # Coalition formation: for PARALLEL teams with 2+ agents,
-            # form a coalition so agents are tracked as a coordinated unit.
-            # Guard: skip if coalitions were already formed by
-            # _coordinate_pre_execution() to avoid double formation.
             if (
-                self.AGENT_TEAM.pattern == CoordinationPattern.PARALLEL
-                and len(self.AGENT_TEAM) >= 2
+                coordinator.pattern == CoordinationPattern.PARALLEL
+                and len(coordinator) >= 2
                 and not si.coalitions
             ):
                 try:
                     agent_names = [
                         getattr(self, attr, None).__class__.__name__
-                        for attr, _ in self.AGENT_TEAM
+                        for attr, _ in coordinator
                         if hasattr(self, attr)
                     ]
                     coalition = si.form_coalition(
@@ -529,8 +588,8 @@ class SwarmTemplate(SwarmLearning):
                     task_id=f"{task_type}_{id(task)}",
                     task_type=task_type,
                     task_description=task_str,
-                    prefer_coalition=False,  # Already handled above
-                    use_auction=(self.AGENT_TEAM.pattern == CoordinationPattern.NONE),
+                    prefer_coalition=False,
+                    use_auction=(coordinator.pattern == CoordinationPattern.NONE),
                     use_hierarchy=True,
                 )
                 if route.get("assigned_agent"):
@@ -540,7 +599,7 @@ class SwarmTemplate(SwarmLearning):
             except Exception:
                 pass  # Non-blocking
 
-        return await self.AGENT_TEAM.execute(task, context, **kwargs)  # type: ignore[union-attr]
+        return await coordinator.execute(task, context, **kwargs)
 
     async def _record_pattern_success(
         self, task: Any, pattern: CoordinationPattern, success: bool
@@ -587,11 +646,15 @@ class SwarmTemplate(SwarmLearning):
         except Exception as e:
             logger.debug(f"Failed to record pattern success: {e}")
 
-    def has_team_coordination(self) -> bool:
-        """Check if team has a coordination pattern configured."""
-        if not self.AGENT_TEAM:
+    def has_coordination(self) -> bool:
+        """Check if swarm has a coordination pattern configured."""
+        coordinator = self._resolve_agents()
+        if not coordinator:
             return False
-        return self.AGENT_TEAM.pattern != CoordinationPattern.NONE
+        return coordinator.pattern != CoordinationPattern.NONE
+
+    # Backward-compat alias
+    has_team_coordination = has_coordination
 
     # =========================================================================
     # PHASE EXECUTOR HELPERS
@@ -733,21 +796,36 @@ class SwarmTemplate(SwarmLearning):
 
     async def execute(self, *args: Any, **kwargs: Any) -> SwarmResult:
         """
-        Execute the swarm with pre/post learning hooks.
+        Execute the swarm with integrated learning.
 
         This is a template method that:
-        1. Initializes agents
-        2. Runs pre-execute learning
-        3. Calls _execute_domain() for domain logic
-        4. Runs post-execute learning
-        5. Returns result
+        1. Initializes agents + LearningService
+        2. Starts a learning episode (LearningService)
+        3. Runs pre-execute learning (legacy hooks)
+        4. Calls _execute_domain() for domain logic
+        5. Ends the learning episode with outcome
+        6. Returns result
 
         Subclasses implement _execute_domain() for their logic.
-        They can use execute_team() within _execute_domain() to
-        leverage team coordination patterns.
+        They can use coordinate() within _execute_domain() to
+        leverage coordination patterns.
         """
         self._init_agents()
         self._learning_recorded = False  # Reset per-execution
+
+        # Start LearningService episode for this execution
+        _episode_id = None
+        if self._learning_service:
+            try:
+                _episode_id = self._learning_service.start_episode(
+                    unit_name=self.config.name or self.__class__.__name__,
+                    unit_type="swarm",
+                    domain=getattr(self.config, "domain", "") or "",
+                    task_type=self.TASK_TYPE or self.__class__.__name__,
+                    context={"args": str(args)[:200], "kwargs": str(kwargs)[:200]},
+                )
+            except Exception as e:
+                logger.debug(f"LearningService episode start failed: {e}")
 
         # Pre-execute learning (loads context, warmup, etc.)
         try:
@@ -770,17 +848,33 @@ class SwarmTemplate(SwarmLearning):
         try:
             result = await self._execute_domain(*args, **kwargs)
         finally:
-            # Post-execute learning (evaluation, improvement)
-            # Skip if _safe_execute_domain already recorded learning
+            execution_time = __import__("time").time() - start_time
+            success = (result.success if hasattr(result, "success") else True) if result else False
+
+            # End LearningService episode
+            if _episode_id and self._learning_service:
+                try:
+                    self._learning_service.end_episode(
+                        episode_id=_episode_id,
+                        success=success,
+                        quality=getattr(result, "confidence", 0.5) if result else 0.0,
+                        cost=getattr(result, "cost", 0.0) if result else 0.0,
+                        outcome={"result": str(result)[:500]} if result else {},
+                        error_type=(
+                            getattr(result, "error_type", None) if result else "execution_failure"
+                        ),
+                        error_message=str(getattr(result, "error", ""))[:500] if result else None,
+                    )
+                except Exception as e:
+                    logger.debug(f"LearningService episode end failed: {e}")
+
+            # Legacy post-execute learning (evaluation, improvement)
             try:
                 if (
                     not self._learning_recorded
                     and result is not None
                     and hasattr(self, "_post_execute_learning")
                 ):
-                    execution_time = __import__("time").time() - start_time
-                    success = result.success if hasattr(result, "success") else True
-                    # Try to call with the expected signature
                     await self._post_execute_learning(
                         success=success,
                         execution_time=execution_time,
@@ -791,7 +885,6 @@ class SwarmTemplate(SwarmLearning):
                         result=result,
                     )
             except TypeError:
-                # Signature mismatch - skip silently
                 pass
             except Exception as e:
                 logger.debug(f"Post-execute learning skipped: {e}")
@@ -850,8 +943,9 @@ class SwarmTemplate(SwarmLearning):
         return CompositeAgent.from_swarm(self, signature=signature or self.SWARM_SIGNATURE)
 
     def __repr__(self) -> str:
-        agent_count = len(self.AGENT_TEAM) if self.AGENT_TEAM else 0
-        pattern = self.AGENT_TEAM.pattern.value if self.AGENT_TEAM else "none"
+        coordinator = self._resolve_agents()
+        agent_count = len(coordinator) if coordinator else 0
+        pattern = coordinator.pattern.value if coordinator else "none"
         return f"{self.__class__.__name__}(agents={agent_count}, pattern={pattern}, initialized={self._agents_initialized})"
 
 

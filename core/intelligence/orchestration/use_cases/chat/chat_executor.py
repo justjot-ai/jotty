@@ -19,9 +19,13 @@ from .chat_orchestrator import ChatOrchestrator
 logger = logging.getLogger(__name__)
 
 
-class ChatExecutor:
+class ChatSessionExecutor:
     """
-    Executes chat interactions with agents.
+    Executes session-based chat interactions with agents.
+
+    This is the SESSION-based chat handler that wraps a Conductor + ChatOrchestrator
+    to select agents and manage conversation context. For the standalone LLM
+    tool-calling engine, use execution/unified_executor.py's ChatExecutor instead.
     """
 
     def __init__(

@@ -24,7 +24,6 @@ from .consolidation_engine import (
     MemoryCandidate,
     SharpWaveRippleConsolidator,
 )
-from .incremental_consolidation import IncrementalConsolidator, get_incremental_consolidator
 from .llm_rag import (
     CausalExtractor,
     DeduplicationEngine,
@@ -54,13 +53,24 @@ from .mongodb_backend import MongoDBMemoryBackend, enable_mongodb_memory
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # cortex (SwarmMemory itself is lightweight once consolidation is deferred)
     "SwarmMemory": (".cortex", "SwarmMemory"),
-    # Consolidation signatures/classes (heavy DSPy)
-    "MemoryCluster": (".consolidation", "MemoryCluster"),
-    "MemoryLevelClassificationSignature": (".consolidation", "MemoryLevelClassificationSignature"),
-    "MemoryLevelClassifier": (".consolidation", "MemoryLevelClassifier"),
-    "MetaWisdomSignature": (".consolidation", "MetaWisdomSignature"),
-    "PatternExtractionSignature": (".consolidation", "PatternExtractionSignature"),
-    "ProceduralExtractionSignature": (".consolidation", "ProceduralExtractionSignature"),
+    # Consolidation signatures/classes (heavy DSPy, lazy-loaded from consolidation_engine)
+    "MemoryCluster": (".consolidation_engine", "MemoryCluster"),
+    "MemoryLevelClassificationSignature": (
+        ".consolidation_engine",
+        "MemoryLevelClassificationSignature",
+    ),
+    "MemoryLevelClassifier": (".consolidation_engine", "MemoryLevelClassifier"),
+    "MetaWisdomSignature": (".consolidation_engine", "MetaWisdomSignature"),
+    "PatternExtractionSignature": (".consolidation_engine", "PatternExtractionSignature"),
+    "ProceduralExtractionSignature": (".consolidation_engine", "ProceduralExtractionSignature"),
+    "ConsolidationValidationSignature": (
+        ".consolidation_engine",
+        "ConsolidationValidationSignature",
+    ),
+    "ConsolidationValidator": (".consolidation_engine", "ConsolidationValidator"),
+    # JustJot sync adapter (bidirectional Jotty<->JustJot memory sync)
+    "JustJotMemorySyncAdapter": (".justjot_sync_adapter", "JustJotMemorySyncAdapter"),
+    "JustJotMemory": (".justjot_sync_adapter", "JustJotMemory"),
 }
 
 
@@ -80,9 +90,9 @@ def __getattr__(name: str) -> Any:
         globals()[name] = value
         return value
     if name in _FACADE_IMPORTS:
-        from . import facade
+        from . import memory_system as _ms
 
-        value = getattr(facade, name)
+        value = getattr(_ms, name)
         globals()[name] = value
         return value
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -115,14 +125,17 @@ __all__ = [
     "HippocampalExtractor",
     "MemoryCandidate",
     "SharpWaveRippleConsolidator",
-    # cortex
+    # cortex (SwarmMemory)
     "SwarmMemory",
+    # consolidation_engine (DSPy, lazy-loaded)
     "MemoryCluster",
     "MemoryLevelClassificationSignature",
     "MemoryLevelClassifier",
     "MetaWisdomSignature",
     "PatternExtractionSignature",
     "ProceduralExtractionSignature",
+    "ConsolidationValidationSignature",
+    "ConsolidationValidator",
     # llm_rag
     "CausalExtractor",
     "DeduplicationEngine",
@@ -138,7 +151,7 @@ __all__ = [
     "get_brain_manager",
     "get_consolidator",
     "get_rag_retriever",
-    # incremental consolidation
-    "IncrementalConsolidator",
-    "get_incremental_consolidator",
+    # JustJot sync
+    "JustJotMemorySyncAdapter",
+    "JustJotMemory",
 ]

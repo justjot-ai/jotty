@@ -116,8 +116,13 @@ class ExecutionConfig:
 
 
 @dataclass
-class ExecutionStep:
-    """A single step in multi-step execution."""
+class TierExecutionStep:
+    """A single step in tiered multi-step execution.
+
+    This is distinct from reasoning/types/execution_types.ExecutionStep which
+    represents agent planning steps with skill/tool/param schemas. This class
+    tracks runtime execution progress in the tier system (step timing, results).
+    """
 
     step_num: int
     description: str
@@ -146,7 +151,7 @@ class ExecutionPlan:
     """Multi-step execution plan."""
 
     goal: str
-    steps: List[ExecutionStep]
+    steps: List[TierExecutionStep]
     estimated_cost: float = 0.0
     estimated_time_ms: float = 0.0
     created_at: datetime = field(default_factory=datetime.now)
@@ -206,7 +211,7 @@ class ExecutionResult:
 
     # Tier 2+ (AGENTIC)
     plan: Optional[ExecutionPlan] = None
-    steps: List[ExecutionStep] = field(default_factory=list)
+    steps: List[TierExecutionStep] = field(default_factory=list)
 
     # Tier 3+ (LEARNING)
     validation: Optional[TierValidationResult] = None
@@ -388,93 +393,6 @@ class ValidationVerdict:
             issues=[error_msg],
             retryable=retryable,
         )
-
-
-# =============================================================================
-# CIRCUIT BREAKER
-# =============================================================================
-
-
-class CircuitState(Enum):
-    """Circuit breaker states."""
-
-    CLOSED = "closed"  # Normal operation — calls pass through
-    OPEN = "open"  # Failing — calls rejected immediately
-    HALF_OPEN = "half_open"  # Testing — one probe call allowed
-
-
-class CircuitBreaker:
-    """Thread-safe circuit breaker preventing cascading failures.
-
-    State machine: CLOSED → (failures >= threshold) → OPEN → (cooldown expires) →
-    HALF_OPEN → (success) → CLOSED  |  (failure) → OPEN
-
-    Usage:
-        breaker = CircuitBreaker("llm", failure_threshold=5, cooldown_seconds=60)
-        if breaker.allow_request():
-            try:
-                result = call_llm(...)
-                breaker.record_success()
-            except Exception as e:
-                breaker.record_failure()
-                raise
-    """
-
-    def __init__(
-        self, name: str, failure_threshold: int = 5, cooldown_seconds: float = 60.0
-    ) -> None:
-        self.name = name
-        self.failure_threshold = failure_threshold
-        self.cooldown_seconds = cooldown_seconds
-        self._state = CircuitState.CLOSED
-        self._failure_count = 0
-        self._last_failure_time = 0.0
-        self._lock = threading.Lock()
-
-    @property
-    def state(self) -> CircuitState:
-        with self._lock:
-            if self._state == CircuitState.OPEN:
-                if time.time() - self._last_failure_time >= self.cooldown_seconds:
-                    self._state = CircuitState.HALF_OPEN
-            return self._state
-
-    def allow_request(self) -> bool:
-        """Check if a request should be allowed through."""
-        current = self.state
-        if current == CircuitState.CLOSED:
-            return True
-        if current == CircuitState.HALF_OPEN:
-            return True  # Allow one probe
-        return False  # OPEN — reject
-
-    def record_success(self) -> None:
-        """Record a successful call — resets breaker to CLOSED."""
-        with self._lock:
-            self._failure_count = 0
-            self._state = CircuitState.CLOSED
-
-    def record_failure(self) -> None:
-        """Record a failed call — may trip breaker to OPEN."""
-        with self._lock:
-            self._failure_count += 1
-            self._last_failure_time = time.time()
-            if self._failure_count >= self.failure_threshold:
-                self._state = CircuitState.OPEN
-                logger.warning(
-                    f"Circuit breaker '{self.name}' OPEN after " f"{self._failure_count} failures"
-                )
-
-    def reset(self) -> None:
-        """Manually reset to CLOSED."""
-        with self._lock:
-            self._failure_count = 0
-            self._state = CircuitState.CLOSED
-
-
-# Global circuit breakers — shared across all agents
-LLM_CIRCUIT_BREAKER = CircuitBreaker("llm", failure_threshold=5, cooldown_seconds=60)
-TOOL_CIRCUIT_BREAKER = CircuitBreaker("tool", failure_threshold=3, cooldown_seconds=30)
 
 
 # =============================================================================
@@ -689,3 +607,7 @@ class TimeoutWarning:
     @property
     def is_expired(self) -> bool:
         return self.elapsed >= self.timeout_seconds
+
+
+# Backward compatibility alias
+ExecutionStep = TierExecutionStep

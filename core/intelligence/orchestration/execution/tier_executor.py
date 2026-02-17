@@ -39,11 +39,11 @@ from .types import (
     ExecutionConfig,
     ExecutionPlan,
     ExecutionResult,
-    ExecutionStep,
     ExecutionTier,
     MemoryContext,
     StreamEvent,
     StreamEventType,
+    TierExecutionStep,
     TierValidationResult,
 )
 
@@ -436,7 +436,7 @@ class TierExecutor:
     def cost_tracker(self) -> Any:
         """Lazy-load CostTracker instance."""
         if self._cost_tracker is None:
-            from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import (  # type: ignore[import]
+            from Jotty.core.infrastructure.monitoring.metrics.cost_tracker import (  # type: ignore[import]
                 CostTracker,  # type: ignore[import]
             )
 
@@ -1659,7 +1659,7 @@ Correct answer:"""
                 skills=skills,
             )
 
-        # Convert ExecutionStep objects to dicts
+        # Convert TierExecutionStep objects to dicts
         step_dicts = []
         for step in steps:
             step_dict = {
@@ -1676,7 +1676,7 @@ Correct answer:"""
         """Convert planner output to ExecutionPlan.
 
         Handles both dict results (from _run_planner) and
-        raw ExecutionStep objects (from TaskPlanner).
+        raw step objects (from TaskPlanner).
         """
         steps_data = plan_result.get("steps", [])
 
@@ -1684,7 +1684,7 @@ Correct answer:"""
         for i, step_data in enumerate(steps_data):
             # Handle dict format
             if isinstance(step_data, dict):
-                step = ExecutionStep(
+                step = TierExecutionStep(
                     step_num=i + 1,
                     description=step_data.get("description", f"Step {i+1}"),
                     skill=step_data.get("skill"),
@@ -1692,8 +1692,8 @@ Correct answer:"""
                     can_parallelize=step_data.get("can_parallelize", False),
                 )
             else:
-                # Handle ExecutionStep objects from TaskPlanner
-                step = ExecutionStep(
+                # Handle step objects from TaskPlanner
+                step = TierExecutionStep(
                     step_num=i + 1,
                     description=getattr(step_data, "description", str(step_data)),
                     skill=getattr(step_data, "skill_name", None),
@@ -1709,7 +1709,9 @@ Correct answer:"""
             estimated_time_ms=plan_result.get("estimated_time_ms", 0.0),
         )
 
-    async def _execute_step(self, step: ExecutionStep, config: ExecutionConfig) -> Dict[str, Any]:
+    async def _execute_step(
+        self, step: TierExecutionStep, config: ExecutionConfig
+    ) -> Dict[str, Any]:
         """Execute a single step."""
         tools = []
         if step.skill:

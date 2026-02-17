@@ -601,6 +601,8 @@ class SwarmLearningConfig:
     async_timeout: float = 60.0
     actor_timeout: float = 900.0  # Specific timeout for actor execution (15 minutes)
     max_concurrent_agents: int = 10
+    # Latency-sensitive: wait for learning init before first run (seconds). 0 = skip wait.
+    learning_wait_timeout_seconds: float = 5.0
 
     # NEW: Agent-specific overrides (can be set in ActorConfig)
     max_eval_retries: int = 3  # Retry attempts for validation (was hardcoded in agent.py)

@@ -66,20 +66,20 @@ class TestMemoryPipelineIntegration:
 
     def test_memory_facade_singleton_consistency(self):
         """Facade returns same MemorySystem instance."""
-        import Jotty.core.intelligence.memory.facade as mf
-        from Jotty.core.intelligence.memory.facade import get_memory_system
+        import Jotty.core.intelligence.memory.memory_system as ms
+        from Jotty.core.intelligence.memory.memory_system import get_memory_system
 
-        mf._singletons.clear()
+        ms._singletons.clear()
         m1 = get_memory_system()
         m2 = get_memory_system()
         assert m1 is m2
 
     def test_brain_manager_instantiation(self):
         """BrainInspiredMemoryManager can be created and queried."""
-        import Jotty.core.intelligence.memory.facade as mf
-        from Jotty.core.intelligence.memory.facade import get_brain_manager
+        import Jotty.core.intelligence.memory.memory_system as ms
+        from Jotty.core.intelligence.memory.memory_system import get_brain_manager
 
-        mf._singletons.clear()
+        ms._singletons.clear()
         brain = get_brain_manager()
         assert brain is not None
         assert hasattr(brain, "store_experience")
@@ -87,7 +87,7 @@ class TestMemoryPipelineIntegration:
     def test_memory_config_to_rag_retriever(self):
         """MemoryConfig flows through to RAG retriever."""
         from Jotty.core.infrastructure.foundation.configs import MemoryConfig
-        from Jotty.core.intelligence.memory.facade import get_rag_retriever
+        from Jotty.core.intelligence.memory.memory_system import get_rag_retriever
 
         cfg = MemoryConfig(
             rag_window_size=10,
@@ -222,7 +222,7 @@ class TestObservabilityPipelineIntegration:
 
     def test_profiler_full_pipeline(self):
         """Profile operations, get report with slowest segments."""
-        from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
+        from Jotty.core.infrastructure.monitoring.metrics.profiler import PerformanceProfiler
 
         p = PerformanceProfiler()
 
@@ -295,7 +295,7 @@ class TestObservabilityPipelineIntegration:
 
     def test_tracing_and_profiler_combined(self):
         """Use tracing and profiling together on same operation."""
-        from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
+        from Jotty.core.infrastructure.monitoring.metrics.profiler import PerformanceProfiler
         from Jotty.core.infrastructure.monitoring.observability.tracing import TracingContext
 
         tracer = TracingContext()

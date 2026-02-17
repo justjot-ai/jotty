@@ -9,7 +9,7 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 
 from ..base import BaseUseCase, UseCaseConfig, UseCaseResult, UseCaseType
 from .chat_context import ChatContext, ChatMessage
-from .chat_executor import ChatExecutor
+from .chat_executor import ChatSessionExecutor
 from .chat_orchestrator import ChatOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class ChatUseCase(BaseUseCase):
 
         # Create components
         self.orchestrator = ChatOrchestrator(conductor=conductor, agent_id=agent_id, mode=mode)
-        self.executor = ChatExecutor(
+        self.executor = ChatSessionExecutor(
             conductor=conductor, orchestrator=self.orchestrator, context=context
         )
         self.agent_id = agent_id

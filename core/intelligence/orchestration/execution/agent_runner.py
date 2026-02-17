@@ -41,6 +41,7 @@ from Jotty.core.intelligence.learning.shaped_rewards import (
 )
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 from Jotty.core.intelligence.orchestration.execution.validation_gate import (
+    GateDecision,
     ValidationGate,
     ValidationMode,
     get_validation_gate,
@@ -1028,10 +1029,13 @@ class AgentRunner:
         skip_validation = ctx.kwargs.pop("skip_validation", False)
         validation_mode_override = ctx.kwargs.pop("validation_mode", None)
         ctx.status_callback = ctx.kwargs.pop("status_callback", None)
+        # Reuse gate decision from Orchestrator when provided (avoids redundant decide() LLM call)
+        gate_decision_from_caller = ctx.kwargs.pop("gate_decision", None)
 
         ctx._status = StatusReporter(ctx.status_callback, logger, emoji=" ")
 
         # ── Intelligent Validation Gate ───────────────────────────────
+        # Prefer: explicit override > passed-in gate_decision (from ExecutionEngine) > fresh decide()
         if skip_validation:
             force_mode = ValidationMode.DIRECT
         elif validation_mode_override:
@@ -1044,15 +1048,29 @@ class AgentRunner:
         else:
             force_mode = None
 
-        # Lazy-init the gate (singleton, shared across runs)
-        if self._validation_gate is None:
-            self._validation_gate = get_validation_gate()
-
-        ctx.gate_decision = await self._validation_gate.decide(
-            goal=goal,
-            agent_name=self.agent_name,
-            force_mode=force_mode,
-        )
+        if force_mode is not None:
+            # Explicit override: build synthetic decision (no LLM)
+            ctx.gate_decision = GateDecision(
+                mode=force_mode,
+                confidence=1.0,
+                reason="explicit_override",
+                latency_ms=0.0,
+            )
+        elif (
+            gate_decision_from_caller is not None
+            and getattr(gate_decision_from_caller, "mode", None) is not None
+        ):
+            # Reuse Orchestrator's gate decision (single decide() per run)
+            ctx.gate_decision = gate_decision_from_caller
+        else:
+            # No override and no passed decision: call gate (LLM or heuristic)
+            if self._validation_gate is None:
+                self._validation_gate = get_validation_gate()
+            ctx.gate_decision = await self._validation_gate.decide(
+                goal=goal,
+                agent_name=self.agent_name,
+                force_mode=force_mode,
+            )
 
         # Derive skip flags from gate decision
         ctx.skip_architect = ctx.gate_decision.mode in (

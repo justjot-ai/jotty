@@ -792,8 +792,27 @@ The user has requested {section_name} visualization format. You MUST:
                         block for block in response.content if isinstance(block, ToolUseBlock)
                     ]
 
-                    # Add assistant message with tool uses
-                    messages.append({"role": "assistant", "content": response.content})
+                    # Serialize content blocks to dicts for the next API call
+                    # (raw dataclass objects aren't JSON-serializable)
+                    serialized_content = []
+                    for block in response.content:
+                        if isinstance(block, TextBlock):
+                            serialized_content.append({"type": "text", "text": block.text})
+                        elif isinstance(block, ToolUseBlock):
+                            serialized_content.append(
+                                {
+                                    "type": "tool_use",
+                                    "id": block.id,
+                                    "name": block.name,
+                                    "input": block.input,
+                                }
+                            )
+                        elif isinstance(block, dict):
+                            serialized_content.append(block)
+                        else:
+                            serialized_content.append({"type": "text", "text": str(block)})
+
+                    messages.append({"role": "assistant", "content": serialized_content})
 
                     # Execute each tool and collect results
                     tool_results_for_message = []
@@ -926,7 +945,26 @@ The user has requested {section_name} visualization format. You MUST:
                 if response.stop_reason == "tool_use":
                     tool_use_blocks = [b for b in response.content if isinstance(b, ToolUseBlock)]
 
-                    messages.append({"role": "assistant", "content": response.content})
+                    # Serialize content blocks for next API call
+                    serialized_content = []
+                    for block in response.content:
+                        if isinstance(block, TextBlock):
+                            serialized_content.append({"type": "text", "text": block.text})
+                        elif isinstance(block, ToolUseBlock):
+                            serialized_content.append(
+                                {
+                                    "type": "tool_use",
+                                    "id": block.id,
+                                    "name": block.name,
+                                    "input": block.input,
+                                }
+                            )
+                        elif isinstance(block, dict):
+                            serialized_content.append(block)
+                        else:
+                            serialized_content.append({"type": "text", "text": str(block)})
+
+                    messages.append({"role": "assistant", "content": serialized_content})
                     tool_results_for_message = []
 
                     for tool_use in tool_use_blocks:

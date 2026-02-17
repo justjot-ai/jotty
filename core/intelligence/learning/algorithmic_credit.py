@@ -64,7 +64,12 @@ class AgentContribution:
 
 @dataclass
 class Coalition:
-    """A subset of agents."""
+    """A subset of agents for Shapley value calculation.
+
+    Note: Distinct from orchestration/intelligence/swarm_data_structures.Coalition
+    which manages runtime coalition lifecycle (leader, formation time, etc.).
+    This class is purely for mathematical credit assignment.
+    """
 
     members: List[str]
     value: float  # Estimated value of this coalition

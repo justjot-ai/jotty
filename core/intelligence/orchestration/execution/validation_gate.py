@@ -65,6 +65,10 @@ from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Default TTL for gate decision cache (seconds)
+DEFAULT_GATE_CACHE_TTL_SECONDS = 60.0
+MAX_GATE_CACHE_ENTRIES = 500
+
 
 # =========================================================================
 # VALIDATION MODES
@@ -180,6 +184,8 @@ class ValidationGate:
         sample_rate: float = 0.1,
         enable_llm: bool = True,
         fallback_mode: ValidationMode = ValidationMode.FULL,
+        cache_ttl_seconds: float = DEFAULT_GATE_CACHE_TTL_SECONDS,
+        enable_cache: bool = True,
     ) -> None:
         """
         Args:
@@ -191,16 +197,24 @@ class ValidationGate:
             enable_llm: If False, use heuristic-only (no LLM call).  Useful
                 when no API key is available.
             fallback_mode: Mode to use when gate can't decide (error, no LLM).
+            cache_ttl_seconds: TTL for cached decisions (goal + agent_name).
+                <= 0 disables cache. Default 60s for per-request reuse.
+            enable_cache: If False, never cache (always call LLM/heuristic).
         """
         self.model = model
         self.confidence_threshold = confidence_threshold
         self.sample_rate = sample_rate
         self.enable_llm = enable_llm
         self.fallback_mode = fallback_mode
+        self.cache_ttl_seconds = cache_ttl_seconds
+        self.enable_cache = enable_cache and cache_ttl_seconds > 0
 
         # Lazy-loaded LM (only created on first decide() call)
         self._lm = None
         self._lm_available: Optional[bool] = None
+
+        # Cache: (goal_key, agent_name) -> (GateDecision, timestamp)
+        self._cache: Dict[Tuple[str, str], Tuple[GateDecision, float]] = {}
 
         # Outcome tracking for drift detection
         self._decisions: Dict[ValidationMode, int] = defaultdict(int)
@@ -210,7 +224,8 @@ class ValidationGate:
 
         logger.info(
             f"ValidationGate: model={model}, threshold={confidence_threshold}, "
-            f"sample_rate={sample_rate}, llm={'on' if enable_llm else 'off'}"
+            f"sample_rate={sample_rate}, llm={'on' if enable_llm else 'off'}, "
+            f"cache={'on' if self.enable_cache else 'off'}"
         )
 
     # =====================================================================
@@ -260,6 +275,25 @@ class ValidationGate:
                     latency_ms=(time.time() - t0) * 1000,
                     was_overridden=True,
                 )
+
+        # ── 2.5 Cache lookup (goal + agent_name, short TTL) ─────────────
+        if self.enable_cache:
+            goal_key = goal.strip()[:300]
+            cache_key = (goal_key, agent_name)
+            cached = self._cache.get(cache_key)
+            if cached is not None:
+                decision, cached_at = cached
+                if (time.time() - cached_at) < self.cache_ttl_seconds:
+                    self._total_calls += 1
+                    return decision
+                # Expired — remove so we recompute
+                self._cache.pop(cache_key, None)
+            # Prune old entries if over limit
+            if len(self._cache) >= MAX_GATE_CACHE_ENTRIES:
+                now = time.time()
+                self._cache = {
+                    k: v for k, v in self._cache.items() if (now - v[1]) < self.cache_ttl_seconds
+                }
 
         # ── 3. LLM classification (Haiku) ────────────────────────────
         llm_mode, llm_confidence, llm_reason = await self._classify_with_llm(goal)
@@ -311,7 +345,7 @@ class ValidationGate:
         self._total_latency_ms += latency_ms
         self._decisions[final_mode] += 1
 
-        return GateDecision(
+        result = GateDecision(
             mode=final_mode,
             confidence=llm_confidence,
             reason=reason,
@@ -319,6 +353,11 @@ class ValidationGate:
             was_overridden=was_overridden,
             was_sampled=was_sampled,
         )
+        if self.enable_cache:
+            goal_key = goal.strip()[:300]
+            cache_key = (goal_key, agent_name)
+            self._cache[cache_key] = (result, time.time())
+        return result
 
     def record_outcome(self, mode: ValidationMode, success: bool) -> None:
         """

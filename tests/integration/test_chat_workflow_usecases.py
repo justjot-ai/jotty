@@ -20,7 +20,9 @@ import pytest
 # ---------------------------------------------------------------------------
 
 try:
-    from Jotty.core.intelligence.orchestration.use_cases.chat.chat_executor import ChatExecutor
+    from Jotty.core.intelligence.orchestration.use_cases.chat.chat_executor import (
+        ChatSessionExecutor as ChatExecutor,
+    )
 
     HAS_CHAT_EXECUTOR = True
 except ImportError:

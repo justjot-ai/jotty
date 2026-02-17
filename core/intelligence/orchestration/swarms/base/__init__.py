@@ -3,43 +3,32 @@ Swarm Base Module
 =================
 
 Architecture:
-    Agent (skills, LLM) → Team (coordination) → Swarm (learning)
+    Skills → Agents → Swarm (agents + coordination + learning)
+
+A swarm IS a coordinated group of agents. No separate "Team" layer.
 
 Provides:
-- TeamCoordinator: Declarative agent composition with coordination patterns
+- AgentCoordinator: Declarative agent composition with coordination patterns
+  (backward compat: TeamCoordinator)
 - SwarmTemplate: Template for domain-specific swarms with learning
 - CoordinationPattern: How agents work together (pipeline, parallel, etc.)
 - MergeStrategy: How to combine parallel results
 
 Usage:
-    # Simple swarm (manual coordination)
-    from Jotty.core.intelligence.reasoning.base import SwarmTemplate, TeamCoordinator
+    from Jotty.core.intelligence.orchestration.swarms.base import (
+        SwarmTemplate, AgentCoordinator, CoordinationPattern
+    )
 
     class MySwarm(SwarmTemplate):
-        AGENT_TEAM = TeamCoordinator.define(
+        AGENTS = AgentCoordinator.define(
             (AgentA, "AgentA"),
             (AgentB, "AgentB"),
+            pattern=CoordinationPattern.PIPELINE,
         )
 
         async def _execute_domain(self, task: str, **kwargs):
-            result_a = await self._agent_a.execute(task)
-            result_b = await self._agent_b.execute(result_a)
-            return result_b
-
-    # Team-coordinated swarm (automatic orchestration)
-    from Jotty.core.intelligence.reasoning.base import CoordinationPattern, MergeStrategy
-
-    class ReviewSwarm(SwarmTemplate):
-        AGENT_TEAM = TeamCoordinator.define(
-            (SecurityReviewer, "Security"),
-            (PerformanceReviewer, "Performance"),
-            pattern=CoordinationPattern.PARALLEL,
-            merge_strategy=MergeStrategy.CONCAT,
-        )
-
-        async def _execute_domain(self, code: str, **kwargs):
-            team_result = await self.execute_team(task=code)
-            return ReviewResult(findings=team_result.merged_output)
+            result = await self.coordinate(task=task)
+            return SwarmResult(output=result.merged_output)
 """
 
 from .swarm_template import PhaseExecutor, SwarmTemplate, _safe_join, _safe_num, _split_field
@@ -51,12 +40,19 @@ from .team_coordinator import (
     TeamResult,
 )
 
+# New names (Team IS Swarm — no separate layer)
+AgentCoordinator = TeamCoordinator  # Preferred name
+CoordinationResult = TeamResult  # Preferred name
+
 __all__ = [
-    # Team composition
+    # New preferred names
+    "AgentCoordinator",
+    "CoordinationResult",
+    # Backward compat names
     "TeamCoordinator",
-    "AgentSpec",
     "TeamResult",
-    # Coordination patterns
+    # Shared
+    "AgentSpec",
     "CoordinationPattern",
     "MergeStrategy",
     # Swarm base

@@ -1,32 +1,9 @@
 """
-Monitoring and Cost Tracking Module
+monitoring.monitoring — Re-export Shim
+========================================
 
-Provides cost tracking, monitoring, and efficiency metrics for Jotty framework.
+Canonical location: ``monitoring.metrics``
+This package re-exports for backward compatibility.
 """
 
-from .cost_tracker import CostMetrics, CostTracker, LLMCallRecord
-from .efficiency_metrics import EfficiencyMetrics, EfficiencyReport
-from .monitoring_framework import (
-    ExecutionMetrics,
-    ExecutionStatus,
-    MonitoringFramework,
-    PerformanceMetrics,
-)
-from .profiler import PerformanceProfiler, ProfileReport, ProfileSegment, profile_function
-
-__all__ = [
-    "CostTracker",
-    "CostMetrics",
-    "LLMCallRecord",
-    "EfficiencyMetrics",
-    "EfficiencyReport",
-    "MonitoringFramework",
-    "ExecutionMetrics",
-    "PerformanceMetrics",
-    "ExecutionStatus",
-    # Profiling
-    "PerformanceProfiler",
-    "ProfileSegment",
-    "ProfileReport",
-    "profile_function",
-]
+from Jotty.core.infrastructure.monitoring.metrics import *  # noqa: F403

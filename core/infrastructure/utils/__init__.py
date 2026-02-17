@@ -73,9 +73,9 @@ _LAZY_IMPORTS: dict[str, str] = {
     "safe_status": ".async_utils",
     "StatusReporter": ".async_utils",
     "StatusCallback": ".async_utils",
-    # context_utils — enrichment context stripping
-    "ENRICHMENT_MARKERS": ".context_utils",
-    "strip_enrichment_context": ".context_utils",
+    # context — enrichment context stripping (canonical: context.utils)
+    "ENRICHMENT_MARKERS": "Jotty.core.infrastructure.context.utils",
+    "strip_enrichment_context": "Jotty.core.infrastructure.context.utils",
 }
 
 

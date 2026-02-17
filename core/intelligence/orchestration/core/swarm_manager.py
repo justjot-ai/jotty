@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from Jotty.core.infrastructure.data.io_manager import (
         IOManager,  # type: ignore[import-not-found, import]
     )
-    from Jotty.core.infrastructure.monitoring.monitoring.profiler import (
+    from Jotty.core.infrastructure.monitoring.metrics.profiler import (
         PerformanceProfiler,  # type: ignore[import]
     )
     from Jotty.core.infrastructure.persistence.shared_context import (
@@ -285,7 +285,7 @@ def _create_profiler(config: SwarmConfig) -> Optional["PerformanceProfiler"]:
     enable = getattr(config, "enable_profiling", False)
     if not enable:
         return None
-    from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
+    from Jotty.core.infrastructure.monitoring.metrics.profiler import PerformanceProfiler
 
     return PerformanceProfiler(enable_cprofile=True)
 
@@ -605,14 +605,21 @@ class ExecutionEngine:
         # Lazy init: Build runners on first run
         sm._ensure_runners()
 
-        # Wait for background learning init to complete (max 5s)
-        # Prevents operating with partially-loaded learning state.
-        try:
-            await asyncio.wait_for(sm._learning_ready.wait(), timeout=5.0)
-        except asyncio.TimeoutError:
-            logger.warning(
-                "Learning init timed out after 5s, proceeding without full learning state"
-            )
+        # Wait for background learning init (optional/short for latency-sensitive deployments)
+        # learning_wait_timeout_seconds <= 0 skips wait; default 5.0s.
+        learning_wait_timeout = getattr(sm.config, "learning_wait_timeout_seconds", 5.0)
+        if learning_wait_timeout > 0:
+            try:
+                await asyncio.wait_for(
+                    sm._learning_ready.wait(), timeout=float(learning_wait_timeout)
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "Learning init timed out after %.1fs, proceeding without full learning state",
+                    learning_wait_timeout,
+                )
+        else:
+            logger.debug("Learning wait skipped (learning_wait_timeout_seconds <= 0)")
 
         # MAS-ZERO: Reset per-problem experience library
         sm._reset_experience()
@@ -819,8 +826,8 @@ class ExecutionEngine:
                 )
                 # Fall through to normal pipeline
 
-        # Store gate decision for downstream use (AgentRunner will also gate architect/auditor)
-        kwargs["_swarm_gate_decision"] = _gate_decision
+        # Store gate decision for downstream use — pass to AgentRunner to avoid redundant decide()
+        kwargs["gate_decision"] = _gate_decision
 
         # ── MODEL TIER ROUTING: Select LM quality based on task complexity ──
         # DIRECT → cheap (Haiku), AUDIT_ONLY → balanced (Sonnet), FULL → quality (Opus/Sonnet)
@@ -963,8 +970,7 @@ class ExecutionEngine:
                 )
                 ensemble = False  # Disable for agents
 
-            # Clean up internal flag before passing to agents
-            kwargs.pop("_swarm_gate_decision", None)
+            # Keep gate_decision in kwargs so AgentRunner can reuse it (no second decide() call)
 
             # Single-agent mode: Simple execution
             if sm.mode == "single":
@@ -1563,8 +1569,9 @@ class ExecutionEngine:
                             task_kwargs["ensemble_strategy"] = ensemble_strategy
                         # Forward the swarm-level gate decision to skip redundant
                         # per-agent architect/auditor if the swarm already decided
-                        if "_swarm_gate_decision" in task_kwargs:
-                            task_kwargs.pop("_swarm_gate_decision")  # clean up internal flag
+                        task_kwargs.pop(
+                            "gate_decision", None
+                        )  # single-agent only; don't pass to multi-agent tasks
 
                         # MULTI-AGENT OPTIMIZATION: Sub-agents with system_prompt
                         # are specialized for analysis/synthesis — they don't need
@@ -1854,14 +1861,29 @@ class Orchestrator:
     """
     Composable swarm orchestrator with lazy initialization.
 
+    Public API — two methods:
+        result = await orchestrator.run(goal)                   # Do this thing
+        result = await orchestrator.chat(message, history=...)  # Let's talk
+
+    run() auto-routes based on complexity, or accepts explicit hints:
+        run(goal)                          # Auto-detect (agent or swarm)
+        run(goal, swarm=CodingSwarm)       # Explicit swarm
+        run(goal, agent=my_agent)          # Explicit single agent
+        run(goal, stages=[...])            # Multi-stage pipeline
+        run(goal, stream=True)             # Streaming output
+
+    chat() is conversational mode with human-in-the-loop:
+        chat(message, history=[...])       # Tool calling, session context
+        chat(message, stream=True)         # Streaming tokens
+
+    All modes share LearningService, Memory, Tools, Providers.
+
     All heavyweight components are lazy-loaded via descriptors.
     Init is fast (~10ms). Components are created on first access.
 
-    Modes:
-        - single: 1 AutoAgent (default)
-        - multi: N agents with SwarmTaskBoard coordination
-
     Key features:
+        - Unified execution: run() and chat() cover 100% of use cases
+        - Auto-routing: complexity detection routes to agent or swarm
         - MAS-ZERO: parallel strategies, meta-feedback, candidate verification
         - Concurrency semaphore: limits parallel LLM calls (default 3)
         - Learning pipeline: TD(λ), credit assignment, memory consolidation
@@ -1968,17 +1990,6 @@ class Orchestrator:
             enable_lotus: Enable LOTUS optimization layer
             max_concurrent_agents: Max agents calling LLM concurrently (AIOS-inspired, default 3)
         """
-        import warnings
-
-        warnings.warn(
-            "Orchestrator is deprecated. Use Jotty() instead:\n"
-            "  jotty = Jotty()\n"
-            "  result = await jotty.run('task')  # auto-detects tier\n"
-            "  result = await jotty.swarm('task', swarm_name='coding')  # specific swarm\n"
-            "  result = await jotty.autonomous('task')  # full features\n",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         self.config = config or SwarmConfig()
         self.enable_zero_config = enable_zero_config
         self.enable_lotus = enable_lotus
@@ -2784,8 +2795,583 @@ class Orchestrator:
             self._engine = ExecutionEngine(self)
         return self._engine
 
-    async def run(self, goal: str, **kwargs: Any) -> Any:
-        return await self._ensure_engine().run(goal, **kwargs)
+    # =========================================================================
+    # PUBLIC API — Two methods: run() and chat()
+    # =========================================================================
+
+    async def run(
+        self,
+        goal: str,
+        *,
+        stream: bool = False,
+        stages: Optional[List[Dict[str, Any]]] = None,
+        swarm: Optional[Any] = None,
+        agent: Optional[Any] = None,
+        status_callback: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Universal execution entry point.
+
+        Auto-routes based on what's provided:
+        - Just a goal          → auto-detect complexity (agent or swarm)
+        - agent=MyAgent        → single agent execution
+        - swarm=CodingSwarm    → specific swarm template
+        - stages=[...]         → multi-stage pipeline with dependencies
+
+        All modes share LearningService, Memory, Tools, Providers.
+
+        Args:
+            goal: Task goal/description (natural language)
+            stream: If True, returns AsyncIterator[StreamEvent]
+            stages: Pipeline stage definitions (triggers pipeline mode)
+            swarm: SwarmTemplate class or instance (triggers swarm mode)
+            agent: BaseAgent instance (triggers single-agent mode)
+            status_callback: Optional progress callback(stage, detail)
+            **kwargs: Additional arguments passed to the execution engine
+
+        Returns:
+            ExecutionResult (or AsyncIterator[StreamEvent] if stream=True)
+
+        Examples:
+            # Auto-detect
+            result = await orchestrator.run("What is GDP?")
+
+            # Explicit swarm
+            result = await orchestrator.run("Analyze data", swarm=DataAnalysisSwarm)
+
+            # Explicit agent
+            result = await orchestrator.run("Review code", agent=security_reviewer)
+
+            # Pipeline
+            result = await orchestrator.run("Build and test API", stages=[
+                {"name": "design", "swarm": CodingSwarm},
+                {"name": "test", "swarm": TestingSwarm, "depends_on": ["design"]},
+            ])
+
+            # Streaming
+            async for event in orchestrator.run("Research AI", stream=True):
+                print(event)
+        """
+        import time as _time
+
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        learning = LearningService.get_instance()
+        run_start = _time.time()
+
+        # Route to the appropriate execution path
+        if stages is not None:
+            # Pipeline mode
+            result = await self._run_pipeline(
+                goal, stages=stages, status_callback=status_callback, **kwargs
+            )
+        elif swarm is not None:
+            # Explicit swarm mode
+            result = await self._run_swarm(
+                goal, swarm=swarm, status_callback=status_callback, stream=stream, **kwargs
+            )
+        elif agent is not None:
+            # Explicit single-agent mode
+            result = await self._run_agent(
+                goal, agent=agent, status_callback=status_callback, stream=stream, **kwargs
+            )
+        elif stream:
+            # Auto-detect with streaming — use ExecutionEngine
+            kwargs["status_callback"] = status_callback
+            return self._run_stream(goal, **kwargs)
+        else:
+            # Auto-detect (default swarm-based routing)
+            kwargs["status_callback"] = status_callback
+            result = await self._ensure_engine().run(goal, **kwargs)
+
+        # Record to LearningService
+        run_time = _time.time() - run_start
+        success = getattr(result, "success", True) if result else False
+        try:
+            learning.record(
+                unit_name="Orchestrator",
+                unit_type="orchestrator",
+                domain="general",
+                task_type="run",
+                context={"goal": str(goal)[:300]},
+                action={
+                    "mode": (
+                        "pipeline" if stages else "swarm" if swarm else "agent" if agent else "auto"
+                    )
+                },
+                outcome={"output_length": len(str(result)) if result else 0},
+                success=success,
+                quality=0.8 if success else 0.0,
+                execution_time=run_time,
+            )
+        except Exception as e:
+            logger.debug(f"LearningService record failed: {e}")
+
+        return result
+
+    async def chat(
+        self,
+        message: str,
+        *,
+        history: Optional[List[Dict[str, Any]]] = None,
+        stream: bool = False,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        status_callback: Optional[Callable[[str, str], None]] = None,
+        stream_callback: Optional[Callable[[str], None]] = None,
+        enabled_tools: Optional[List[str]] = None,
+        output_format: str = "auto",
+        max_steps: int = 10,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Conversational mode with human-in-the-loop.
+
+        Tool calling, streaming, session context via history.
+        Uses ChatExecutor internally, wrapped with LearningService.
+
+        Args:
+            message: User message
+            history: Conversation history (list of {role, content} dicts)
+            stream: If True, returns AsyncIterator[StreamEvent]
+            provider: LLM provider ('anthropic', 'openai', etc.). Auto-detects if None.
+            model: Model name (uses provider default if not specified)
+            status_callback: Progress callback(stage, detail)
+            stream_callback: Token-level streaming callback(chunk)
+            enabled_tools: Only enable these tools (None = all)
+            output_format: Force output format ('auto', 'pdf', 'docx', etc.)
+            max_steps: Maximum tool-calling iterations
+            **kwargs: Additional arguments
+
+        Returns:
+            LLMExecutionResult (or AsyncIterator[StreamEvent] if stream=True)
+
+        Examples:
+            # Simple chat
+            result = await orchestrator.chat("Hello!")
+
+            # With history
+            result = await orchestrator.chat("Follow up", history=[
+                {"role": "user", "content": "What is AI?"},
+                {"role": "assistant", "content": "AI is..."},
+            ])
+
+            # Streaming
+            async for event in orchestrator.chat("Explain quantum physics", stream=True):
+                print(event)
+        """
+        import time as _time
+
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.intelligence.orchestration.execution.unified_executor import (
+            ChatExecutor as _ChatExecutor,
+        )
+
+        learning = LearningService.get_instance()
+        chat_start = _time.time()
+
+        # Start learning episode
+        episode_id = None
+        try:
+            episode_id = learning.start_episode(
+                unit_name="Orchestrator",
+                unit_type="chat",
+                domain="conversational",
+                task_type="chat",
+                context={"message": message[:300], "history_len": len(history or [])},
+            )
+        except Exception as e:
+            logger.debug(f"LearningService episode start failed: {e}")
+
+        # Query learning for chat guidance
+        guidance = {}
+        try:
+            guidance = learning.query(
+                domain="conversational",
+                task_type="chat",
+                context={"message": message[:200]},
+            )
+        except Exception:
+            pass
+
+        # Create ChatExecutor with provided or auto-detected config
+        executor = _ChatExecutor(
+            provider=provider,
+            model=model,
+            status_callback=status_callback,
+            stream_callback=stream_callback if not stream else None,
+            enabled_tools=enabled_tools,
+            output_format=output_format,
+            max_steps=max_steps,
+        )
+
+        result = None
+        error_msg = None
+        try:
+            if stream:
+                # Streaming: return async generator wrapped with learning
+                return self._chat_stream_with_learning(
+                    executor, message, history, episode_id, learning, chat_start
+                )
+            else:
+                # Non-streaming execution
+                result = await executor.execute(message, history=history)
+                return result
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Chat execution failed: {e}", exc_info=True)
+            raise
+        finally:
+            # End learning episode (skip if streaming — handled in generator)
+            if not stream and episode_id:
+                chat_time = _time.time() - chat_start
+                success = getattr(result, "success", False) if result else False
+                try:
+                    learning.end_episode(
+                        episode_id=episode_id,
+                        success=success,
+                        quality=0.8 if success else 0.0,
+                        cost=0.0,
+                        outcome={"content_length": len(getattr(result, "content", ""))},
+                        error_message=error_msg,
+                    )
+                except Exception as e:
+                    logger.debug(f"LearningService episode end failed: {e}")
+
+    async def _chat_stream_with_learning(
+        self,
+        executor: Any,
+        message: str,
+        history: Optional[List[Dict[str, Any]]],
+        episode_id: Optional[str],
+        learning: Any,
+        start_time: float,
+    ) -> Any:
+        """Wrap streaming chat with LearningService episode tracking."""
+        import time as _time
+
+        try:
+            async for event in executor.execute_stream(message, history=history):
+                yield event
+        except Exception as e:
+            logger.error(f"Chat stream failed: {e}")
+            raise
+        finally:
+            if episode_id:
+                chat_time = _time.time() - start_time
+                try:
+                    learning.end_episode(
+                        episode_id=episode_id,
+                        success=True,
+                        quality=0.7,
+                        cost=0.0,
+                        outcome={"streamed": True, "duration": chat_time},
+                    )
+                except Exception:
+                    pass
+
+    # =========================================================================
+    # INTERNAL EXECUTION MODES — Called by run()
+    # =========================================================================
+
+    async def _run_swarm(
+        self,
+        goal: str,
+        *,
+        swarm: Any,
+        status_callback: Optional[Callable] = None,
+        stream: bool = False,
+        **kwargs: Any,
+    ) -> Any:
+        """Execute with a specific swarm template."""
+
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        learning = LearningService.get_instance()
+
+        # Instantiate swarm if class was passed
+        if isinstance(swarm, type):
+            swarm_config = kwargs.pop("swarm_config", {})
+            if isinstance(swarm_config, dict):
+                from Jotty.core.intelligence.orchestration.swarms._base.swarm_learning import (
+                    SwarmBaseConfig,
+                )
+
+                swarm_config = SwarmBaseConfig(
+                    name=swarm.__name__,
+                    domain=swarm_config.get("domain", "general"),
+                    **{k: v for k, v in swarm_config.items() if k not in ("name", "domain")},
+                )
+            swarm = swarm(swarm_config)
+
+        if status_callback:
+            status_callback("swarm", f"Executing {swarm.__class__.__name__}")
+
+        return await swarm.execute(task=goal, **kwargs)
+
+    async def _run_agent(
+        self,
+        goal: str,
+        *,
+        agent: Any,
+        status_callback: Optional[Callable] = None,
+        stream: bool = False,
+        **kwargs: Any,
+    ) -> Any:
+        """Execute with a specific single agent."""
+        if status_callback:
+            agent_name = getattr(agent, "name", agent.__class__.__name__)
+            status_callback("agent", f"Executing {agent_name}")
+
+        return await agent.execute(task=goal, **kwargs)
+
+    async def _run_stream(self, goal: str, **kwargs: Any) -> Any:
+        """Auto-detect with streaming. Delegates to ExecutionEngine."""
+        # For now, use ChatExecutor for streaming (the engine doesn't natively stream)
+        from Jotty.core.intelligence.orchestration.execution.unified_executor import (
+            ChatExecutor as _ChatExecutor,
+        )
+
+        executor = _ChatExecutor(
+            status_callback=kwargs.pop("status_callback", None),
+        )
+        async for event in executor.execute_stream(goal):
+            yield event
+
+    # =========================================================================
+    # PIPELINE MODE — Multi-stage orchestration with learning
+    # =========================================================================
+
+    async def _run_pipeline(
+        self,
+        goal: str,
+        stages: List[Dict[str, Any]],
+        status_callback: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> EpisodeResult:
+        """
+        Execute a multi-stage pipeline with integrated learning.
+
+        Each stage can contain a swarm, an agent, or a callable.
+        Learning wraps every stage: pre-stage guidance, post-stage recording,
+        and inter-stage reflection when failures occur.
+
+        Args:
+            goal: Overall pipeline goal
+            stages: List of stage definitions, each a dict with:
+                - name (str): Stage identifier
+                - swarm (optional): SwarmTemplate instance or class
+                - agent (optional): BaseAgent instance
+                - callable (optional): Async callable(context) -> result
+                - depends_on (optional): List[str] of stage names to wait for
+                - config (optional): Dict of stage-specific config
+            status_callback: Optional progress callback(stage_name, detail)
+
+        Returns:
+            EpisodeResult with aggregated pipeline results
+
+        Example:
+            result = await orchestrator.run(
+                "Build and test a REST API",
+                stages=[
+                    {"name": "design", "swarm": CodingSwarm(config), "config": {"task": "Design API"}},
+                    {"name": "test", "swarm": TestingSwarm(config), "depends_on": ["design"]},
+                    {"name": "review", "agent": SecurityReviewer(), "depends_on": ["design"]},
+                ],
+            )
+        """
+        import time as _time
+
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        learning = LearningService.get_instance()
+        pipeline_start = _time.time()
+
+        # Start a pipeline-level episode
+        pipeline_episode = learning.start_episode(
+            unit_name="Orchestrator",
+            unit_type="pipeline",
+            domain=getattr(self.config, "domain", "general") or "general",
+            task_type="pipeline",
+            context={"goal": goal[:500], "stages": [s["name"] for s in stages]},
+        )
+
+        stage_results: Dict[str, Any] = {}
+        stage_outputs: Dict[str, Any] = {}
+        all_success = True
+        total_cost = 0.0
+
+        for i, stage_def in enumerate(stages):
+            stage_name = stage_def.get("name", f"stage_{i}")
+            depends_on = stage_def.get("depends_on", [])
+
+            # Check dependencies
+            for dep in depends_on:
+                if dep not in stage_results:
+                    logger.warning(f"Pipeline stage '{stage_name}': dependency '{dep}' not found")
+                elif not stage_results[dep].get("success", False):
+                    # Reflect: dependency failed
+                    reflection = learning.reflect(
+                        episode_id=pipeline_episode,
+                        step=i,
+                        observation=f"Dependency '{dep}' failed for stage '{stage_name}'",
+                        unit_name="Orchestrator",
+                    )
+                    logger.info(f"Pipeline reflection: {reflection.get('adjustment', '')}")
+
+            if status_callback:
+                status_callback(stage_name, f"Starting stage {i+1}/{len(stages)}")
+
+            # Build context from previous stages
+            stage_context = {"goal": goal, "stage": stage_name, "previous_outputs": {}}
+            for dep in depends_on:
+                if dep in stage_outputs:
+                    stage_context["previous_outputs"][dep] = str(stage_outputs[dep])[:1500]
+
+            # Query learning for stage guidance
+            guidance = learning.query(
+                domain=stage_name,
+                task_type=stage_def.get("task_type", stage_name),
+                context=stage_context,
+            )
+            if guidance.get("recommendations"):
+                stage_context["learning_recommendations"] = guidance["recommendations"]
+
+            # Start stage episode
+            stage_episode = learning.start_episode(
+                unit_name=stage_name,
+                unit_type="pipeline_stage",
+                domain=stage_name,
+                task_type=stage_def.get("task_type", stage_name),
+                context=stage_context,
+                parent_episode_id=pipeline_episode,
+            )
+
+            stage_start = _time.time()
+            stage_success = False
+            stage_output = None
+            stage_error = None
+
+            try:
+                # Execute the stage
+                if "swarm" in stage_def:
+                    swarm = stage_def["swarm"]
+                    if isinstance(swarm, type):
+                        swarm_config = stage_def.get("config", {})
+                        swarm = swarm(swarm_config)
+                    task = stage_def.get("task", goal)
+                    if depends_on and stage_outputs:
+                        context_str = "\n".join(
+                            f"[{dep}]: {str(stage_outputs.get(dep, ''))[:500]}"
+                            for dep in depends_on
+                            if dep in stage_outputs
+                        )
+                        task = f"{context_str}\n\n{task}"
+                    stage_output = await swarm.execute(task)
+                    stage_success = getattr(stage_output, "success", True)
+
+                elif "agent" in stage_def:
+                    agent = stage_def["agent"]
+                    task = stage_def.get("task", goal)
+                    stage_output = await agent.execute(task=task, **stage_context)
+                    stage_success = getattr(stage_output, "success", True)
+
+                elif "callable" in stage_def:
+                    fn = stage_def["callable"]
+                    stage_output = await fn(stage_context)
+                    stage_success = True
+
+                else:
+                    logger.warning(f"Stage '{stage_name}': no swarm, agent, or callable defined")
+                    stage_success = False
+                    stage_error = "No execution unit defined"
+
+            except Exception as e:
+                logger.error(f"Pipeline stage '{stage_name}' failed: {e}")
+                stage_success = False
+                stage_error = str(e)
+
+                # Mid-pipeline reflection
+                reflection = learning.reflect(
+                    episode_id=pipeline_episode,
+                    step=i,
+                    observation=f"Stage '{stage_name}' failed: {str(e)[:200]}",
+                    unit_name="Orchestrator",
+                    analysis=f"Error type: {type(e).__name__}",
+                )
+                logger.info(f"Pipeline reflection: {reflection.get('adjustment', '')}")
+
+            stage_time = _time.time() - stage_start
+
+            # Record stage result
+            stage_results[stage_name] = {
+                "success": stage_success,
+                "time": stage_time,
+                "output": stage_output,
+                "error": stage_error,
+            }
+            if stage_output is not None:
+                stage_outputs[stage_name] = stage_output
+
+            if not stage_success:
+                all_success = False
+
+            # End stage episode
+            learning.end_episode(
+                episode_id=stage_episode,
+                success=stage_success,
+                quality=0.8 if stage_success else 0.1,
+                cost=getattr(stage_output, "cost", 0.0) if stage_output else 0.0,
+                outcome={"output": str(stage_output)[:500]} if stage_output else {},
+                error_message=stage_error,
+            )
+
+            if status_callback:
+                status = "completed" if stage_success else "failed"
+                status_callback(stage_name, f"Stage {status} ({stage_time:.1f}s)")
+
+        # End pipeline episode
+        pipeline_time = _time.time() - pipeline_start
+        learning.end_episode(
+            episode_id=pipeline_episode,
+            success=all_success,
+            quality=sum(1 for r in stage_results.values() if r["success"])
+            / max(len(stage_results), 1),
+            cost=total_cost,
+            outcome={
+                "stages_completed": sum(1 for r in stage_results.values() if r["success"]),
+                "stages_total": len(stages),
+            },
+        )
+
+        # Build final EpisodeResult
+        last_stage = stages[-1]["name"] if stages else ""
+        final_output = stage_outputs.get(last_stage, "")
+
+        return EpisodeResult(
+            success=all_success,
+            output=str(final_output)[:5000] if final_output else "",
+            metadata={
+                "pipeline": True,
+                "stages": {
+                    name: {"success": r["success"], "time": r["time"]}
+                    for name, r in stage_results.items()
+                },
+                "total_time": pipeline_time,
+                "total_cost": total_cost,
+            },
+        )
+
+    # Backward-compat alias: run_pipeline() → run(goal, stages=...)
+    async def run_pipeline(
+        self,
+        goal: str,
+        stages: List[Dict[str, Any]],
+        status_callback: Optional[Callable] = None,
+    ) -> EpisodeResult:
+        """Backward-compat alias. Use run(goal, stages=...) instead."""
+        return await self.run(goal, stages=stages, status_callback=status_callback)
 
     # _execute_ensemble and _should_auto_ensemble — delegated to EnsembleManager
 

@@ -582,6 +582,15 @@ class BaseAgent(ABC):
                 except Exception as e:
                     logger.warning(f"Post-hook failed: {e}")
 
+                # Record to LearningService
+                self._record_to_learning_service(
+                    success=True,
+                    execution_time=execution_time,
+                    kwargs=kwargs,
+                    output=output,
+                    retries=retries,
+                )
+
                 return result
 
             except asyncio.TimeoutError:
@@ -627,6 +636,15 @@ class BaseAgent(ABC):
         self._metrics["total_retries"] += retries
         self._metrics["total_execution_time"] += execution_time
 
+        # Record failure to LearningService
+        self._record_to_learning_service(
+            success=False,
+            execution_time=execution_time,
+            kwargs=kwargs,
+            error=last_error,
+            retries=retries,
+        )
+
         return AgentResult(
             success=False,
             output=None,
@@ -636,6 +654,53 @@ class BaseAgent(ABC):
             error=last_error,
             metadata={"trajectory": trajectory},
         )
+
+    def _record_to_learning_service(
+        self,
+        success: bool,
+        execution_time: float,
+        kwargs: Dict[str, Any],
+        output: Any = None,
+        error: Optional[str] = None,
+        retries: int = 0,
+    ) -> None:
+        """Record execution outcome to the unified LearningService."""
+        try:
+            from Jotty.core.intelligence.learning.learning_service import LearningService
+
+            service = LearningService.get_instance()
+            task_str = str(kwargs.get("task", kwargs.get("query", kwargs.get("input", ""))))[:200]
+
+            service.record(
+                unit_name=self.config.name,
+                unit_type="agent",
+                domain=self.config.parameters.get("domain", "general"),
+                task_type=self.__class__.__name__,
+                context={"task": task_str},
+                action={"model": self.config.model, "retries": retries},
+                outcome={"output_length": len(str(output)) if output else 0},
+                success=success,
+                quality=0.8 if success else 0.0,
+                execution_time=execution_time,
+                error_type=self._classify_error_type(error) if error else None,
+                error_message=error,
+            )
+        except Exception as e:
+            logger.debug(f"LearningService record failed: {e}")
+
+    @staticmethod
+    def _classify_error_type(error: str) -> str:
+        """Classify an error string into a category for learning."""
+        err_lower = (error or "").lower()
+        if "timeout" in err_lower:
+            return "timeout"
+        if "rate limit" in err_lower or "429" in err_lower:
+            return "rate_limit"
+        if "api" in err_lower or "connection" in err_lower:
+            return "infrastructure"
+        if "permission" in err_lower or "auth" in err_lower:
+            return "authentication"
+        return "execution_failure"
 
     def _analyze_failure(self, error: str, kwargs: Dict[str, Any]) -> str:
         """Analyze a failure and return guidance for the next retry attempt.

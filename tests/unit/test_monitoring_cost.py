@@ -17,7 +17,7 @@ import pytest
 
 # --- cost_tracker imports ---
 try:
-    from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import (
+    from Jotty.core.infrastructure.monitoring.metrics.cost_tracker import (
         DEFAULT_PRICING,
         PRICING_TABLE,
         CostMetrics,
@@ -31,7 +31,7 @@ except ImportError:
 
 # --- monitoring_framework imports ---
 try:
-    from Jotty.core.infrastructure.monitoring.monitoring.monitoring_framework import (
+    from Jotty.core.infrastructure.monitoring.metrics.monitoring_framework import (
         ExecutionMetrics,
         ExecutionStatus,
         MonitoringFramework,
@@ -44,7 +44,7 @@ except ImportError:
 
 # --- efficiency_metrics imports ---
 try:
-    from Jotty.core.infrastructure.monitoring.monitoring.efficiency_metrics import (
+    from Jotty.core.infrastructure.monitoring.metrics.efficiency_metrics import (
         EfficiencyMetrics,
         EfficiencyReport,
     )

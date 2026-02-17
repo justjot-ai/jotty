@@ -3,14 +3,16 @@ Smart Tokenizer Utility
 =======================
 
 Provides accurate token estimation with tiktoken fallback to improved heuristics.
-
-A-Team Critical Fix: Replace naive len(text)//4 with proper tokenization.
+Also includes model-specific token counting via tokencost (merged from token_counter.py).
 
 Features:
 - Uses tiktoken for cl100k_base (GPT-4/Claude compatible)
 - Fallback to improved heuristics if tiktoken unavailable
 - Cache tokenizer instance (singleton)
 - Handle CJK, code, JSON specially
+- Model-specific counting via tokencost (TokenCounter)
+- Overflow detection and remaining token calculation
+- Message-aware token counting for chat models
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from __future__ import annotations
 import logging
 import re
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -338,6 +340,247 @@ def estimate_tokens(text: str, encoding: str | None = None) -> int:
 
 
 # =============================================================================
+# MODEL-SPECIFIC TOKEN COUNTING (merged from foundation/token_counter.py)
+# =============================================================================
+
+# Lazy import: model_limits_catalog (avoids circular import with foundation/__init__.py)
+_limits_catalog_loaded = False
+get_limits_from_catalog = None
+
+
+def _ensure_limits_catalog() -> None:
+    global _limits_catalog_loaded, get_limits_from_catalog
+    if _limits_catalog_loaded:
+        return
+    _limits_catalog_loaded = True
+    try:
+        from Jotty.core.infrastructure.foundation.model_limits_catalog import (
+            get_model_limits as _glfc,
+        )
+
+        get_limits_from_catalog = _glfc
+    except ImportError:
+        pass
+
+
+# Try to import tokencost (for accurate counting when network works)
+try:
+    from tokencost import count_message_tokens as _tc_count_message_tokens
+    from tokencost import count_string_tokens as _tc_count_string_tokens
+
+    TOKENCOST_AVAILABLE = True
+except ImportError:
+    TOKENCOST_AVAILABLE = False
+
+
+class TokenCounter:
+    """
+    Model-specific token counting with tokencost integration.
+
+    Features:
+    - Model-specific tokenization (GPT-4, Claude, Llama, etc.)
+    - Accurate token counts via tokencost
+    - Model limit lookup (max_prompt, max_output)
+    - Overflow detection
+    """
+
+    MODEL_MAPPING = {
+        "gpt-4": "gpt-4",
+        "gpt-4.1": "gpt-4.1",
+        "gpt-4-turbo": "gpt-4-turbo",
+        "gpt-4o": "gpt-4o",
+        "gpt-4o-mini": "gpt-4o-mini",
+        "gpt-3.5-turbo": "gpt-3.5-turbo",
+        "o1-mini": "o1-mini",
+        "o1-preview": "o1-preview",
+        "claude-3-opus": "claude-3-opus-20240229",
+        "claude-3-sonnet": "claude-3-sonnet-20240229",
+        "claude-3-haiku": "claude-3-haiku-20240307",
+        "claude-3.5-sonnet": "claude-3-5-sonnet-20240620",
+        "claude-3.7-sonnet": "claude-3-7-sonnet-20250219",
+        "llama-3-70b": "meta-llama/llama-3-70b-instruct",
+        "llama-3.3-70b": "meta-llama/llama-3.3-70b-instruct",
+        "gemini-pro": "gemini-1.5-pro",
+        "gemini-1.5-pro": "gemini-1.5-pro",
+        "gemini-2.0-flash": "gemini-2.0-flash",
+        "mistral-large": "mistral-large-latest",
+        "mistral-medium": "mistral-medium-latest",
+    }
+
+    USE_CONSERVATIVE_MODE = False
+
+    def __init__(self, model: Optional[str] = None) -> None:
+        if model is None:
+            try:
+                import dspy
+
+                if hasattr(dspy.settings, "lm") and dspy.settings.lm:
+                    lm = dspy.settings.lm
+                    if hasattr(lm, "model"):
+                        model = lm.model
+                    elif hasattr(lm, "kwargs") and "model" in lm.kwargs:
+                        model = lm.kwargs["model"]
+            except (ImportError, AttributeError, TypeError):
+                pass
+
+        self.model = model or "gpt-4.1"
+        self.tokencost_model = self._map_model_name(self.model)
+
+    def _map_model_name(self, model: str) -> str:
+        """Map DSPy/LiteLLM model name to TokenCost format."""
+        if model in self.MODEL_MAPPING:
+            return self.MODEL_MAPPING[model]
+
+        model_lower = model.lower()
+        for dspy_name, tokencost_name in self.MODEL_MAPPING.items():
+            if dspy_name in model_lower or model_lower in dspy_name:
+                return tokencost_name
+
+        if "gpt-4o" in model_lower:
+            return "gpt-4o"
+        elif "gpt-4" in model_lower:
+            return "gpt-4"
+        elif "gpt-3.5" in model_lower or "gpt-35" in model_lower:
+            return "gpt-3.5-turbo"
+        elif "claude" in model_lower:
+            if "3.5" in model or "3-5" in model:
+                return "claude-3-5-sonnet-20240620"
+            elif "3.7" in model or "3-7" in model:
+                return "claude-3-7-sonnet-20250219"
+            return "claude-3-opus-20240229"
+
+        return model
+
+    def count_tokens(self, text: str, model: Optional[str] = None) -> int:
+        """Count tokens in text using tokencost (falls back to approximation)."""
+        if not text:
+            return 0
+
+        model_to_use = model or self.model
+        tokencost_model = self._map_model_name(model_to_use) if model else self.tokencost_model
+
+        if TOKENCOST_AVAILABLE:
+            try:
+                return _tc_count_string_tokens(str(text), model=tokencost_model)  # type: ignore[no-any-return]
+            except Exception:
+                pass
+
+        return len(str(text)) // 4 + 1
+
+    def count_messages(self, messages: List[Dict[str, Any]], model: Optional[str] = None) -> int:
+        """Count tokens in message list (for chat models)."""
+        if not messages:
+            return 0
+
+        model_to_use = model or self.model
+        tokencost_model = self._map_model_name(model_to_use) if model else self.tokencost_model
+
+        if TOKENCOST_AVAILABLE:
+            try:
+                return _tc_count_message_tokens(messages, model=tokencost_model)  # type: ignore[no-any-return]
+            except Exception:
+                pass
+
+        total = 0
+        for msg in messages:
+            content = msg.get("content", "")
+            total += len(str(content)) // 4 + 10
+        return total
+
+    def get_model_limits(self, model: Optional[str] = None) -> Dict[str, int]:
+        """Get model token limits from LOCAL CATALOG (no network required)."""
+        _ensure_limits_catalog()
+        model_to_use = model or self.model
+        tokencost_model = self._map_model_name(model_to_use) if model else self.tokencost_model
+
+        if get_limits_from_catalog is not None:
+            return get_limits_from_catalog(tokencost_model, conservative=self.USE_CONSERVATIVE_MODE)  # type: ignore[no-any-return]
+
+        return {"max_prompt": 100000, "max_output": 4096}
+
+    def will_overflow(
+        self,
+        current_tokens: int,
+        additional_tokens: int,
+        model: Optional[str] = None,
+        safety_margin: float = 0.9,
+    ) -> bool:
+        """Check if adding tokens will cause context overflow."""
+        limits = self.get_model_limits(model)
+        max_allowed = int(limits["max_prompt"] * safety_margin)
+        return (current_tokens + additional_tokens) > max_allowed
+
+    def get_remaining_tokens(
+        self, current_tokens: int, model: Optional[str] = None, safety_margin: float = 0.9
+    ) -> int:
+        """Get remaining tokens before hitting limit."""
+        limits = self.get_model_limits(model)
+        max_allowed = int(limits["max_prompt"] * safety_margin)
+        return max(0, max_allowed - current_tokens)
+
+
+# Global TokenCounter instance (lazy initialization)
+_default_counter: Optional[TokenCounter] = None
+
+
+def get_token_counter(model: Optional[str] = None) -> TokenCounter:
+    """Get or create default token counter."""
+    global _default_counter
+    if _default_counter is None:
+        _default_counter = TokenCounter(model)
+    elif model is not None and _default_counter.model != model:
+        _default_counter = TokenCounter(model)
+    return _default_counter
+
+
+def count_tokens_accurate(text: str, model: Optional[str] = None) -> int:
+    """Count tokens accurately using tokencost library."""
+    if not text:
+        return 0
+    return get_token_counter(model).count_tokens(text, model)
+
+
+def count_message_tokens_safe(messages: List[Dict], model: Optional[str] = None) -> int:
+    """Count tokens in messages (accurate)."""
+    return get_token_counter(model).count_messages(messages, model)
+
+
+def get_model_limits(model: str) -> Dict[str, int]:
+    """Get model token limits."""
+    return get_token_counter(model).get_model_limits(model)
+
+
+def will_overflow(current: int, additional: int, model: str, margin: float = 0.9) -> bool:
+    """Check if will overflow."""
+    return get_token_counter(model).will_overflow(current, additional, model, margin)
+
+
+def get_tokenizer_info(model: str) -> Dict[str, Any]:
+    """Get information about token counting for a model."""
+    try:
+        from tokencost import count_string_tokens  # noqa: F401
+
+        limits = get_model_limits(model)
+        return {
+            "available": True,
+            "type": "tokencost",
+            "model": model,
+            "limits": limits,
+            "accurate": True,
+            "supported_models": "400+",
+        }
+    except ImportError:
+        return {
+            "available": False,
+            "type": "tokencost (not installed)",
+            "model": model,
+            "limits": {"max_prompt": 100000, "max_output": 4096},
+            "accurate": False,
+            "install": "pip install tokencost>=0.1.26",
+        }
+
+
+# =============================================================================
 # EXPORTS
 # =============================================================================
 
@@ -346,4 +589,12 @@ __all__ = [
     "get_tokenizer",
     "count_tokens",
     "estimate_tokens",
+    # Model-specific (merged from token_counter)
+    "TokenCounter",
+    "get_token_counter",
+    "count_tokens_accurate",
+    "count_message_tokens_safe",
+    "get_model_limits",
+    "will_overflow",
+    "get_tokenizer_info",
 ]

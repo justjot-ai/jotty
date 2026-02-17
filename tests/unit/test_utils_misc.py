@@ -29,7 +29,7 @@ except ImportError:
     TRAJECTORY_PARSER_AVAILABLE = False
 
 try:
-    from Jotty.core.infrastructure.utils.profiler import (
+    from Jotty.core.infrastructure.monitoring.metrics.profiler import (
         ExecutionTimer,
         _global_timer,
         disable_profiling,

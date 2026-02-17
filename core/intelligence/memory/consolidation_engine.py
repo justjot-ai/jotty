@@ -854,10 +854,466 @@ class AgentAbstractor:
 
 
 # =============================================================================
+# DSPY CONSOLIDATION CLASSES (Lazy-loaded to avoid dspy import on module load)
+# =============================================================================
+#
+# These classes (PatternExtractionSignature, ConsolidationValidator, MemoryCluster,
+# etc.) depend on dspy and are loaded lazily via module-level __getattr__.
+# Merged from the former consolidation.py.
+
+_dspy_classes_cache: Optional[Dict[str, Any]] = None
+
+_DSPY_CLASS_NAMES = frozenset(
+    {
+        "PatternExtractionSignature",
+        "ProceduralExtractionSignature",
+        "MetaWisdomSignature",
+        "MemoryLevelClassificationSignature",
+        "ConsolidationValidationSignature",
+        "ConsolidationValidator",
+        "MemoryLevelClassifier",
+        "MemoryCluster",
+    }
+)
+
+
+def _load_dspy_classes() -> Dict[str, Any]:
+    """Define and return all DSPy-dependent consolidation classes.
+
+    Called lazily on first access to any DSPy class name.
+    """
+    import json as _json
+
+    import dspy  # type: ignore[import-untyped]
+
+    from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
+
+    # ── DSPy Signatures ─────────────────────────────────────────────────
+
+    class PatternExtractionSignature(dspy.Signature):
+        """Extract patterns from episodic memories using chain-of-thought."""
+
+        memories: str = dspy.InputField(desc="JSON list of related episodic memories")
+        goal_context: str = dspy.InputField(desc="The goal context these memories relate to")
+        domain: str = dspy.InputField(desc="Domain (e.g., sql, python, api, etc.)")
+
+        reasoning: str = dspy.OutputField(desc="Analysis of what patterns emerge")
+        pattern: str = dspy.OutputField(desc="The extracted pattern as a clear statement")
+        confidence: float = dspy.OutputField(desc="Confidence in pattern 0.0-1.0")
+        conditions: str = dspy.OutputField(desc="When this pattern applies")
+        exceptions: str = dspy.OutputField(desc="When this pattern does NOT apply")
+
+    class ProceduralExtractionSignature(dspy.Signature):
+        """Extract procedural knowledge (how to do things)."""
+
+        success_traces: str = dspy.InputField(desc="Traces of successful episodes")
+        failure_traces: str = dspy.InputField(desc="Traces of failed episodes")
+        task_type: str = dspy.InputField(desc="Type of task")
+
+        reasoning: str = dspy.OutputField(desc="Analysis of what steps lead to success")
+        procedure: str = dspy.OutputField(desc="Step-by-step procedure")
+        key_decisions: str = dspy.OutputField(desc="Critical decision points")
+
+    class MetaWisdomSignature(dspy.Signature):
+        """Extract meta-level wisdom about learning itself."""
+
+        learning_history: str = dspy.InputField(desc="Summary of learning progress")
+        failure_analysis: str = dspy.InputField(desc="Common failure patterns")
+        success_analysis: str = dspy.InputField(desc="Common success patterns")
+
+        wisdom: str = dspy.OutputField(desc="Meta-level insight about when to apply what knowledge")
+        applicability: str = dspy.OutputField(desc="When this wisdom applies")
+
+    class MemoryLevelClassificationSignature(dspy.Signature):
+        """
+        LLM-based memory level classification.
+
+        Classifies to: EPISODIC, SEMANTIC, PROCEDURAL, META, or CAUSAL.
+        """
+
+        experience: str = dspy.InputField(desc="The experience/knowledge to classify")
+        context: str = dspy.InputField(desc="Context: task type, agent, goal, outcome")
+
+        reasoning: str = dspy.OutputField(desc="Why this memory level is appropriate")
+        level: str = dspy.OutputField(desc="One of: EPISODIC, SEMANTIC, PROCEDURAL, META, CAUSAL")
+        confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
+        should_store: bool = dspy.OutputField(desc="True if worth storing, False if redundant")
+
+    class ConsolidationValidationSignature(dspy.Signature):
+        """Validate consolidated patterns against source memories."""
+
+        pattern: str = dspy.InputField(desc="The extracted pattern/wisdom to validate")
+        source_memories: str = dspy.InputField(
+            desc="JSON list of source memories that led to this pattern"
+        )
+        pattern_type: str = dspy.InputField(
+            desc="Type: SUCCESS_PATTERN, FAILURE_PATTERN, CAUSAL, PROCEDURAL"
+        )
+
+        is_valid: bool = dspy.OutputField(
+            desc="True if pattern is supported by sources, False if hallucinated"
+        )
+        confidence: float = dspy.OutputField(desc="Confidence in validation (0.0-1.0)")
+        reasoning: str = dspy.OutputField(desc="Why pattern is valid/invalid")
+        corrections: str = dspy.OutputField(
+            desc="Suggested corrections if pattern is invalid/vague"
+        )
+
+    # ── ConsolidationValidator ───────────────────────────────────────────
+
+    class ConsolidationValidator:
+        """
+        Validate consolidated patterns before storing.
+
+        Prevents hallucinated patterns from entering memory.
+
+        Validation checks:
+        1. Pattern references concepts from source memories
+        2. Pattern doesn't contradict source memories
+        3. Pattern is actionable (not vague)
+        4. Confidence threshold met
+        """
+
+        def __init__(
+            self,
+            confidence_threshold: float = 0.7,
+            use_llm_validation: bool = True,
+            quarantine_enabled: bool = True,
+        ) -> None:
+            self.confidence_threshold = confidence_threshold
+            self.use_llm_validation = use_llm_validation
+            self.quarantine_enabled = quarantine_enabled
+
+            if use_llm_validation:
+                self.validator = dspy.ChainOfThought(ConsolidationValidationSignature)
+            else:
+                self.validator = None
+
+            self._quarantine: List[Dict[str, Any]] = []
+            self._quarantine_max_size = 100
+            self._total_validated = 0
+            self._total_accepted = 0
+            self._total_rejected = 0
+            self._total_quarantined = 0
+
+            logger.info(
+                f"ConsolidationValidator initialized: "
+                f"threshold={confidence_threshold}, llm={use_llm_validation}"
+            )
+
+        def validate_pattern(
+            self,
+            pattern: str,
+            source_memories: List[Any],
+            pattern_type: str = "SEMANTIC",
+        ) -> Tuple[bool, float, str]:
+            """Validate pattern against source memories."""
+            self._total_validated += 1
+
+            if not pattern or len(pattern.strip()) < 10:
+                self._total_rejected += 1
+                return False, 0.0, "Pattern is empty or too short"
+
+            if self.use_llm_validation and self.validator:
+                return self._llm_validate(pattern, source_memories, pattern_type)
+
+            return self._heuristic_validate(pattern, source_memories, pattern_type)
+
+        def _llm_validate(
+            self,
+            pattern: str,
+            source_memories: List[Any],
+            pattern_type: str,
+        ) -> Tuple[bool, float, str]:
+            """Use LLM to validate pattern."""
+            try:
+                source_texts = []
+                for mem in source_memories[:10]:
+                    if hasattr(mem, "content"):
+                        source_texts.append(mem.content[:500])
+                    elif isinstance(mem, dict):
+                        source_texts.append(str(mem)[:500])
+                    else:
+                        source_texts.append(str(mem)[:500])
+
+                result = self.validator(
+                    pattern=pattern,
+                    source_memories=_json.dumps(source_texts),
+                    pattern_type=pattern_type,
+                )
+
+                is_valid = result.is_valid if hasattr(result, "is_valid") else True
+                try:
+                    confidence = float(result.confidence)
+                    confidence = max(0.0, min(1.0, confidence))
+                except (ValueError, TypeError, AttributeError):
+                    confidence = 0.5
+                reasoning = result.reasoning or "LLM validation complete"
+
+                if is_valid and confidence < self.confidence_threshold:
+                    is_valid = False
+                    reasoning = (
+                        f"Confidence {confidence:.2f} below "
+                        f"threshold {self.confidence_threshold}"
+                    )
+
+                if is_valid:
+                    self._total_accepted += 1
+                else:
+                    self._total_rejected += 1
+                    if self.quarantine_enabled:
+                        self.quarantine_suspicious(pattern, source_memories, reasoning)
+
+                return is_valid, confidence, reasoning
+
+            except Exception as e:
+                logger.warning(f"LLM validation failed: {e}, using heuristic")
+                return self._heuristic_validate(pattern, source_memories, pattern_type)
+
+        def _heuristic_validate(
+            self,
+            pattern: str,
+            source_memories: List[Any],
+            pattern_type: str,
+        ) -> Tuple[bool, float, str]:
+            """Heuristic-based pattern validation."""
+            issues: List[str] = []
+            confidence = 0.7
+
+            vague_phrases = [
+                "things work",
+                "stuff happens",
+                "in general",
+                "usually",
+                "it depends",
+                "sometimes",
+                "maybe",
+                "possibly",
+            ]
+            pattern_lower = pattern.lower()
+            for phrase in vague_phrases:
+                if phrase in pattern_lower:
+                    issues.append(f"Contains vague phrase: '{phrase}'")
+                    confidence -= 0.1
+
+            concrete_indicators = [
+                "when",
+                "if",
+                "use",
+                "avoid",
+                "for",
+                "because",
+                "results in",
+                "leads to",
+                "causes",
+                "prevents",
+            ]
+            has_concrete = any(ind in pattern_lower for ind in concrete_indicators)
+            if not has_concrete:
+                issues.append("Pattern lacks concrete indicators (when/if/use/avoid)")
+                confidence -= 0.15
+
+            if source_memories:
+                source_words: Set[str] = set()
+                for mem in source_memories:
+                    content = mem.content if hasattr(mem, "content") else str(mem)
+                    source_words.update(content.lower().split())
+
+                pattern_words = set(pattern_lower.split())
+                overlap = len(pattern_words & source_words)
+                overlap_ratio = overlap / len(pattern_words) if pattern_words else 0
+
+                if overlap_ratio < 0.2:
+                    issues.append(f"Low overlap with sources ({overlap_ratio:.0%})")
+                    confidence -= 0.2
+                elif overlap_ratio > 0.5:
+                    confidence += 0.1
+
+            if len(pattern) > 500:
+                issues.append("Pattern too long (>500 chars)")
+                confidence -= 0.1
+            elif len(pattern) < 20:
+                issues.append("Pattern too short (<20 chars)")
+                confidence -= 0.15
+
+            confidence = max(0.0, min(1.0, confidence))
+            is_valid = confidence >= self.confidence_threshold and len(issues) <= 1
+
+            if is_valid:
+                self._total_accepted += 1
+                reasoning = f"Heuristic validation passed (confidence={confidence:.2f})"
+            else:
+                self._total_rejected += 1
+                reasoning = f"Heuristic validation failed: {'; '.join(issues)}"
+                if self.quarantine_enabled:
+                    self.quarantine_suspicious(pattern, source_memories, reasoning)
+
+            return is_valid, confidence, reasoning
+
+        def quarantine_suspicious(
+            self,
+            pattern: str,
+            source_memories: Optional[List[Any]] = None,
+            reason: str = "",
+        ) -> None:
+            """Move suspicious patterns to quarantine for review."""
+            import time as _time
+
+            entry = {
+                "pattern": pattern,
+                "source_count": len(source_memories) if source_memories else 0,
+                "reason": reason,
+                "timestamp": _time.time(),
+            }
+
+            self._quarantine.append(entry)
+            self._total_quarantined += 1
+
+            if len(self._quarantine) > self._quarantine_max_size:
+                self._quarantine = self._quarantine[-self._quarantine_max_size :]
+
+            logger.warning(f"Quarantined pattern: {pattern[:100]}... Reason: {reason}")
+
+        def get_quarantine(self) -> List[Dict[str, Any]]:
+            """Get all quarantined patterns for review."""
+            return self._quarantine.copy()
+
+        def clear_quarantine(self) -> int:
+            """Clear quarantine and return count."""
+            count = len(self._quarantine)
+            self._quarantine.clear()
+            return count
+
+        def get_statistics(self) -> Dict[str, Any]:
+            """Get validation statistics."""
+            return {
+                "total_validated": self._total_validated,
+                "total_accepted": self._total_accepted,
+                "total_rejected": self._total_rejected,
+                "total_quarantined": self._total_quarantined,
+                "acceptance_rate": (
+                    self._total_accepted / self._total_validated if self._total_validated > 0 else 0
+                ),
+                "quarantine_size": len(self._quarantine),
+            }
+
+    # ── MemoryLevelClassifier ────────────────────────────────────────────
+
+    class MemoryLevelClassifier:
+        """LLM-based automatic memory level classification."""
+
+        def __init__(self, use_cot: bool = True) -> None:
+            self.use_cot = use_cot
+            if use_cot:
+                self.classifier = dspy.ChainOfThought(MemoryLevelClassificationSignature)
+            else:
+                self.classifier = dspy.Predict(MemoryLevelClassificationSignature)
+
+            self.level_map = {
+                "EPISODIC": MemoryLevel.EPISODIC,
+                "SEMANTIC": MemoryLevel.SEMANTIC,
+                "PROCEDURAL": MemoryLevel.PROCEDURAL,
+                "META": MemoryLevel.META,
+                "CAUSAL": MemoryLevel.CAUSAL,
+            }
+
+        def classify(
+            self, experience: str, context: Dict[str, Any]
+        ) -> Tuple[MemoryLevel, float, bool]:
+            """Classify experience into appropriate memory level."""
+            try:
+                result = self.classifier(experience=experience, context=_json.dumps(context))
+
+                level_str = (result.level or "EPISODIC").upper().strip()
+                level = self.level_map.get(level_str, MemoryLevel.EPISODIC)
+                confidence = float(result.confidence) if result.confidence else 0.5
+                should_store = result.should_store if hasattr(result, "should_store") else True
+
+                return level, confidence, should_store
+
+            except Exception as e:
+                logger.debug(f"Classification failed: {e}, using heuristic")
+                return MemoryLevel.EPISODIC, 0.5, True
+
+    # ── MemoryCluster ────────────────────────────────────────────────────
+
+    from collections import Counter as _Counter
+
+    @dataclass
+    class MemoryCluster:
+        """A cluster of related memories for consolidation."""
+
+        cluster_id: str
+        goal_signature: str
+        memories: List[MemoryEntry]
+
+        avg_value: float = 0.0
+        success_rate: float = 0.0
+        common_keywords: List[str] = field(default_factory=list)
+
+        extracted_pattern: Optional[str] = None
+        pattern_confidence: float = 0.0
+
+        def compute_statistics(self) -> None:
+            """Compute cluster statistics."""
+            if not self.memories:
+                return
+
+            values = [m.default_value for m in self.memories]
+            self.avg_value = sum(values) / len(values)
+
+            successful = sum(1 for v in values if v > 0.5)
+            self.success_rate = successful / len(values)
+
+            length_buckets = []
+            for m in self.memories:
+                content_len = len(m.content)
+                if content_len < 100:
+                    length_buckets.append("short")
+                elif content_len < 500:
+                    length_buckets.append("medium")
+                else:
+                    length_buckets.append("long")
+
+            bucket_counts = _Counter(length_buckets)
+            self.common_keywords = [f"content_{b}" for b, _ in bucket_counts.most_common(3)]
+
+    # Return all classes in a dict for caching
+    return {
+        "PatternExtractionSignature": PatternExtractionSignature,
+        "ProceduralExtractionSignature": ProceduralExtractionSignature,
+        "MetaWisdomSignature": MetaWisdomSignature,
+        "MemoryLevelClassificationSignature": MemoryLevelClassificationSignature,
+        "ConsolidationValidationSignature": ConsolidationValidationSignature,
+        "ConsolidationValidator": ConsolidationValidator,
+        "MemoryLevelClassifier": MemoryLevelClassifier,
+        "MemoryCluster": MemoryCluster,
+    }
+
+
+def _get_dspy_class(name: str) -> Any:
+    """Get a single DSPy class by name, loading all on first access."""
+    global _dspy_classes_cache
+    if _dspy_classes_cache is None:
+        _dspy_classes_cache = _load_dspy_classes()
+    return _dspy_classes_cache[name]
+
+
+def __getattr__(name: str) -> Any:
+    """Module-level lazy loader for DSPy-dependent classes."""
+    if name in _DSPY_CLASS_NAMES:
+        value = _get_dspy_class(name)
+        globals()[name] = value  # Cache for subsequent direct access
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+# =============================================================================
 # EXPORTS
 # =============================================================================
 
 __all__ = [
+    # Brain-inspired (eager, no dspy)
     "BrainMode",
     "BrainModeConfig",
     "MemoryCandidate",
@@ -867,4 +1323,13 @@ __all__ = [
     "BrainStateMachine",
     "AgentRole",
     "AgentAbstractor",
+    # DSPy consolidation (lazy-loaded)
+    "PatternExtractionSignature",
+    "ProceduralExtractionSignature",
+    "MetaWisdomSignature",
+    "MemoryLevelClassificationSignature",
+    "ConsolidationValidationSignature",
+    "ConsolidationValidator",
+    "MemoryLevelClassifier",
+    "MemoryCluster",
 ]

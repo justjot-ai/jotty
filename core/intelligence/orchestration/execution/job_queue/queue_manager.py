@@ -8,7 +8,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict
 
-from ..orchestration import Orchestrator  # type: ignore[import-not-found]
+from Jotty.core.intelligence.orchestration import Orchestrator  # type: ignore[import-not-found]
+
 from .task import Task
 from .task_queue import TaskQueue
 

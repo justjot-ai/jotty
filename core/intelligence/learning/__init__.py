@@ -22,14 +22,17 @@ _LAZY_IMPORTS: dict[str, str] = {
     "Coalition": ".algorithmic_credit",
     "DifferenceRewardEstimator": ".algorithmic_credit",
     "ShapleyValueEstimator": ".algorithmic_credit",
-    # learning
-    "AdaptiveExploration": ".learning",
-    "AdaptiveLearningRate": ".learning",
-    "DynamicBudgetManager": ".learning",
-    "IntermediateRewardCalculator": ".learning",
-    "LearningHealthMonitor": ".learning",
-    "ReasoningCreditAssigner": ".learning",
-    "TDLambdaLearner": ".learning",
+    # adaptive_components
+    "AdaptiveExploration": ".adaptive_components",
+    "AdaptiveLearningRate": ".adaptive_components",
+    "IntermediateRewardCalculator": ".adaptive_components",
+    # health_budget
+    "DynamicBudgetManager": ".health_budget",
+    "LearningHealthMonitor": ".health_budget",
+    # reasoning_credit
+    "ReasoningCreditAssigner": ".reasoning_credit",
+    # td_lambda
+    "TDLambdaLearner": ".td_lambda",
     # offline_learning
     "CounterfactualLearner": ".offline_learning",
     "OfflineLearner": ".offline_learning",
@@ -61,6 +64,20 @@ _LAZY_IMPORTS: dict[str, str] = {
 }
 
 
+_LAZY_IMPORTS.update(
+    {
+        # learning_service (NEW - unified service)
+        "LearningService": ".learning_service",
+        "get_learning_service": ".learning_service",
+        # learning_store (NEW - persistent SQLite store)
+        "LearningStore": ".learning_store",
+        "EpisodeRecord": ".learning_store",
+        "PatternRecord": ".learning_store",
+        "ReflectionRecord": ".learning_store",
+        "ValueEstimate": ".learning_store",
+    }
+)
+
 _FACADE_IMPORTS = {
     "get_learning_system",
     "get_td_lambda",
@@ -68,6 +85,7 @@ _FACADE_IMPORTS = {
     "get_offline_learner",
     "get_reward_manager",
     "get_cooperative_agents",
+    "get_learning_service",
 }
 
 

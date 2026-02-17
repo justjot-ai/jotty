@@ -1500,7 +1500,7 @@ class TestSwarmTemplateTeamCoordination:
         config = SwarmBaseConfig(name="TestSwarm", domain="test")
         swarm = TestSwarm(config)
 
-        with pytest.raises(RuntimeError, match="No AGENT_TEAM"):
+        with pytest.raises(RuntimeError, match="No AGENTS"):
             await swarm.execute_team(task="test")
 
     @pytest.mark.asyncio

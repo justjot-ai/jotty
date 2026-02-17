@@ -41,9 +41,11 @@ Usage:
 """
 
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any as _Any
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -554,3 +556,93 @@ class MemorySystem:
         self._episode_count = 0
         self._store_count = 0
         logger.info("Memory system cleared")
+
+
+# =============================================================================
+# FACADE — singleton factories (merged from facade.py)
+# =============================================================================
+
+_lock = threading.Lock()
+_singletons: Dict[str, object] = {}
+
+
+def _resolve_memory_config(config: _Any) -> _Any:
+    """Convert MemoryConfig or SwarmConfig to SwarmConfig for internal use."""
+    if config is None:
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+
+        return SwarmConfig()
+
+    from Jotty.core.infrastructure.foundation.configs.memory import (
+        MemoryConfig as FocusedMemoryConfig,  # type: ignore[import-not-found]
+    )
+
+    if isinstance(config, FocusedMemoryConfig):
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+
+        return SwarmConfig.from_configs(memory=config)
+
+    return config
+
+
+def get_memory_system() -> "MemorySystem":
+    """Return a MemorySystem singleton (recommended entry point).
+
+    Thread-safe with double-checked locking.
+    """
+    key = "memory_system"
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                _singletons[key] = MemorySystem()
+    return _singletons[key]  # type: ignore[return-value]
+
+
+def get_brain_manager() -> _Any:
+    """Return a BrainInspiredMemoryManager singleton.
+
+    Thread-safe with double-checked locking.
+    """
+    key = "brain_manager"
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from .memory_orchestrator import BrainInspiredMemoryManager
+
+                _singletons[key] = BrainInspiredMemoryManager()
+    return _singletons[key]
+
+
+def get_consolidator(config: _Any = None) -> _Any:
+    """Return a SharpWaveRippleConsolidator for brain-inspired memory consolidation."""
+    from .consolidation_engine import BrainModeConfig, SharpWaveRippleConsolidator
+
+    if config is None:
+        config = BrainModeConfig()
+    return SharpWaveRippleConsolidator(config=config)
+
+
+def get_rag_retriever(config: Optional[_Any] = None) -> _Any:
+    """Return an LLMRAGRetriever for LLM-powered retrieval-augmented generation."""
+    from .llm_rag import LLMRAGRetriever
+
+    resolved = _resolve_memory_config(config)
+    return LLMRAGRetriever(config=resolved)
+
+
+def list_components() -> Dict[str, str]:
+    """List all memory subsystem components with descriptions."""
+    return {
+        "MemorySystem": "Unified facade: store/retrieve/consolidate with auto-backend selection",
+        "BrainInspiredMemoryManager": "5-level memory hierarchy with brain-inspired consolidation",
+        "SharpWaveRippleConsolidator": "Sleep-like consolidation (episodic -> semantic -> procedural)",
+        "LLMRAGRetriever": "LLM-powered retrieval with deduplication and causal extraction",
+        "SwarmMemory": "Low-level 5-level storage backend (cortex)",
+        "SimpleBrain": "User-friendly memory API with consolidation triggers",
+        "HippocampalExtractor": "Extracts key facts from episodic memories",
+        "BrainStateMachine": "Manages brain mode transitions (wake/consolidation/sleep)",
+        "MongoDBMemoryBackend": "MongoDB-backed persistent memory storage",
+        "SlidingWindowChunker": "Chunks large text into overlapping windows for retrieval",
+        "RecencyValueRanker": "Ranks memories by recency and value score",
+        "DeduplicationEngine": "Removes duplicate or near-duplicate memories",
+    }

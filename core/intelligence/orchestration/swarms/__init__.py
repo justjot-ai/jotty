@@ -26,8 +26,10 @@ from typing import Any
 # EAGER: Base infrastructure (lightweight, needed everywhere)
 # =========================================================================
 from .base import (
+    AgentCoordinator,
     AgentSpec,
     CoordinationPattern,
+    CoordinationResult,
     MergeStrategy,
     SwarmTemplate,
     TeamCoordinator,
@@ -322,11 +324,15 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = [
-    # Base (eager)
+    # Base (eager) — new preferred names
     "SwarmTemplate",
+    "AgentCoordinator",
+    "CoordinationResult",
+    # Base (eager) — backward compat
     "TeamCoordinator",
-    "AgentSpec",
     "TeamResult",
+    # Shared
+    "AgentSpec",
     "CoordinationPattern",
     "MergeStrategy",
     # Lazy (all swarm names)

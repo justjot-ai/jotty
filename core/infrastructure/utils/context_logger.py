@@ -18,8 +18,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-# A-TEAM: Import accurate token counting
-from ..foundation.token_counter import count_tokens_accurate
+# A-TEAM: Import accurate token counting (merged into tokenizer)
+from .tokenizer import count_tokens_accurate
 
 # ============================================================================
 # ENHANCED LOGGING

@@ -3,17 +3,18 @@ Learning Subsystem Facade
 ==========================
 
 Clean, discoverable API for all learning components.
-No new business logic — just imports + convenience accessors.
 
-Usage:
-    from Jotty.core.intelligence.learning.facade import get_learning_system, list_components
+Preferred entry point for new code:
+    from Jotty.core.intelligence.learning.facade import get_learning_service
 
-    # Get the unified learning coordinator
+    service = get_learning_service()
+    service.record(...)   # Record outcome from any unit
+    service.query(...)    # Get guidance
+    service.reflect(...)  # Mid-execution reflection
+
+Legacy entry point (still works):
+    from Jotty.core.intelligence.learning.facade import get_learning_system
     manager = get_learning_system(config)
-
-    # Explore what's available
-    for name, desc in list_components().items():
-        print(f"{name}: {desc}")
 """
 
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
@@ -267,3 +268,49 @@ def update_registry_with_learning(registry: Any) -> int:
     from .tool_learning import update_registry_with_learning as _update
 
     return _update(registry)
+
+
+# =============================================================================
+# Unified LearningService (NEW — preferred for all new code)
+# =============================================================================
+
+
+def get_learning_service() -> Any:
+    """
+    Get the unified LearningService singleton.
+
+    This is the preferred entry point for all learning interactions.
+    Agents, swarms, pipelines, and the orchestrator all share this service.
+
+    Returns:
+        LearningService instance
+
+    Example:
+        from Jotty.core.intelligence.learning.facade import get_learning_service
+
+        service = get_learning_service()
+
+        # Record an execution outcome
+        service.record("MyAgent", "agent", "coding", "code_gen",
+                       context={"task": "Build API"},
+                       action={"model": "claude-sonnet"},
+                       outcome={"code_lines": 150},
+                       success=True, quality=0.9)
+
+        # Query for guidance
+        guidance = service.query("coding", "code_gen")
+
+        # Mid-execution reflection
+        adjustment = service.reflect(episode_id, step=2,
+                                      observation="Tests failing",
+                                      unit_name="TestWriter")
+
+        # Transfer learning
+        patterns = service.transfer("coding", "devops")
+
+        # Get improvement report
+        report = service.improvement_report("coding")
+    """
+    from .learning_service import LearningService
+
+    return LearningService.get_instance()

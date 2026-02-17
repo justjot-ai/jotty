@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 
-from ..foundation.config_defaults import MAX_RETRIES
+from Jotty.core.infrastructure.foundation.config_defaults import MAX_RETRIES
 
 # REFACTORING PHASE 1.2: Import TaskStatus from canonical location
 

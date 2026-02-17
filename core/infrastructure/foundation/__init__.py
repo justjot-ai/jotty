@@ -15,6 +15,13 @@ Modules:
 - exceptions: Exception hierarchy for structured error handling
 """
 
+# estimate_tokens re-export kept for backward compat
+from Jotty.core.infrastructure.utils.tokenizer import (
+    count_tokens_accurate,
+    estimate_tokens,
+    get_tokenizer_info,
+)
+
 from .agent_config import AgentConfig
 from .config_defaults import DEFAULTS, JottyDefaults
 from .data_structures import (
@@ -77,15 +84,14 @@ from .exceptions import (
     ValidationError,
     wrap_exception,
 )
-from .protocols import ContextExtractor, DataProvider, MetadataProvider
-from .robust_parsing import (
+from .llm_output_parser import (
     AdaptiveThreshold,
     parse_bool_robust,
     parse_float_robust,
     parse_json_robust,
     safe_hash,
 )
-from .token_counter import count_tokens_accurate, estimate_tokens, get_tokenizer_info
+from .protocols import ContextExtractor, DataProvider, MetadataProvider
 
 __all__ = [
     # From data_structures
