@@ -33,7 +33,9 @@ from Jotty.core.infrastructure.foundation.data_structures import (
     ValidationResult,
     ValidationRound,
 )
-from Jotty.core.intelligence.learning.learning import DynamicBudgetManager  # type: ignore[import]
+from Jotty.core.intelligence.learning.health_budget import (
+    DynamicBudgetManager,  # type: ignore[import]
+)
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 
 logger = logging.getLogger(__name__)

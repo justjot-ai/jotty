@@ -35,10 +35,10 @@ from Jotty.core.infrastructure.utils.prompt_selector import (  # type: ignore[im
     PromptSelector,
     get_prompt_selector,
 )
-from Jotty.core.intelligence.learning.learning import TDLambdaLearner  # type: ignore[import]
 from Jotty.core.intelligence.learning.shaped_rewards import (
     ShapedRewardManager,  # type: ignore[import-not-found, import]
 )
+from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner  # type: ignore[import]
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 from Jotty.core.intelligence.orchestration.execution.validation_gate import (
     GateDecision,
@@ -328,7 +328,7 @@ class AgentRunner:
         # Per-agent learning: prefer the swarm-level learning_manager if available,
         # so all agents contribute to a single shared learner.
         # Falls back to standalone TDLambdaLearner only when no swarm context exists.
-        from Jotty.core.intelligence.learning.learning import AdaptiveLearningRate
+        from Jotty.core.intelligence.learning.adaptive_components import AdaptiveLearningRate
 
         self.agent_learner: Optional[TDLambdaLearner] = None
         self._using_shared_learner = False

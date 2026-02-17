@@ -3352,13 +3352,19 @@ class Orchestrator:
         return EpisodeResult(
             success=all_success,
             output=str(final_output)[:5000] if final_output else "",
-            metadata={
+            trajectory=[],
+            tagged_outputs=[],
+            episode=0,
+            execution_time=pipeline_time,
+            architect_results=[],
+            auditor_results=[],
+            agent_contributions={},
+            override_metadata={
                 "pipeline": True,
                 "stages": {
                     name: {"success": r["success"], "time": r["time"]}
                     for name, r in stage_results.items()
                 },
-                "total_time": pipeline_time,
                 "total_cost": total_cost,
             },
         )

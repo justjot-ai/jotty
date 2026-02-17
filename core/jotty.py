@@ -186,24 +186,9 @@ __codename__ = "JOTTY"
 __description__ = "Brain-Inspired Orchestration for LLM Agent Swarms"
 
 # =============================================================================
-# USE CASE LAYER (NEW - Production-Grade Multi-Agent System)
+# API LAYER — Thin facades over Orchestrator.run() and Orchestrator.chat()
 # =============================================================================
 
-# API Layer (NEW)
-# Use Cases
-from .intelligence.orchestration.use_cases import (
-    BaseUseCase,
-    ChatUseCase,
-    UseCaseConfig,
-    UseCaseResult,
-    WorkflowUseCase,
-)
-
-# Chat Components
-from .intelligence.orchestration.use_cases.chat.chat_context import ChatContext, ChatMessage
-
-# Workflow Components
-from .intelligence.orchestration.use_cases.workflow.workflow_context import WorkflowContext
 from .interface.api import ChatAPI, JottyAPI, WorkflowAPI
 
 # =============================================================================
@@ -212,7 +197,6 @@ from .interface.api import ChatAPI, JottyAPI, WorkflowAPI
 
 __all__ = [
     # JOTTY Core
-    "Orchestrator",
     "Orchestrator",
     "SwarmConfig",
     "AgentConfig",
@@ -252,16 +236,7 @@ __all__ = [
     "OptimizationConfig",
     "IterationResult",
     "create_optimization_pipeline",
-    # Use Cases (NEW)
-    "BaseUseCase",
-    "ChatUseCase",
-    "WorkflowUseCase",
-    "UseCaseResult",
-    "UseCaseConfig",
-    "ChatContext",
-    "ChatMessage",
-    "WorkflowContext",
-    # API Layer (NEW)
+    # API Layer
     "JottyAPI",
     "ChatAPI",
     "WorkflowAPI",

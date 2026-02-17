@@ -2,15 +2,13 @@
 Workflow API
 
 Simplified API for workflow execution.
+Delegates to Orchestrator.run() — workflows are just run() with optional stages.
 """
 
 import logging
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from Jotty.core.intelligence.orchestration import Orchestrator
-from Jotty.core.intelligence.orchestration.use_cases.workflow import (
-    WorkflowUseCase,  # type: ignore[import]
-)
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +17,16 @@ class WorkflowAPI:
     """
     Simplified API for workflow execution.
 
+    Thin facade over Orchestrator.run(). Workflows are just run() calls —
+    optionally with stages for pipeline mode.
+
     Usage:
-        workflow = WorkflowAPI(conductor, mode="dynamic")
-        result = await workflow.execute(goal="...", context={...})
+        workflow = WorkflowAPI(orchestrator)
+        result = await workflow.execute(goal="Research AI trends")
 
         # Streaming
-        async for event in workflow.stream(goal="..."):
+        async for event in workflow.stream(goal="Research AI"):
             print(event)
-
-        # Async
-        task_id = await workflow.enqueue(goal="...", priority=5)
     """
 
     def __init__(
@@ -42,19 +40,18 @@ class WorkflowAPI:
 
         Args:
             conductor: Jotty Orchestrator instance
-            mode: Orchestration mode ("static" or "dynamic")
-            agent_order: Required for static mode
+            mode: Kept for backward compat
+            agent_order: Kept for backward compat
         """
+        self.orchestrator = conductor
+        # Backward compat
         self.conductor = conductor
-        self.workflow_use_case = WorkflowUseCase(
-            conductor=conductor, mode=mode, agent_order=agent_order
-        )
 
     async def execute(
         self, goal: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> Dict[str, Any]:
         """
-        Execute workflow synchronously.
+        Execute workflow synchronously. Delegates to Orchestrator.run().
 
         Args:
             goal: Workflow goal
@@ -64,14 +61,22 @@ class WorkflowAPI:
         Returns:
             Workflow result dictionary
         """
-        result = await self.workflow_use_case.execute(goal=goal, context=context, **kwargs)
-        return result.to_dict()  # type: ignore[no-any-return]
+        result = await self.orchestrator.run(goal, **kwargs)
+        if hasattr(result, "to_dict"):
+            return result.to_dict()
+        return {
+            "success": getattr(result, "success", True),
+            "output": str(result),
+            "metadata": {},
+            "execution_time": 0.0,
+            "use_case_type": "workflow",
+        }
 
     async def stream(
         self, goal: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> AsyncIterator[Dict[str, Any]]:
         """
-        Execute workflow with streaming.
+        Execute workflow with streaming. Delegates to Orchestrator.run(stream=True).
 
         Args:
             goal: Workflow goal
@@ -81,24 +86,16 @@ class WorkflowAPI:
         Yields:
             Event dictionaries
         """
-        async for event in self.workflow_use_case.stream(goal=goal, context=context, **kwargs):
+        async for event in self.orchestrator.run(goal, stream=True, **kwargs):
             yield event
 
     async def enqueue(
-        self, goal: str, context: Optional[Dict[str, Any]] = None, priority: int = 3, **kwargs: Any
+        self,
+        goal: str,
+        context: Optional[Dict[str, Any]] = None,
+        priority: int = 3,
+        **kwargs: Any,
     ) -> str:
-        """
-        Enqueue workflow task for asynchronous execution.
-
-        Args:
-            goal: Workflow goal
-            context: Additional context
-            priority: Task priority (1-5)
-            **kwargs: Additional arguments
-
-        Returns:
-            Task ID
-        """
-        return await self.workflow_use_case.enqueue(  # type: ignore[no-any-return]
-            goal=goal, context=context, priority=priority, **kwargs
-        )
+        """Backward-compat. Use run() for synchronous execution."""
+        result = await self.orchestrator.run(goal, **kwargs)
+        return str(id(result))
