@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional
 
-from .._base.swarm_types import SwarmConfig, SwarmResult
+from .._base.swarm_types import SwarmBaseConfig, SwarmResult
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class AudienceLevel(Enum):
 
 
 @dataclass
-class ArxivLearningConfig(SwarmConfig):
+class ArxivLearningConfig(SwarmBaseConfig):
     """Configuration for ArxivLearningSwarm."""
 
     depth: LearningDepth = LearningDepth.STANDARD

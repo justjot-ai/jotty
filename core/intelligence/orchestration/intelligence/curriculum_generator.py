@@ -380,6 +380,8 @@ class CurriculumGenerator:
         tools_used: List[str],
         execution_time: float = 0.0,
         error_type: str | None = None,
+        error_message: str | None = None,
+        input_query: str | None = None,
     ) -> Any:
         """
         Agent0: Receive feedback from executor to adapt curriculum.
@@ -392,6 +394,8 @@ class CurriculumGenerator:
             "tools_used": tools_used,
             "execution_time": execution_time,
             "error_type": error_type,
+            "error_message": error_message,
+            "input_query": input_query,
             "timestamp": time.time(),
         }
 

@@ -188,6 +188,28 @@ class SwarmKnowledgeMixin:
             except Exception as e:
                 logger.debug(f"Failure analysis from memory failed (unexpected): {e}")
 
+        # Source 4: Causal memory — cause-effect patterns from prior failures
+        if self._memory:  # type: ignore[attr-defined]
+            try:
+                domain = getattr(self.config, "domain", None) or self.config.name or "general"  # type: ignore[attr-defined]
+                causal_patterns = self._memory.retrieve_causal(  # type: ignore[attr-defined]
+                    query=f"failure patterns for {domain}",
+                    context={"domain": domain, "swarm": self.config.name or "base_swarm"},  # type: ignore[attr-defined]
+                )
+                for pattern in causal_patterns[:5]:
+                    failures.append(
+                        {
+                            "source": "causal_memory",
+                            "cause": getattr(pattern, "cause", ""),
+                            "effect": getattr(pattern, "effect", ""),
+                            "confidence": getattr(pattern, "confidence", 0),
+                        }
+                    )
+            except (MemoryRetrievalError, MemoryError) as e:
+                logger.debug(f"Causal retrieval failed (memory): {e}")
+            except Exception as e:
+                logger.debug(f"Causal retrieval failed (unexpected): {e}")
+
         return failures
 
     def _store_execution_as_improvement(
@@ -501,6 +523,15 @@ class SwarmKnowledgeMixin:
                 lines.append("## Expert Knowledge")
                 lines.extend(expert_lines)
 
+        # Consolidated memory wisdom (abstract patterns from memory subsystem)
+        if self._memory:  # type: ignore[attr-defined]
+            try:
+                consolidated = self._memory.get_consolidated_knowledge(max_items=5)  # type: ignore[attr-defined]
+                if consolidated:
+                    lines.append(f"### Memory Wisdom\n{consolidated[:1000]}")
+            except Exception:
+                pass  # Non-critical — skip silently
+
         # Failure recovery from prior runs
         prior_failures = ctx.get("prior_failures", [])
         if prior_failures:
@@ -518,6 +549,11 @@ class SwarmKnowledgeMixin:
                     )
                 elif f.get("source") == "memory":
                     failure_lines.append(f"- {f.get('pattern', 'unknown failure')}")
+                elif f.get("source") == "causal_memory":
+                    cause = f.get("cause", "")
+                    effect = f.get("effect", "")
+                    if cause and effect:
+                        failure_lines.append(f"- Cause: {cause[:80]} → Effect: {effect[:80]}")
             if len(failure_lines) > 1:
                 lines.extend(failure_lines)
 

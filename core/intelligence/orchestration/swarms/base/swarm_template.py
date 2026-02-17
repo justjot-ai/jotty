@@ -656,6 +656,7 @@ class SwarmTemplate(SwarmLearning):
                 task_type=task_type,
                 output_data=output_data,
                 input_data=input_data,
+                result=result,
             )
             self._learning_recorded = True
             return result
@@ -669,6 +670,7 @@ class SwarmTemplate(SwarmLearning):
                 execution_time=exec_time,
                 tools_used=self._get_active_tools(default_tools),
                 task_type=task_type,
+                result=None,
             )
             self._learning_recorded = True
             return executor.build_error_result(
@@ -783,6 +785,7 @@ class SwarmTemplate(SwarmLearning):
                         task_type=self.__class__.__name__,
                         output_data={"result": str(result)[:500]} if result else None,
                         input_data={"args": str(args)[:500], "kwargs": str(kwargs)[:500]},
+                        result=result,
                     )
             except TypeError:
                 # Signature mismatch - skip silently

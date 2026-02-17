@@ -333,6 +333,8 @@ class SwarmIntelligence:
         execution_time: float = 0.0,
         error_type: str | None = None,
         task_type: str | None = None,
+        error_message: str | None = None,
+        input_query: str | None = None,
     ) -> Any:
         """
         Receive feedback from executor after task completion.
@@ -344,8 +346,10 @@ class SwarmIntelligence:
             success: Whether task succeeded
             tools_used: List of tools used during execution
             execution_time: Time taken to execute
-            error_type: Type of error if failed
+            error_type: Classified error category (invalid_input, timeout, etc.)
             task_type: Type of task (for curriculum update)
+            error_message: Truncated error message for learning context
+            input_query: Truncated input query for learning context
         """
         # Forward to curriculum generator
         self.curriculum_generator.receive_executor_feedback(
@@ -354,6 +358,8 @@ class SwarmIntelligence:
             tools_used=tools_used,
             execution_time=execution_time,
             error_type=error_type,
+            error_message=error_message,
+            input_query=input_query,
         )
 
         # Update curriculum difficulty if this was a synthetic task

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List
 
-from .._base.swarm_types import SwarmConfig, SwarmResult
+from .._base.swarm_types import SwarmBaseConfig, SwarmResult
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class RatingType(Enum):
 
 
 @dataclass
-class ResearchConfig(SwarmConfig):
+class ResearchConfig(SwarmBaseConfig):
     """Configuration for research swarm.
 
     Extends SwarmBaseConfig to gain: version, enable_self_improvement,

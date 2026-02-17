@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
-from .._base.swarm_types import SwarmConfig, SwarmResult
+from .._base.swarm_types import SwarmBaseConfig, SwarmResult
 
 # =============================================================================
 # ENUMS
@@ -49,7 +49,7 @@ class EditMode(Enum):
 
 
 @dataclass
-class CodingConfig(SwarmConfig):
+class CodingConfig(SwarmBaseConfig):
     """Configuration for CodingSwarm."""
 
     language: CodeLanguage = CodeLanguage.PYTHON

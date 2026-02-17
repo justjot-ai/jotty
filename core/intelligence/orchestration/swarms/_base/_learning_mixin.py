@@ -60,6 +60,27 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
     - self._improvement_agents dict
     """
 
+    def _classify_error(self, success: bool, result: Any, execution_time: float) -> Optional[str]:
+        """Classify execution outcome for learning.
+
+        Returns an actionable error category so the curriculum can adapt
+        differently for invalid input vs infrastructure failures vs timeouts.
+        """
+        if success:
+            return None
+
+        error_msg = str(getattr(result, "error", "") or "") if result else ""
+
+        if "No valid stock ticker" in error_msg or "not found" in error_msg.lower():
+            return "invalid_input"
+        if "timeout" in error_msg.lower() or execution_time > 120:
+            return "timeout"
+        if "api" in error_msg.lower() or "connection" in error_msg.lower():
+            return "infrastructure"
+        if "permission" in error_msg.lower() or "auth" in error_msg.lower():
+            return "authentication"
+        return "execution_failure"
+
     async def _pre_execute_learning(self) -> Dict[str, Any]:
         """
         Pre-execution learning hook. Called at start of execute().
@@ -254,6 +275,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
         task_type: str,
         output_data: Dict[str, Any] | None = None,
         input_data: Dict[str, Any] | None = None,
+        result: Any = None,
     ) -> Any:
         """
         Post-execution learning hook. Called at end of execute().
@@ -268,15 +290,22 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
             task_type: Type of task that was executed
             output_data: Optional dict of output metrics for evaluation
             input_data: Optional dict of input params for evaluation matching
+            result: Optional raw result object for error classification
         """
         try:
-            # 1. Send executor feedback (tools, success, timing)
+            # 1. Send executor feedback (tools, success, timing, error classification)
+            error_type = self._classify_error(success, result, execution_time)
+            error_message = str(getattr(result, "error", "") or "")[:500] if not success else None
+            input_query = str(getattr(self, "_run_input", {}).get("query", ""))[:200] or None
+
             self._send_executor_feedback(  # type: ignore[attr-defined]
                 task_type=task_type,
                 success=success,
                 tools_used=tools_used,
                 execution_time=execution_time,
-                error_type=None if success else "execution_failure",
+                error_type=error_type,
+                error_message=error_message,
+                input_query=input_query,
             )
 
             si = self._swarm_intelligence  # type: ignore[attr-defined]
@@ -597,21 +626,32 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
             except Exception as e:
                 logger.debug(f"Circuit breaker update failed for {agent_name}: {e}")
 
-        # Store in memory for learning
+        # Store in memory for learning using outcome-weighted storage
         if self._memory and self.config.enable_learning:  # type: ignore[attr-defined]
             try:
-                from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+                outcome = "success" if success else "failure"
+                task_type_label = agent_role.value if agent_role else "unknown"
+                domain = getattr(self.config, "domain", None) or self.config.name or "general"  # type: ignore[attr-defined]
 
-                self._memory.store(  # type: ignore[attr-defined]
+                self._memory.store_with_outcome(  # type: ignore[attr-defined]
                     content=json.dumps(asdict(trace), default=str),
-                    level=MemoryLevel.EPISODIC,
+                    outcome=outcome,
                     context={"swarm": self.config.name, "agent": agent_name},  # type: ignore[attr-defined]
                     goal=f"Execution trace: {agent_name}",
+                    domain=domain,
+                    task_type=task_type_label,
                 )
             except (MemoryStorageError, MemoryError) as e:
                 logger.warning(f"Failed to store trace in memory (memory): {e}")
             except Exception as e:
                 logger.debug(f"Failed to store trace in memory (unexpected): {e}")
+
+        # Auto-persist memory to disk after trace storage
+        if hasattr(self, "_memory_persistence") and self._memory_persistence:
+            try:
+                self._memory_persistence.save()
+            except Exception as e:
+                logger.debug(f"Memory auto-save failed: {e}")
 
     def record_improvement_outcome(
         self, suggestion_id: str, success: bool, impact: float, notes: str = ""

@@ -19,6 +19,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 
+from Jotty.core.infrastructure.foundation.data_structures import (  # type: ignore[import-not-found]
+    SwarmConfig,
+)
 from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import-not-found]
     ConfigurationError,
     ExecutionError,
@@ -29,9 +32,6 @@ from Jotty.core.infrastructure.monitoring.observability.tracing import (  # type
 )
 from Jotty.core.intelligence.orchestration.coordination.paradigm_executor import (
     _extract_output_text,
-)
-from Jotty.core.intelligence.orchestration.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
-    SwarmConfig,  # type: ignore[import-not-found, import]
 )
 
 from .tier_detector import TierDetector

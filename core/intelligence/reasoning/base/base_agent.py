@@ -174,6 +174,7 @@ class BaseAgent(ABC):
 
         # Lazy-initialized infrastructure
         self._memory = None
+        self._memory_persistence = None
         self._context_manager = None
         self._cost_tracker = None
         self._skills_registry = None
@@ -489,18 +490,30 @@ class BaseAgent(ABC):
 
     @property
     def memory(self) -> Any:
-        """Lazy-load SwarmMemory."""
+        """Lazy-load SwarmMemory with disk persistence."""
         if self._memory is None and self.config.enable_memory:
             try:
+                from pathlib import Path
+
                 from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
                 from Jotty.core.intelligence.memory.cortex import SwarmMemory
+                from Jotty.core.intelligence.memory.memory_persistence import (
+                    enable_memory_persistence,
+                )
 
                 # Use the shared _jotty_config if one was injected, otherwise
                 # fall back to a default. This prevents creating N independent
                 # SwarmConfig instances with potentially different defaults.
                 jotty_config = getattr(self, "_jotty_config", None) or SwarmConfig()
                 self._memory = SwarmMemory(config=jotty_config, agent_name=self.config.name)
-                logger.debug(f"Initialized SwarmMemory for {self.config.name}")
+
+                # Enable persistence — loads existing memories from disk
+                persistence_dir = Path.home() / "jotty" / "memory" / self.config.name
+                self._memory_persistence = enable_memory_persistence(
+                    memory=self._memory,
+                    persistence_dir=persistence_dir,
+                )
+                logger.debug(f"Initialized SwarmMemory with persistence for {self.config.name}")
             except Exception as e:
                 logger.warning(f"Could not initialize memory: {e}")
         return self._memory
@@ -799,6 +812,12 @@ class BaseAgent(ABC):
         except Exception as e:
             logger.warning(f"Failed to retrieve memory: {e}")
             return []
+
+    def save_memory(self) -> bool:
+        """Persist memory to disk. Returns True if successful."""
+        if self._memory_persistence:
+            return self._memory_persistence.save()
+        return False
 
     # =========================================================================
     # CONTEXT HELPERS

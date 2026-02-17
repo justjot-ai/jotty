@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional
 
-from .._base.swarm_types import SwarmConfig, SwarmResult
+from .._base.swarm_types import SwarmBaseConfig, SwarmResult
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class TeachingMode(Enum):
 
 
 @dataclass
-class OlympiadLearningConfig(SwarmConfig):
+class OlympiadLearningConfig(SwarmBaseConfig):
     """Configuration for OlympiadLearningSwarm."""
 
     # Core parameters

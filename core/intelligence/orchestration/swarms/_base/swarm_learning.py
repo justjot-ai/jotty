@@ -103,6 +103,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
 
         # Shared resources (lazy init)
         self._memory = None
+        self._memory_persistence = None
         self._context = None
         self._bus = None
         self._td_learner = None
@@ -206,16 +207,18 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         # otherwise create a default — but avoid creating multiple independent configs)
         try:
 
+            from Jotty.core.infrastructure.foundation.data_structures import (
+                SwarmConfig as _FullSwarmConfig,
+            )
             from Jotty.core.intelligence.reasoning.planners.swarm_resources_stub import (
                 SwarmResources,
             )
 
-            from .swarm_types import SwarmConfig as _SwarmConfig
-
-            jotty_config = getattr(self.config, "jotty_config", None) or _SwarmConfig()
+            jotty_config = getattr(self.config, "jotty_config", None) or _FullSwarmConfig()
             resources = SwarmResources.get_instance(jotty_config)
 
             self._memory = resources.memory
+            self._memory_persistence = getattr(resources, "_memory_persistence", None)
             self._context = resources.context
             self._bus = resources.bus
             self._td_learner = resources.learner
@@ -377,11 +380,22 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         tools_used: List[str] | None = None,
         execution_time: float = 0.0,
         error_type: str | None = None,
+        error_message: str | None = None,
+        input_query: str | None = None,
     ) -> Any:
         """
         Send executor feedback to SwarmIntelligence for curriculum adaptation.
 
         Agent0 closed-loop: Executor feedback → Curriculum adaptation.
+
+        Args:
+            task_type: Type of task that was executed
+            success: Whether task succeeded
+            tools_used: List of tools used during execution
+            execution_time: Time taken to execute
+            error_type: Classified error category (invalid_input, timeout, etc.)
+            error_message: Truncated error message for learning context
+            input_query: Truncated input query for learning context
         """
         if not self._swarm_intelligence:
             return
@@ -407,6 +421,8 @@ class SwarmLearning(SwarmLearningMixin, ABC):
                 execution_time=execution_time,
                 error_type=error_type,
                 task_type=task_type,
+                error_message=error_message,
+                input_query=input_query,
             )
 
             logger.debug(f"Agent0 feedback sent: {task_type} success={success}")
