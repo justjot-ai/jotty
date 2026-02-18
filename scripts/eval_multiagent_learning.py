@@ -406,6 +406,210 @@ AB_TEST_TASK = {
     "domain": "system_design",
 }
 
+# =============================================================================
+# SINGLE-SHOT TASKS — same complexity, but no pipeline decomposition
+# The weak model must handle the ENTIRE task in one 4096-token response
+# =============================================================================
+
+SINGLE_SHOT_LEARNING_CURVE = [
+    {
+        "id": "S1_raft",
+        "goal": (
+            "Design and implement a Raft consensus system.\n\n"
+            "PART 1 - FORMAL MODEL: Define Raft's safety properties — election safety "
+            "(at most one leader per term, prove via majority/pigeonhole), log matching "
+            "(if two logs share an entry with same index+term, they're identical through that index — "
+            "prove by induction), leader completeness (committed entries appear in all future leaders' logs), "
+            "and state machine safety. For each, give the formal invariant and a counterexample.\n\n"
+            "PART 2 - IMPLEMENTATION: Implement Raft in Python with RaftNode class (Follower/Candidate/Leader "
+            "states), RequestVote RPC, AppendEntries RPC, commit logic (majority replication), handling of "
+            "simultaneous elections, log conflicts, and stale leaders. Use asyncio with simulated network.\n\n"
+            "PART 3 - TESTING: Write adversarial tests — partition 5 nodes into [2,3] and verify only majority "
+            "elects leader; simulate leader crash mid-replication; force 3 simultaneous candidates; test "
+            "partition tolerance with leader step-down. Use pytest with NetworkSimulator for injecting "
+            "partitions, delays, and message drops."
+        ),
+        "checks": [
+            "election safety",
+            "log matching",
+            "leader completeness",
+            "majority",
+            "class RaftNode",
+            "RequestVote",
+            "AppendEntries",
+            "async def",
+            "Follower",
+            "Leader",
+            "term",
+            "def test_",
+            "assert",
+            "partition",
+            "NetworkSimulator",
+        ],
+        "domain": "system_design",
+    },
+    {
+        "id": "S2_crdt",
+        "goal": (
+            "Design and implement a CRDT (Conflict-free Replicated Data Type) library.\n\n"
+            "PART 1 - THEORY: Explain join-semilattice properties (commutativity, associativity, "
+            "idempotency). Prove monotonic join guarantees convergence without coordination. "
+            "Compare CmRDT vs CvRDT with trade-offs. Walk through G-Counter merge and OR-Set "
+            "conflict resolution. Give an impossibility example — what CAN'T be a CRDT?\n\n"
+            "PART 2 - IMPLEMENTATION: Implement in Python using ABC/dataclasses:\n"
+            "- BaseCRDT with merge(), value(), clone()\n"
+            "- GCounter: grow-only {node_id: count}\n"
+            "- PNCounter: pair of GCounters\n"
+            "- ORSet: observed-remove set with unique add tags\n"
+            "- LWWRegister: last-writer-wins with HLC timestamps\n\n"
+            "PART 3 - VERIFICATION: Property-based tests with Hypothesis using @given:\n"
+            "- Commutativity: merge(a,b) == merge(b,a)\n"
+            "- Associativity: merge(merge(a,b),c) == merge(a,merge(b,c))\n"
+            "- Idempotency: merge(a,a) == a\n"
+            "- Convergence: all replicas converge regardless of delivery order\n"
+            "Test all 4 CRDT types."
+        ),
+        "checks": [
+            "semilattice",
+            "commutativ",
+            "associativ",
+            "idempoten",
+            "convergence",
+            "class GCounter",
+            "class PNCounter",
+            "class ORSet",
+            "class LWWRegister",
+            "def merge",
+            "def test_",
+            "@given",
+            "hypothesis",
+            "assert",
+        ],
+        "domain": "system_design",
+    },
+    {
+        "id": "S3_dist_lock",
+        "goal": (
+            "Design and implement a distributed lock service (like Chubby/ZooKeeper).\n\n"
+            "PART 1 - PROTOCOL: Design lock acquisition with compare-and-swap + fencing tokens, "
+            "lease-based expiry to prevent dead-client locks, FIFO fairness via sequence numbers, "
+            "reentrant locks (same client re-acquires tracked via owner+count), read-write locks "
+            "(shared readers, exclusive writers), and deadlock prevention via timeout + lock ordering. "
+            "Explain why simple mutex is insufficient in distributed systems. Walk through a fencing "
+            "token preventing stale-lock writes.\n\n"
+            "PART 2 - IMPLEMENTATION: Implement in Python with asyncio:\n"
+            "- LockServer: manages lock state, issues fencing tokens\n"
+            "- LockClient: acquire/release with automatic lease renewal\n"
+            "- FencingToken: monotonically increasing per lock\n"
+            "- LeaseManager: tracks expiry, auto-releases stale locks\n"
+            "- WaitQueue: FIFO ordering for contended locks\n\n"
+            "PART 3 - TESTING: Adversarial tests with pytest-asyncio:\n"
+            "- Deadlock: 2 clients acquire locks in opposite order\n"
+            "- Stale lock: client dies, verify auto-expiry\n"
+            "- Fencing: old token rejected after re-acquisition\n"
+            "- Contention: 10 concurrent clients competing\n"
+            "- Split-brain: partition during lock hold"
+        ),
+        "checks": [
+            "fencing token",
+            "lease",
+            "deadlock",
+            "reentrant",
+            "fairness",
+            "class LockServer",
+            "class LockClient",
+            "FencingToken",
+            "async def acquire",
+            "async def release",
+            "def test_",
+            "assert",
+            "deadlock",
+            "fencing",
+            "async",
+        ],
+        "domain": "system_design",
+    },
+    {
+        "id": "S4_event_source",
+        "goal": (
+            "Design and implement an event sourcing system with CQRS.\n\n"
+            "PART 1 - ARCHITECTURE: Design an append-only event store partitioned by aggregate ID, "
+            "CQRS with separate read models (projections) from write model, periodic snapshots to "
+            "avoid full replay, async event bus with at-least-once delivery, causal ordering within "
+            "aggregates (eventual across), and schema evolution for event versioning. Explain "
+            "trade-offs vs CRUD and when NOT to use event sourcing.\n\n"
+            "PART 2 - IMPLEMENTATION: Implement in Python with asyncio/dataclasses:\n"
+            "- Event: aggregate_id, type, data, version, timestamp\n"
+            "- EventStore: append, read_stream, get_snapshot, versioning\n"
+            "- EventBus: publish/subscribe with async handlers\n"
+            "- ProjectionEngine: rebuild read models from event stream\n"
+            "- SnapshotManager: create/restore at intervals\n"
+            "- Aggregate: base class for event-sourced entities\n\n"
+            "PART 3 - TESTING: Tests with pytest-asyncio:\n"
+            "- Event ordering: causal order within aggregate\n"
+            "- Idempotency: replaying same event doesn't corrupt\n"
+            "- Projection rebuild from scratch matches live\n"
+            "- Snapshot recovery + replay = correct state\n"
+            "- Schema evolution: v1 events readable by v2 projection"
+        ),
+        "checks": [
+            "event store",
+            "CQRS",
+            "snapshot",
+            "projection",
+            "schema",
+            "class Event",
+            "class EventStore",
+            "class Aggregate",
+            "async def",
+            "class Projection",
+            "def test_",
+            "assert",
+            "snapshot",
+            "idempoten",
+        ],
+        "domain": "system_design",
+    },
+]
+
+AB_SINGLE_SHOT_TASK = {
+    "id": "AB_single_gossip",
+    "goal": (
+        "Design and implement a SWIM-style gossip protocol for cluster membership.\n\n"
+        "PART 1 - DESIGN: Define failure detection states (ping, ping-req, suspect, dead), "
+        "dissemination via piggybacked protocol messages on ping/ack, protocol period timers "
+        "(T_protocol, T_suspect, T_dead), eventually consistent membership. Prove expected "
+        "detection time is O(log N) protocol periods. Compare with heartbeat detection.\n\n"
+        "PART 2 - IMPLEMENTATION: Implement in Python with asyncio:\n"
+        "- GossipNode: membership list and node states\n"
+        "- FailureDetector: ping/ping-req/suspect/dead state machine\n"
+        "- Disseminator: piggyback updates on protocol messages\n"
+        "- MembershipList: versioned with lamport timestamps\n"
+        "Use configurable protocol timers.\n\n"
+        "PART 3 - TESTING: Adversarial tests with pytest-asyncio:\n"
+        "- Node join: discovers cluster in O(log N) rounds\n"
+        "- Node failure: detected within time bound\n"
+        "- Network partition: minority marks majority suspect\n"
+        "- 30% packet loss: protocol still converges\n"
+        "- Rapid churn: 10 nodes join/leave simultaneously"
+    ),
+    "checks": [
+        "SWIM",
+        "failure detection",
+        "ping",
+        "suspect",
+        "protocol period",
+        "class GossipNode",
+        "class FailureDetector",
+        "async def",
+        "def test_",
+        "assert",
+        "partition",
+        "failure",
+    ],
+    "domain": "system_design",
+}
+
 
 class MultiAgentEval:
     def __init__(self) -> None:
@@ -951,40 +1155,58 @@ class MultiAgentEval:
         star_str = "*" * stars + "." * (5 - stars)
         print(f"\n  OVERALL: [{star_str}] {overall * 100:.1f}%")
 
-    async def run_all(self) -> None:
-        separator("JOTTY LEARNING CURVE EVALUATION")
+    async def run_all(self, mode: str = "pipeline") -> None:
+        is_single = mode == "single"
+        mode_label = "SINGLE-SHOT" if is_single else "PIPELINE"
+        tasks = SINGLE_SHOT_LEARNING_CURVE if is_single else LEARNING_CURVE_TASKS
+        ab_task = AB_SINGLE_SHOT_TASK if is_single else AB_TEST_TASK
+
+        separator(f"JOTTY {mode_label} LEARNING EVALUATION")
         print(f"  Date: {datetime.now().isoformat()}")
         print(f"  Model: {EVAL_MODEL}")
-        print(f"  Learning curve: {len(LEARNING_CURVE_TASKS)} tasks (same domain, sequential)")
+        print(
+            f"  Mode: {mode_label} — {'entire task in one call, 4096 max tokens' if is_single else 'decomposed into 3 stages'}"
+        )
+        print(f"  Learning curve: {len(tasks)} tasks (same domain, sequential)")
         print(f"  A/B test: same task with vs without learning")
         print(f"  Goal: does quality improve as learning accumulates?")
 
         initial_snap = self._snapshot("initial", "system_design")
         print(f"  Initial episodes: {initial_snap['episode_count']}")
 
-        # ── LEARNING CURVE: Run N tasks sequentially, all system_design ──
-        for i, task in enumerate(LEARNING_CURVE_TASKS):
-            sep_label = f"ROUND {i+1}/{len(LEARNING_CURVE_TASKS)} — {task['id']}"
+        # ── LEARNING CURVE ──
+        for i, task in enumerate(tasks):
+            sep_label = f"ROUND {i+1}/{len(tasks)} — {task['id']}"
             if i == 0:
                 sep_label += " (cold start, 0 prior episodes)"
             else:
                 snap = self._snapshot(f"before_R{i+1}", "system_design")
                 sep_label += f" ({snap['episode_count']} episodes of learning)"
             separator(sep_label)
-            await self.run_pipeline_task(task, learn=True)
+
+            if is_single:
+                await self.run_single_task(task, learn=True)
+            else:
+                await self.run_pipeline_task(task, learn=True)
             print("  Waiting for background learning...")
             await asyncio.sleep(3)
 
-        # ── A/B TEST: Same task, learn=False vs learn=True ──
+        # ── A/B TEST ──
         separator("A/B TEST — Same task: without learning vs with learning")
         snap = self._snapshot("before_ab", "system_design")
         print(f"  Episodes available: {snap['episode_count']}")
 
         print("\n  --- A: NO LEARNING (learn=False) ---")
-        await self.run_pipeline_task({**AB_TEST_TASK, "id": "AB_no_learn"}, learn=False)
+        if is_single:
+            await self.run_single_task({**ab_task, "id": "AB_no_learn"}, learn=False)
+        else:
+            await self.run_pipeline_task({**AB_TEST_TASK, "id": "AB_no_learn"}, learn=False)
 
         print("\n  --- B: WITH LEARNING (learn=True) ---")
-        await self.run_pipeline_task({**AB_TEST_TASK, "id": "AB_with_learn"}, learn=True)
+        if is_single:
+            await self.run_single_task({**ab_task, "id": "AB_with_learn"}, learn=True)
+        else:
+            await self.run_pipeline_task({**AB_TEST_TASK, "id": "AB_with_learn"}, learn=True)
         await asyncio.sleep(3)
 
         # ── ANALYSIS ──
@@ -996,12 +1218,13 @@ class MultiAgentEval:
         results_dir = Path(__file__).parent / "eval_results"
         results_dir.mkdir(exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_file = results_dir / f"{ts}_learning_curve.json"
+        results_file = results_dir / f"{ts}_{mode}_learning.json"
         with open(results_file, "w") as f:
             json.dump(
                 {
                     "timestamp": datetime.now().isoformat(),
                     "model": EVAL_MODEL,
+                    "mode": mode,
                     "results": self.results,
                 },
                 f,
@@ -1012,8 +1235,19 @@ class MultiAgentEval:
 
 
 async def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--mode",
+        choices=["pipeline", "single"],
+        default="pipeline",
+        help="pipeline = 3-stage decomposition, single = entire task in one call",
+    )
+    args = parser.parse_args()
+
     evaluator = MultiAgentEval()
-    await evaluator.run_all()
+    await evaluator.run_all(mode=args.mode)
 
 
 if __name__ == "__main__":

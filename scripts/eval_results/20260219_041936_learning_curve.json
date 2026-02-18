@@ -1,0 +1,210 @@
+{
+  "timestamp": "2026-02-19T04:19:36.262278",
+  "model": "claude-3-haiku-20240307",
+  "results": [
+    {
+      "task_id": "R1_raft",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8569473684210527,
+      "content_length": 18611,
+      "checks_passed": 18,
+      "checks_total": 19,
+      "elapsed_seconds": 47.8096067905426,
+      "episodes_before": 0,
+      "episodes_after": 0,
+      "stages": [
+        {
+          "name": "formal_model",
+          "success": true,
+          "time": 11.994910717010498,
+          "output_length": 4860
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 16.98166036605835,
+          "output_length": 7366
+        },
+        {
+          "name": "adversarial_testing",
+          "success": true,
+          "time": 15.920758485794067,
+          "output_length": 6309
+        }
+      ],
+      "error": null
+    },
+    {
+      "task_id": "R2_crdt",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8601333333333334,
+      "content_length": 11054,
+      "checks_passed": 14,
+      "checks_total": 15,
+      "elapsed_seconds": 34.69454026222229,
+      "episodes_before": 0,
+      "episodes_after": 16,
+      "stages": [
+        {
+          "name": "theory",
+          "success": true,
+          "time": 8.183595418930054,
+          "output_length": 2475
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 13.367666244506836,
+          "output_length": 5188
+        },
+        {
+          "name": "verification",
+          "success": true,
+          "time": 10.296151399612427,
+          "output_length": 3328
+        }
+      ],
+      "error": null
+    },
+    {
+      "task_id": "R3_dist_lock",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8629333333333333,
+      "content_length": 11760,
+      "checks_passed": 14,
+      "checks_total": 15,
+      "elapsed_seconds": 36.70869541168213,
+      "episodes_before": 16,
+      "episodes_after": 16,
+      "stages": [
+        {
+          "name": "protocol_design",
+          "success": true,
+          "time": 10.562569618225098,
+          "output_length": 3392
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 11.875519275665283,
+          "output_length": 4577
+        },
+        {
+          "name": "testing",
+          "success": true,
+          "time": 10.88045334815979,
+          "output_length": 3724
+        }
+      ],
+      "error": null
+    },
+    {
+      "task_id": "R4_event_source",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.9012,
+      "content_length": 12796,
+      "checks_passed": 15,
+      "checks_total": 15,
+      "elapsed_seconds": 37.2411093711853,
+      "episodes_before": 16,
+      "episodes_after": 30,
+      "stages": [
+        {
+          "name": "architecture",
+          "success": true,
+          "time": 8.16380500793457,
+          "output_length": 3134
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 12.261701107025146,
+          "output_length": 4822
+        },
+        {
+          "name": "testing",
+          "success": true,
+          "time": 13.296117067337036,
+          "output_length": 4776
+        }
+      ],
+      "error": null
+    },
+    {
+      "task_id": "AB_no_learn",
+      "domain": "system_design",
+      "learn": false,
+      "success": true,
+      "quality_score": 0.9196,
+      "content_length": 15240,
+      "checks_passed": 15,
+      "checks_total": 15,
+      "elapsed_seconds": 29.96772336959839,
+      "episodes_before": 30,
+      "episodes_after": 30,
+      "stages": [
+        {
+          "name": "design",
+          "success": true,
+          "time": 5.29844856262207,
+          "output_length": 2830
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 12.891029834747314,
+          "output_length": 5981
+        },
+        {
+          "name": "testing",
+          "success": true,
+          "time": 11.760562419891357,
+          "output_length": 6371
+        }
+      ],
+      "error": null
+    },
+    {
+      "task_id": "AB_with_learn",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.9024000000000001,
+      "content_length": 16654,
+      "checks_passed": 15,
+      "checks_total": 15,
+      "elapsed_seconds": 38.17839026451111,
+      "episodes_before": 30,
+      "episodes_after": 42,
+      "stages": [
+        {
+          "name": "design",
+          "success": true,
+          "time": 5.568779468536377,
+          "output_length": 2630
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 18.74222207069397,
+          "output_length": 8619
+        },
+        {
+          "name": "testing",
+          "success": true,
+          "time": 10.436532735824585,
+          "output_length": 5347
+        }
+      ],
+      "error": null
+    }
+  ]
+}

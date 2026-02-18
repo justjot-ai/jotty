@@ -120,3 +120,165 @@
   Domain: system_design/cqrs
   Stages: 3
   Learning state: 16 episodes
+  [PASS] Quality=0.90 | Checks=15/15 | Length=12796 | Time=37.2s
+  Episodes: 16 → 30 (+14)
+    Stage architecture   : [OK] 3134 chars, 8.2s
+    Stage implementation : [OK] 4822 chars, 12.3s
+    Stage testing        : [OK] 4776 chars, 13.3s
+    [+] architecture:event store
+    [+] architecture:CQRS
+    [+] architecture:snapshot
+    [+] architecture:projection
+    [+] architecture:schema
+    [+] implementation:class Event
+    [+] implementation:class EventStore
+    [+] implementation:class Aggregate
+    [+] implementation:async def
+    [+] implementation:class Projection
+    [+] testing:def test_
+    [+] testing:assert
+    [+] testing:async
+    [+] testing:snapshot
+    [+] testing:idempoten
+  Waiting for background learning...
+
+======================================================================
+  A/B TEST — Same task: without learning vs with learning
+======================================================================
+
+  Episodes available: 30
+
+  --- A: NO LEARNING (learn=False) ---
+
+  --- Pipeline: AB_no_learn [NO LEARNING] ---
+
+  Domain: system_design/gossip
+  Stages: 3
+  Learning state: 30 episodes
+  [PASS] Quality=0.92 | Checks=15/15 | Length=15240 | Time=30.0s
+  Episodes: 30 → 30 (+0)
+    Stage design         : [OK] 2830 chars, 5.3s
+    Stage implementation : [OK] 5981 chars, 12.9s
+    Stage testing        : [OK] 6371 chars, 11.8s
+    [+] design:SWIM
+    [+] design:failure detection
+    [+] design:ping
+    [+] design:suspect
+    [+] design:protocol period
+    [+] implementation:class GossipNode
+    [+] implementation:class FailureDetector
+    [+] implementation:async def
+    [+] implementation:ping
+    [+] implementation:suspect
+    [+] testing:def test_
+    [+] testing:assert
+    [+] testing:async
+    [+] testing:partition
+    [+] testing:failure
+
+  --- B: WITH LEARNING (learn=True) ---
+
+  --- Pipeline: AB_with_learn ---
+
+  Domain: system_design/gossip
+  Stages: 3
+  Learning state: 30 episodes
+  [PASS] Quality=0.90 | Checks=15/15 | Length=16654 | Time=38.2s
+  Episodes: 30 → 42 (+12)
+    Stage design         : [OK] 2630 chars, 5.6s
+    Stage implementation : [OK] 8619 chars, 18.7s
+    Stage testing        : [OK] 5347 chars, 10.4s
+    [+] design:SWIM
+    [+] design:failure detection
+    [+] design:ping
+    [+] design:suspect
+    [+] design:protocol period
+    [+] implementation:class GossipNode
+    [+] implementation:class FailureDetector
+    [+] implementation:async def
+    [+] implementation:ping
+    [+] implementation:suspect
+    [+] testing:def test_
+    [+] testing:assert
+    [+] testing:async
+    [+] testing:partition
+    [+] testing:failure
+
+======================================================================
+  ANALYSIS
+======================================================================
+
+
+  --- CREDIT ASSIGNMENT ANALYSIS ---
+
+  Credit Assigner: CreditAssignment
+  Credits recorded: 5 patterns
+    [pipeline_stage] formal_model         direct=0.024 apps=3 success=2
+    [pipeline_stage] theory               direct=0.019 apps=3 success=3
+    [pipeline_stage] protocol_design      direct=0.027 apps=3 success=2
+    [pipeline_stage] architecture         direct=0.029 apps=3 success=2
+    [pipeline_stage] design               direct=0.061 apps=3 success=2
+
+  Credit summary: 5 patterns, 15 applications, avg_direct=0.032
+
+  Adaptive credit weights: AdaptiveWeightGroup(base_reward=0.300, cooperation_bonus=0.400, predictability_bonus=0.300)
+
+  Effectiveness report:
+    generation          : recent=0.00 historical=0.00 trend=+1.00
+    _global             : recent=0.00 historical=0.00 trend=+1.00
+
+  --- LEARNING STATE ANALYSIS ---
+
+  system_design  : 42 episodes, rate=100%, context=0 chars, retrieval=800 chars
+  coding         : 2 episodes, rate=100%, context=0 chars, retrieval=1020 chars
+
+  Total patterns: 35
+    success_strategy         : 15
+    speed_optimization       : 10
+    quality_contrast         : 3
+    cross_domain_transfer    : 3
+    quality_driver           : 2
+    causal                   : 1
+    exploration_loss         : 1
+
+  Causal patterns (1):
+    - [system_design] For system_design tasks: using section headings (quality boost: +5.1% across 42 episodes)
+
+  --- FINAL RESULTS ---
+
+  [PASS] R1_raft                   Q=0.86 Checks=18/19 Len= 18611 Time=48s Ep=0→0
+  [PASS] R2_crdt                   Q=0.86 Checks=14/15 Len= 11054 Time=35s Ep=0→16
+  [PASS] R3_dist_lock              Q=0.86 Checks=14/15 Len= 11760 Time=37s Ep=16→16
+  [PASS] R4_event_source           Q=0.90 Checks=15/15 Len= 12796 Time=37s Ep=16→30
+  [PASS] AB_no_learn               Q=0.92 Checks=15/15 Len= 15240 Time=30s Ep=30→30 [NO-LEARN]
+  [PASS] AB_with_learn             Q=0.90 Checks=15/15 Len= 16654 Time=38s Ep=30→42
+
+  --- LEARNING CURVE ---
+
+  R1 ██████████████████████████████████░░░░░░ Q=0.86 Chk=18/19 Ep=0
+  R2 ██████████████████████████████████░░░░░░ Q=0.86 Chk=14/15 Ep=0
+  R3 ██████████████████████████████████░░░░░░ Q=0.86 Chk=14/15 Ep=16
+  R4 ████████████████████████████████████░░░░ Q=0.90 Chk=15/15 Ep=16
+
+  Trend: R1=0.86 → R4=0.90 (+0.04)
+  Range: 0.86 — 0.90
+  Check trend: R1=95% → R4=100%
+
+  --- A/B TEST — SAME TASK ---
+
+  Without learning: Q=0.92 Checks=100%
+  With learning:    Q=0.90 Checks=100%
+  Delta: -0.02 → NO DIFFERENCE
+
+  --- SCORES ---
+
+  Success Rate              [####################] 100.0%
+  Avg Quality               [#################---]  87.7%
+  Episodes Recorded         [####################] 100.0%
+  Learning Curve            [##############------]  72.1%
+  A/B Learning Δ            [##########----------]  50.0%
+  Credit Assignment         [####################] 100.0%
+
+  OVERALL: [****.] 85.0%
+
+  Report saved: /var/www/sites/personal/stock_market/Jotty/scripts/eval_results/20260219_041936_learning_curve.json
