@@ -229,12 +229,32 @@ class JottyEvaluator:
         subsep(f"Task {task_num}/{total}: {task['id']}")
 
         orch = self._get_orchestrator()
+        ls = self._get_learning_service()
 
         before_snap = self._snapshot_learning(f"before_{task['id']}")
+
+        # Check what execution params learning recommends
+        from Jotty.core.intelligence.learning.learning_service import classify_domain
+
+        det_domain, det_task = classify_domain(task["goal"])
+        optimal = ls.get_optimal_execution_params(det_domain, det_task, task["goal"])
+        retrieval = ls.retrieve_similar_responses(det_domain, det_task, task["goal"])
+
+        print(f"  Learning state: {before_snap['episode_count']} episodes")
+        print(f"  Domain: {det_domain}/{det_task}")
         print(
-            f"  Learning state: {before_snap['episode_count']} episodes, "
-            f"has_learning={before_snap['guidance_general_has_learning']}"
+            f"  Optimal: strategy={optimal.get('strategy')}, "
+            f"model={optimal.get('model') or 'default'}, "
+            f"temp={optimal.get('temperature') or 'default'}, "
+            f"explore={optimal.get('exploration')}"
         )
+        if retrieval:
+            print(
+                f"  Retrieved {len(retrieval)} prior examples "
+                f"(best quality={retrieval[0].get('quality', 0):.2f})"
+            )
+        else:
+            print(f"  No prior examples (cold start)")
 
         start = time.time()
         error_msg = None
@@ -278,6 +298,8 @@ class JottyEvaluator:
         result_record = {
             "task_id": task["id"],
             "domain": task.get("domain", "general"),
+            "detected_domain": det_domain,
+            "detected_task_type": det_task,
             "success": error_msg is None and len(content) > 100,
             "error": error_msg,
             "content_length": len(content),
@@ -292,6 +314,10 @@ class JottyEvaluator:
             "episodes_after": after_snap["episode_count"],
             "episodes_added": episodes_added,
             "learning_injected": before_snap["context_string_length"] > 0,
+            "learning_steered_model": optimal.get("model") or "default",
+            "learning_steered_strategy": optimal.get("strategy", "default"),
+            "learning_exploration": optimal.get("exploration", False),
+            "retrieval_examples": len(retrieval),
             "content_preview": content[:500] if content else "(empty)",
         }
         self.results.append(result_record)
@@ -304,8 +330,10 @@ class JottyEvaluator:
             f"Time={elapsed:.1f}s"
         )
         print(
-            f"  Learning: +{episodes_added} episodes | "
-            f"Guidance injected: {result_record['learning_injected']}"
+            f"  Learning: +{episodes_added} ep | "
+            f"steered={result_record['learning_steered_strategy']} | "
+            f"retrieval={result_record['retrieval_examples']} examples | "
+            f"explore={result_record['learning_exploration']}"
         )
 
         if content:
@@ -394,6 +422,89 @@ class JottyEvaluator:
                 f"  Cross-domain task: quality={cd['quality_score']:.2f}, "
                 f"learning_injected={cd['learning_injected']}"
             )
+
+        # --- LLM Judge Verification ---
+        subsep("LLM Judge Verification")
+        ls = self._get_learning_service()
+        conn = ls._store._get_conn()
+        llm_judged_rows = conn.execute(
+            "SELECT episode_id, quality, outcome FROM episodes WHERE outcome LIKE '%llm_judged%'"
+        ).fetchall()
+        print(f"  LLM-judged episodes: {len(llm_judged_rows)}")
+        for row in llm_judged_rows:
+            import json as _json
+
+            try:
+                out = _json.loads(row["outcome"]) if row["outcome"] else {}
+            except Exception:
+                out = {}
+            print(
+                f"    {row['episode_id'][:30]:30s}: "
+                f"blended={row['quality']:.3f}  "
+                f"llm={out.get('llm_score', '?')}  "
+                f"heuristic={out.get('heuristic_quality', '?')}"
+            )
+
+        # --- Exploration Analysis ---
+        subsep("Exploration Analysis")
+        explore_rows = conn.execute(
+            "SELECT domain, action, quality FROM episodes WHERE action LIKE '%exploration%'"
+        ).fetchall()
+        print(f"  Exploration episodes: {len(explore_rows)}")
+        for row in explore_rows:
+            try:
+                act = _json.loads(row["action"]) if row["action"] else {}
+            except Exception:
+                act = {}
+            print(
+                f"    domain={row['domain']:<15s} quality={row['quality']:.3f}  "
+                f"reason={act.get('exploration_reason', 'n/a')}"
+            )
+
+        # Analyze exploration results for all domains
+        all_domains = [
+            r[0] for r in conn.execute("SELECT DISTINCT domain FROM episodes").fetchall()
+        ]
+        for d in all_domains:
+            exp_result = ls.analyze_exploration_results(d)
+            if exp_result:
+                print(
+                    f"  {d}: explore_avg={exp_result['explore_avg_quality']:.3f} "
+                    f"vs baseline={exp_result['baseline_avg_quality']:.3f} "
+                    f"delta={exp_result['delta']:+.3f} "
+                    f"{'WIN' if exp_result['exploration_wins'] else 'no change'}"
+                )
+
+        # --- Pattern Types ---
+        subsep("Pattern Extraction Detail")
+        pattern_rows = conn.execute(
+            "SELECT pattern_type, COUNT(*) as cnt FROM patterns GROUP BY pattern_type"
+        ).fetchall()
+        print(f"  Pattern types:")
+        for row in pattern_rows:
+            print(f"    {row['pattern_type']:25s}: {row['cnt']} patterns")
+
+        # --- Curriculum Suggestions ---
+        subsep("Curriculum (Active Learning)")
+        weak = ls.identify_weak_domains()
+        if weak:
+            print(f"  Weak domains identified: {len(weak)}")
+            for w in weak:
+                print(
+                    f"    {w['domain']:15s}: quality={w['avg_quality']:.3f} "
+                    f"({w['episodes']} episodes) — {w['needs']}"
+                )
+            curriculum = ls.generate_curriculum()
+            if curriculum:
+                print(f"\n  Suggested practice tasks:")
+                for c in curriculum:
+                    print(
+                        f"    [{c['domain']}] quality={c['current_quality']:.2f}→{c['target_quality']:.2f}"
+                    )
+                    print(f"      Task: {c['task'][:100]}...")
+                    print(f"      Why:  {c['rationale']}")
+        else:
+            print("  No weak domains detected (all above threshold)")
 
         # --- FINAL RATING ---
         subsep("JOTTY RATING")

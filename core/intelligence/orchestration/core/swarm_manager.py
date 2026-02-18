@@ -3094,10 +3094,10 @@ class Orchestrator:
             )
 
             # 1. Record with rich metadata
-            try:
-                import uuid as _uuid
+            import uuid as _uuid
 
-                ep_id = f"run_{int(run_start)}_{_uuid.uuid4().hex[:6]}"
+            ep_id = f"run_{int(run_start)}_{_uuid.uuid4().hex[:6]}"
+            try:
                 learning.record(
                     unit_name="Orchestrator",
                     unit_type="orchestrator",
@@ -3119,20 +3119,7 @@ class Orchestrator:
             except Exception as e:
                 logger.debug(f"LearningService record failed: {e}")
 
-            # 2. Fire-and-forget LLM judge
-            if success and len(result_text) > 1000:
-                try:
-                    learning.schedule_background_judge(
-                        episode_id=ep_id,
-                        goal=goal,
-                        content=result_text,
-                        domain=detected_domain,
-                        heuristic_quality=heuristic_quality,
-                    )
-                except Exception:
-                    pass
-
-            # 3. Post-execution reflection
+            # 2. Post-execution reflection
             if success and result_text:
                 try:
                     learning.post_execution_reflect(
@@ -3146,9 +3133,39 @@ class Orchestrator:
                 except Exception as e:
                     logger.debug(f"Post-execution reflection failed: {e}")
 
-            # 4. Full learning pipeline (heavy — background, fire-and-forget)
+            # 3. Full learning pipeline (heavy — background, fire-and-forget)
             if isinstance(result, EpisodeResult):
                 self._schedule_background_learning(result, goal)
+
+        # ── LLM judge (awaited inline to ensure completion) ──
+        if learn and result_text and len(result_text) > 1000 and success:
+            try:
+                llm_score = await learning.llm_judge_quality(
+                    goal=goal,
+                    content=result_text,
+                    domain=detected_domain,
+                    heuristic_score=heuristic_quality,
+                )
+                blended = llm_score * 0.6 + heuristic_quality * 0.4
+                learning._store.update_episode_quality(
+                    episode_id=ep_id,
+                    quality=blended,
+                    outcome_patch={
+                        "llm_judged": True,
+                        "llm_score": round(llm_score, 3),
+                        "heuristic_quality": round(heuristic_quality, 3),
+                    },
+                )
+                learning._update_values(
+                    detected_domain,
+                    detected_task_type,
+                    {"domain": detected_domain},
+                    True,
+                    blended,
+                )
+                learning.analyze_exploration_results(detected_domain)
+            except Exception as e:
+                logger.debug(f"LLM judge failed in _run_inner: {e}")
 
         return result
 
@@ -3325,32 +3342,27 @@ class Orchestrator:
         error_msg = None
         try:
             result = await executor.execute(message, history=history)
-            return result
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Chat execution failed: {e}", exc_info=True)
             raise
         finally:
-            # ── POST-EXECUTION: rich recording + reflection (fire-and-forget) ──
+            # ── POST-EXECUTION: record with heuristic quality immediately ──
             if learn and episode_id:
                 chat_time = _time.time() - chat_start
                 success = getattr(result, "success", False) if result else False
                 content = getattr(result, "content", "") if result else ""
 
-                # Heuristic quality (instant, no LLM call)
                 response_analysis = analyze_response(content, message) if content else {}
                 heuristic_quality = response_analysis.get("quality_score", 0.8 if success else 0.0)
 
-                # Build rich outcome with structural signals + response excerpt for retrieval
                 outcome: Dict[str, Any] = {
                     "content_length": len(content),
                     **{k: v for k, v in response_analysis.items() if k != "empty"},
                 }
-                # Store excerpt for retrieval-augmented learning (first 1500 chars)
                 if content:
                     outcome["response_excerpt"] = content[:1500]
 
-                # Build rich action metadata including learning-derived params
                 action_meta: Dict[str, Any] = {
                     "provider": effective_provider or "auto",
                     "model": effective_model or "default",
@@ -3360,14 +3372,12 @@ class Orchestrator:
                     "max_steps": max_steps,
                     "tools_enabled": bool(enabled_tools),
                 }
-                # Record exploration metadata so we can learn what exploration helped
                 if optimal_params.get("exploration"):
                     action_meta["exploration"] = True
                     action_meta["exploration_reason"] = optimal_params.get("exploration_reason", "")
                 if optimal_params.get("strategy"):
                     action_meta["strategy"] = optimal_params["strategy"]
 
-                # Record immediately with heuristic quality (non-blocking)
                 try:
                     learning.end_episode(
                         episode_id=episode_id,
@@ -3381,20 +3391,6 @@ class Orchestrator:
                 except Exception as e:
                     logger.debug(f"LearningService episode end failed: {e}")
 
-                # Fire-and-forget: LLM judge updates quality asynchronously
-                if success and len(content) > 1000:
-                    try:
-                        learning.schedule_background_judge(
-                            episode_id=episode_id,
-                            goal=message,
-                            content=content,
-                            domain=detected_domain,
-                            heuristic_quality=heuristic_quality,
-                        )
-                    except Exception as e:
-                        logger.debug(f"Background judge scheduling failed: {e}")
-
-                # Post-execution reflection
                 if success and content:
                     try:
                         learning.post_execution_reflect(
@@ -3407,6 +3403,43 @@ class Orchestrator:
                         )
                     except Exception as e:
                         logger.debug(f"Post-execution reflection failed: {e}")
+
+        # ── POST-EXECUTION: LLM judge (awaited inline, updates quality) ──
+        if learn and episode_id and result:
+            _jcontent = getattr(result, "content", "")
+            _jsuccess = getattr(result, "success", False)
+            if _jcontent and len(_jcontent) > 1000 and _jsuccess:
+                try:
+                    _jra = analyze_response(_jcontent, message)
+                    _jhq = _jra.get("quality_score", 0.8)
+                    llm_score = await learning.llm_judge_quality(
+                        goal=message,
+                        content=_jcontent,
+                        domain=detected_domain,
+                        heuristic_score=_jhq,
+                    )
+                    blended = llm_score * 0.6 + _jhq * 0.4
+                    learning._store.update_episode_quality(
+                        episode_id=episode_id,
+                        quality=blended,
+                        outcome_patch={
+                            "llm_judged": True,
+                            "llm_score": round(llm_score, 3),
+                            "heuristic_quality": round(_jhq, 3),
+                        },
+                    )
+                    learning._update_values(
+                        detected_domain,
+                        detected_task_type,
+                        {"domain": detected_domain, "provider": effective_provider or "auto"},
+                        True,
+                        blended,
+                    )
+                    learning.analyze_exploration_results(detected_domain)
+                except Exception as e:
+                    logger.debug(f"LLM judge failed: {e}")
+
+        return result
 
     async def _chat_stream_with_learning(
         self,

@@ -436,8 +436,8 @@ class LearningService:
         self._cache_ttl = 60.0  # Cache TTL in seconds
 
         # Pattern extraction thresholds
-        self._min_episodes_for_pattern = 3
-        self._pattern_extraction_interval = 5  # Extract patterns every N records
+        self._min_episodes_for_pattern = 2
+        self._pattern_extraction_interval = 2  # Extract patterns every N records
         self._record_count = 0
 
         logger.info("LearningService initialized")
@@ -499,7 +499,10 @@ class LearningService:
         Returns:
             Episode ID
         """
-        episode_id = f"ep_{unit_name}_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+        if not metadata or "original_episode_id" not in metadata:
+            episode_id = f"ep_{unit_name}_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+        else:
+            episode_id = metadata.pop("original_episode_id")
 
         episode = EpisodeRecord(
             episode_id=episode_id,
@@ -942,6 +945,7 @@ class LearningService:
                 success=success,
                 quality=quality,
                 cost=cost,
+                metadata={"original_episode_id": episode_id},
             )
 
         execution_time = time.time() - episode.start_time
@@ -970,6 +974,7 @@ class LearningService:
             error_type=error_type,
             error_message=error_message,
             parent_episode_id=episode.parent_episode_id,
+            metadata={"original_episode_id": episode_id},
         )
 
     # =========================================================================
@@ -1472,6 +1477,277 @@ class LearningService:
             # No event loop — skip background judge
             logger.debug("No event loop for background judge, skipping")
 
+    # =========================================================================
+    # EXPLORATION ANALYSIS — Close the A/B loop
+    # =========================================================================
+
+    def analyze_exploration_results(self, domain: str) -> Optional[Dict[str, Any]]:
+        """
+        Compare exploration episodes vs baseline for a domain.
+        Updates value estimates if exploration found a better approach.
+
+        This closes the A/B experimentation loop: explore → measure → learn.
+        """
+        episodes = self._store.query_episodes(domain=domain, limit=50)
+        if len(episodes) < 3:
+            return None
+
+        explore_eps = [e for e in episodes if e.action.get("exploration") and e.quality > 0]
+        baseline_eps = [e for e in episodes if not e.action.get("exploration") and e.quality > 0]
+
+        if not explore_eps or not baseline_eps:
+            return None
+
+        explore_avg = sum(e.quality for e in explore_eps) / len(explore_eps)
+        baseline_avg = sum(e.quality for e in baseline_eps) / len(baseline_eps)
+        delta = explore_avg - baseline_avg
+
+        result = {
+            "domain": domain,
+            "explore_count": len(explore_eps),
+            "baseline_count": len(baseline_eps),
+            "explore_avg_quality": round(explore_avg, 3),
+            "baseline_avg_quality": round(baseline_avg, 3),
+            "delta": round(delta, 3),
+            "exploration_wins": delta > 0.05,
+        }
+
+        # If exploration found a better approach, boost its value estimate
+        if delta > 0.05 and len(explore_eps) >= 2:
+            for ep in explore_eps:
+                reason = ep.action.get("exploration_reason", "")
+                if "model=" in reason:
+                    model = reason.split("model=")[-1].strip()
+                    state_key = f"{domain}:explored_model"
+                    action_key = f"model={model}"
+                    existing = self._store.get_value(state_key, action_key, domain)
+                    new_val = explore_avg
+                    if existing:
+                        alpha = 0.2
+                        new_val = existing.value + alpha * (explore_avg - existing.value)
+                    self._store.save_value(
+                        ValueEstimate(
+                            state_key=state_key,
+                            action_key=action_key,
+                            domain=domain,
+                            value=new_val,
+                            td_error=delta,
+                            update_count=(existing.update_count + 1) if existing else 1,
+                        )
+                    )
+                    # Save as a pattern too
+                    pattern_id = hashlib.md5(f"explore_win_{domain}_{model}".encode()).hexdigest()[
+                        :12
+                    ]
+                    self._store.save_pattern(
+                        PatternRecord(
+                            pattern_id=pattern_id,
+                            source_domain=domain,
+                            pattern_type="exploration_win",
+                            description=(
+                                f"Exploration in {domain}: {model} scored "
+                                f"{explore_avg:.2f} vs baseline {baseline_avg:.2f} "
+                                f"(+{delta:.2f})"
+                            ),
+                            conditions={"domain": domain},
+                            recommendation=f"Consider using {model} for {domain} tasks",
+                            confidence=min(0.9, 0.5 + delta),
+                            evidence_count=len(explore_eps),
+                            applicable_domains=[domain],
+                        )
+                    )
+
+            logger.info(
+                f"Exploration win in {domain}: "
+                f"{explore_avg:.3f} vs {baseline_avg:.3f} (+{delta:.3f})"
+            )
+
+        elif delta < -0.05 and len(explore_eps) >= 2:
+            # Exploration was worse — record as pattern to avoid
+            pattern_id = hashlib.md5(f"explore_loss_{domain}".encode()).hexdigest()[:12]
+            self._store.save_pattern(
+                PatternRecord(
+                    pattern_id=pattern_id,
+                    source_domain=domain,
+                    pattern_type="exploration_loss",
+                    description=(
+                        f"Exploration in {domain} performed worse: "
+                        f"{explore_avg:.2f} vs baseline {baseline_avg:.2f} "
+                        f"({delta:.2f})"
+                    ),
+                    conditions={"domain": domain},
+                    recommendation=f"Stick with default approach for {domain} tasks",
+                    confidence=min(0.9, 0.5 + abs(delta)),
+                    evidence_count=len(explore_eps),
+                    applicable_domains=[domain],
+                )
+            )
+
+        return result
+
+    # =========================================================================
+    # CURRICULUM — Identify weak domains and suggest practice
+    # =========================================================================
+
+    def identify_weak_domains(self, min_episodes: int = 2) -> List[Dict[str, Any]]:
+        """
+        Identify domains that need improvement based on quality scores.
+        Returns domains sorted by weakness (lowest quality first).
+        """
+        conn = self._store._get_conn()
+        rows = conn.execute(
+            """SELECT domain, COUNT(*) as cnt, AVG(quality) as avg_q,
+                      MIN(quality) as min_q, MAX(quality) as max_q,
+                      AVG(CASE WHEN success = 1 THEN 1.0 ELSE 0.0 END) as sr
+               FROM episodes
+               WHERE quality > 0 AND domain != 'system' AND domain != ''
+               GROUP BY domain
+               HAVING cnt >= ?
+               ORDER BY avg_q ASC""",
+            (min_episodes,),
+        ).fetchall()
+
+        weak = []
+        for row in rows:
+            d = dict(row)
+            if d["avg_q"] < 0.8 or d["sr"] < 0.9:
+                weak.append(
+                    {
+                        "domain": d["domain"],
+                        "episodes": d["cnt"],
+                        "avg_quality": round(d["avg_q"], 3),
+                        "min_quality": round(d["min_q"], 3),
+                        "max_quality": round(d["max_q"], 3),
+                        "success_rate": round(d["sr"], 3),
+                        "needs": self._diagnose_weakness(d),
+                    }
+                )
+
+        return weak
+
+    def _diagnose_weakness(self, domain_stats: Dict[str, Any]) -> str:
+        """Diagnose why a domain is weak and suggest what to practice."""
+        domain = domain_stats["domain"]
+        avg_q = domain_stats["avg_q"]
+        sr = domain_stats["sr"]
+
+        episodes = self._store.query_episodes(domain=domain, limit=20)
+        if not episodes:
+            return "insufficient data"
+
+        # Analyze what's missing in low-quality responses
+        issues = []
+        for ep in episodes:
+            out = ep.outcome or {}
+            if out.get("goal_coverage", 1.0) < 0.6:
+                issues.append("low_coverage")
+            if out.get("structure_score", 1.0) < 0.3:
+                issues.append("low_structure")
+            if out.get("word_count", 1000) < 500:
+                issues.append("too_short")
+            if not out.get("has_code") and domain in ("coding", "data_science"):
+                issues.append("missing_code")
+            if not out.get("has_citations") and domain in ("research", "economics"):
+                issues.append("missing_citations")
+
+        if not issues:
+            return "quality plateau — try deeper prompts"
+
+        from collections import Counter
+
+        top_issues = Counter(issues).most_common(3)
+        diagnoses = {
+            "low_coverage": "responses don't address all parts of the task",
+            "low_structure": "responses lack clear structure (headings, lists)",
+            "too_short": "responses are too shallow — need more depth",
+            "missing_code": "coding responses should include implementations",
+            "missing_citations": "research responses should cite specific sources",
+        }
+        return "; ".join(diagnoses.get(issue, issue) for issue, _ in top_issues)
+
+    def generate_curriculum(self, top_n: int = 3) -> List[Dict[str, Any]]:
+        """
+        Generate a learning curriculum: practice tasks for the weakest domains.
+
+        Returns a list of suggested practice tasks with rationale.
+        """
+        weak = self.identify_weak_domains()
+        if not weak:
+            return []
+
+        curriculum = []
+        practice_templates = {
+            "coding": [
+                "Implement a {structure} in Python with full error handling, type hints, and 3 unit tests.",
+                "Design a production-grade {pattern} system. Include: architecture, code, failure modes, and monitoring.",
+            ],
+            "economics": [
+                "Analyze the economic impact of {topic}. Include: quantitative data, policy implications, and timeline.",
+                "Compare {approach_a} vs {approach_b} economic policies. Cite Acemoglu, Autor, or Piketty. Use data.",
+            ],
+            "research": [
+                "Write a literature review on {topic}. Cite at least 5 specific papers with years. Include methodology comparison.",
+                "Propose a novel research approach to {problem}. Include: hypothesis, methodology, expected results, and limitations.",
+            ],
+            "system_design": [
+                "Design a {system} handling {scale}. Include: architecture diagram (text), capacity planning, failure modes, and monitoring.",
+                "Compare {tech_a} vs {tech_b} for {use_case}. Include: benchmarks, trade-offs, and recommendation with reasoning.",
+            ],
+            "data_science": [
+                "Design an ML pipeline for {task}. Include: feature engineering, model selection, evaluation metrics, and deployment.",
+                "Propose a novel approach combining {method_a} and {method_b}. Include: mathematical formulation and complexity analysis.",
+            ],
+            "general": [
+                "Provide a comprehensive analysis of {topic} covering at least 5 dimensions. Use structured formatting.",
+            ],
+        }
+
+        fills = {
+            "coding": {"structure": "thread-safe priority queue", "pattern": "circuit breaker"},
+            "economics": {
+                "topic": "central bank digital currencies",
+                "approach_a": "MMT",
+                "approach_b": "Austrian school",
+            },
+            "research": {
+                "topic": "transformer architecture scaling laws",
+                "problem": "catastrophic forgetting in LLMs",
+            },
+            "system_design": {
+                "system": "real-time recommendation engine",
+                "scale": "1M requests/sec",
+                "tech_a": "Kafka",
+                "tech_b": "Pulsar",
+                "use_case": "event streaming",
+            },
+            "data_science": {
+                "task": "fraud detection",
+                "method_a": "GNNs",
+                "method_b": "temporal transformers",
+            },
+            "general": {"topic": "the future of remote work"},
+        }
+
+        for domain_info in weak[:top_n]:
+            domain = domain_info["domain"]
+            templates = practice_templates.get(domain, practice_templates["general"])
+            domain_fills = fills.get(domain, fills["general"])
+
+            for template in templates[:1]:
+                task = template.format(**domain_fills)
+                curriculum.append(
+                    {
+                        "domain": domain,
+                        "task": task,
+                        "rationale": f"Domain '{domain}' quality={domain_info['avg_quality']:.2f}. "
+                        f"Issue: {domain_info['needs']}",
+                        "target_quality": 0.85,
+                        "current_quality": domain_info["avg_quality"],
+                    }
+                )
+
+        return curriculum
+
     def improvement_report(self, domain: str = "") -> Dict[str, Any]:
         """Get improvement report for monitoring."""
         return self._store.get_improvement_report(domain)
@@ -1533,11 +1809,11 @@ class LearningService:
 
         successes = [e for e in episodes if e.success and e.quality >= 0.7]
         failures = [e for e in episodes if not e.success]
-        high_quality = [e for e in episodes if e.quality >= 0.85]
-        low_quality = [e for e in episodes if e.success and e.quality < 0.5]
+        high_quality = [e for e in episodes if e.quality >= 0.70]
+        low_quality = [e for e in episodes if e.success and e.quality < 0.55]
 
         # 1. Action-based success strategies (original logic, improved)
-        if len(successes) >= 3:
+        if len(successes) >= 2:
             action_counts: Dict[str, int] = defaultdict(int)
             for e in successes:
                 for key, val in e.action.items():
@@ -1545,7 +1821,7 @@ class LearningService:
                         action_counts[f"{key}={val}"] += 1
 
             for action_str, count in action_counts.items():
-                if count >= 3:
+                if count >= 2:
                     confidence = count / len(successes)
                     pattern_id = hashlib.md5(f"success_{domain}_{action_str}".encode()).hexdigest()[
                         :12
@@ -1630,7 +1906,7 @@ class LearningService:
                     )
 
         # 3. Speed patterns — what's efficient
-        if len(successes) >= 5:
+        if len(successes) >= 3:
             times = [e.execution_time for e in successes if e.execution_time > 0]
             if times:
                 avg_time = sum(times) / len(times)
