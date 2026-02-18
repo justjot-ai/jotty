@@ -703,6 +703,7 @@ See: LAYER5_CLEANUP_COMPLETE.md, LAYER3_CLEANUP_COMPLETE.md
 
 | File | Purpose |
 |------|---------|
+| `docs/CORE_FLOW_AND_RELATIONSHIPS.md` | Flow and file relationships in `core/` — every file's links or "not integrated" |
 | `core/capabilities.py` | Discovery API — `capabilities()` and `explain()` |
 | `core/intelligence/memory/facade.py` | Memory subsystem facade |
 | `core/intelligence/learning/facade.py` | Learning subsystem facade |

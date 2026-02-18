@@ -2970,23 +2970,37 @@ class Orchestrator:
         """Core run() logic, may be called directly or under a session lock."""
         import time as _time
 
-        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.intelligence.learning.learning_service import (
+            LearningService,
+            analyze_response,
+            classify_domain,
+        )
 
         learning = LearningService.get_instance()
         run_start = _time.time()
 
-        # ── PRE-EXECUTION: inject learning guidance into context ──
+        # ── PRE-EXECUTION: classify domain + inject learning guidance ──
+        detected_domain, detected_task_type = classify_domain(goal)
+
         if learn:
+            # Inject domain-specific learning context
             try:
-                guidance_str = learning.build_context_string(domain="general", task_type="run")
+                guidance_str = learning.build_context_string(
+                    domain=detected_domain, task_type=detected_task_type
+                )
                 if guidance_str:
                     kwargs.setdefault("learning_context", "")
                     kwargs["learning_context"] += "\n" + guidance_str
+
+                # Also inject general guidance if domain != general
+                if detected_domain != "general":
+                    general_str = learning.build_context_string(domain="general", task_type="run")
+                    if general_str and general_str != guidance_str:
+                        kwargs["learning_context"] += "\n" + general_str
             except Exception as e:
                 logger.debug(f"Pre-execution learning guidance failed: {e}")
 
         # ── PRE-EXECUTION: inject budget awareness (ClawWork-inspired) ──
-        # Agents that see their own cost/budget self-regulate token usage.
         try:
             from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
 
@@ -3035,18 +3049,40 @@ class Orchestrator:
         if learn:
             run_time = _time.time() - run_start
             success = getattr(result, "success", True) if result else False
-            quality = getattr(result, "quality_score", 0.8 if success else 0.0)
 
-            # 1. Record to LearningService (SQLite — lightweight, always runs)
+            # Analyze output quality if we have text content
+            result_text = ""
+            if isinstance(result, EpisodeResult):
+                result_text = getattr(result, "output", "") or str(result)
+            elif result:
+                result_text = str(result)
+
+            response_analysis = analyze_response(result_text, goal) if result_text else {}
+            quality = response_analysis.get(
+                "quality_score",
+                getattr(result, "quality_score", 0.8 if success else 0.0),
+            )
+
+            # Build rich outcome
+            outcome = {
+                "output_length": len(result_text),
+                **{k: v for k, v in response_analysis.items() if k != "empty"},
+            }
+
+            # 1. Record to LearningService with rich metadata
             try:
                 learning.record(
                     unit_name="Orchestrator",
                     unit_type="orchestrator",
-                    domain="general",
-                    task_type="run",
-                    context={"goal": str(goal)[:300]},
-                    action={"mode": execution_mode},
-                    outcome={"output_length": len(str(result)) if result else 0},
+                    domain=detected_domain,
+                    task_type=detected_task_type,
+                    context={"goal": str(goal)[:500]},
+                    action={
+                        "mode": execution_mode,
+                        "domain": detected_domain,
+                        "task_type": detected_task_type,
+                    },
+                    outcome=outcome,
                     success=success,
                     quality=quality,
                     execution_time=run_time,
@@ -3054,9 +3090,21 @@ class Orchestrator:
             except Exception as e:
                 logger.debug(f"LearningService record failed: {e}")
 
-            # 2. Full learning pipeline (heavy — background, fire-and-forget)
-            #    Runs: stigmergy, byzantine, credit, effectiveness, MAS, TD-Lambda,
-            #    transfer learning, prompt evolution, curriculum, etc.
+            # 2. Post-execution reflection
+            if success and result_text:
+                try:
+                    learning.post_execution_reflect(
+                        episode_id=f"run_{int(run_start)}",
+                        goal=goal,
+                        content=result_text,
+                        domain=detected_domain,
+                        quality_score=quality,
+                        execution_time=run_time,
+                    )
+                except Exception as e:
+                    logger.debug(f"Post-execution reflection failed: {e}")
+
+            # 3. Full learning pipeline (heavy — background, fire-and-forget)
             if isinstance(result, EpisodeResult):
                 self._schedule_background_learning(result, goal)
 
@@ -3117,7 +3165,11 @@ class Orchestrator:
         """
         import time as _time
 
-        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.intelligence.learning.learning_service import (
+            LearningService,
+            analyze_response,
+            classify_domain,
+        )
         from Jotty.core.intelligence.orchestration.execution.unified_executor import (
             ChatExecutor as _ChatExecutor,
         )
@@ -3125,31 +3177,45 @@ class Orchestrator:
         learning = LearningService.get_instance()
         chat_start = _time.time()
 
-        # ── PRE-EXECUTION: start episode + query guidance ──
+        # ── PRE-EXECUTION: classify domain + start episode + query guidance ──
+        detected_domain, detected_task_type = classify_domain(message)
         episode_id = None
         if learn:
             try:
                 episode_id = learning.start_episode(
                     unit_name="Orchestrator",
                     unit_type="chat",
-                    domain="conversational",
-                    task_type="chat",
-                    context={"message": message[:300], "history_len": len(history or [])},
+                    domain=detected_domain,
+                    task_type=detected_task_type,
+                    context={
+                        "message": message[:500],
+                        "history_len": len(history or []),
+                        "detected_domain": detected_domain,
+                        "detected_task_type": detected_task_type,
+                        "provider": provider or "auto",
+                        "model": model or "default",
+                    },
                 )
             except Exception as e:
                 logger.debug(f"LearningService episode start failed: {e}")
 
+            # Query domain-specific guidance AND general guidance
             try:
-                guidance = learning.query(
-                    domain="conversational",
-                    task_type="chat",
-                    context={"message": message[:200]},
+                ctx_parts = []
+                domain_ctx = learning.build_context_string(
+                    domain=detected_domain, task_type=detected_task_type
                 )
-                if guidance and guidance.get("guidance"):
+                if domain_ctx:
+                    ctx_parts.append(domain_ctx)
+
+                if detected_domain != "general":
+                    general_ctx = learning.build_context_string(domain="general", task_type="run")
+                    if general_ctx and general_ctx != domain_ctx:
+                        ctx_parts.append(general_ctx)
+
+                if ctx_parts:
                     kwargs.setdefault("learning_context", "")
-                    kwargs["learning_context"] += "\n[Learned guidance] " + str(
-                        guidance["guidance"]
-                    )
+                    kwargs["learning_context"] += "\n" + "\n".join(ctx_parts)
             except Exception:
                 pass
 
@@ -3166,7 +3232,14 @@ class Orchestrator:
 
         if stream:
             return self._chat_stream_with_learning(
-                executor, message, history, episode_id, learning, chat_start
+                executor,
+                message,
+                history,
+                episode_id,
+                learning,
+                chat_start,
+                _domain=detected_domain,
+                _task_type=detected_task_type,
             )
 
         # Non-streaming execution
@@ -3180,21 +3253,79 @@ class Orchestrator:
             logger.error(f"Chat execution failed: {e}", exc_info=True)
             raise
         finally:
-            # ── POST-EXECUTION: record episode (fire-and-forget) ──
+            # ── POST-EXECUTION: rich recording + reflection (fire-and-forget) ──
             if learn and episode_id:
                 chat_time = _time.time() - chat_start
                 success = getattr(result, "success", False) if result else False
+                content = getattr(result, "content", "") if result else ""
+
+                # Analyze response quality (heuristic first, LLM judge for complex)
+                response_analysis = analyze_response(content, message) if content else {}
+                heuristic_quality = response_analysis.get("quality_score", 0.8 if success else 0.0)
+
+                # LLM self-critique for complex tasks (>1000 chars = worth judging)
+                quality = heuristic_quality
+                llm_judged = False
+                if success and len(content) > 1000:
+                    try:
+                        llm_score = await learning.llm_judge_quality(
+                            goal=message,
+                            content=content,
+                            domain=detected_domain,
+                            heuristic_score=heuristic_quality,
+                        )
+                        # Blend: 60% LLM judge + 40% heuristic (LLM is smarter but noisier)
+                        quality = llm_score * 0.6 + heuristic_quality * 0.4
+                        llm_judged = True
+                    except Exception as e:
+                        logger.debug(f"LLM judge skipped: {e}")
+
+                # Build rich outcome with structural signals
+                outcome: Dict[str, Any] = {
+                    "content_length": len(content),
+                    **{k: v for k, v in response_analysis.items() if k != "empty"},
+                }
+                if llm_judged:
+                    outcome["llm_judged"] = True
+                    outcome["heuristic_quality"] = round(heuristic_quality, 3)
+
+                # Build rich action metadata (passed into end_episode, single record)
+                action_meta = {
+                    "provider": provider or "auto",
+                    "model": model or "default",
+                    "domain": detected_domain,
+                    "task_type": detected_task_type,
+                    "had_history": bool(history),
+                    "max_steps": max_steps,
+                    "tools_enabled": bool(enabled_tools),
+                }
+
                 try:
                     learning.end_episode(
                         episode_id=episode_id,
                         success=success,
-                        quality=0.8 if success else 0.0,
+                        quality=quality,
                         cost=0.0,
-                        outcome={"content_length": len(getattr(result, "content", ""))},
+                        outcome=outcome,
                         error_message=error_msg,
+                        action_metadata=action_meta,
                     )
                 except Exception as e:
                     logger.debug(f"LearningService episode end failed: {e}")
+
+                # Post-execution reflection (records what worked for future guidance)
+                if success and content:
+                    try:
+                        learning.post_execution_reflect(
+                            episode_id=episode_id,
+                            goal=message,
+                            content=content,
+                            domain=detected_domain,
+                            quality_score=quality,
+                            execution_time=chat_time,
+                        )
+                    except Exception as e:
+                        logger.debug(f"Post-execution reflection failed: {e}")
 
     async def _chat_stream_with_learning(
         self,
@@ -3204,12 +3335,18 @@ class Orchestrator:
         episode_id: Optional[str],
         learning: Any,
         start_time: float,
+        _domain: str = "general",
+        _task_type: str = "chat",
     ) -> Any:
         """Wrap streaming chat with LearningService episode tracking."""
         import time as _time
 
+        collected_content = []
         try:
             async for event in executor.execute_stream(message, history=history):
+                if hasattr(event, "type") and hasattr(event, "data"):
+                    if event.type == "text" and event.data:
+                        collected_content.append(str(event.data))
                 yield event
         except Exception as e:
             logger.error(f"Chat stream failed: {e}")
@@ -3217,13 +3354,42 @@ class Orchestrator:
         finally:
             if episode_id:
                 chat_time = _time.time() - start_time
+                full_content = "".join(collected_content)
+
+                from Jotty.core.intelligence.learning.learning_service import analyze_response
+
+                analysis = analyze_response(full_content, message) if full_content else {}
+                quality = analysis.get("quality_score", 0.7)
+
                 try:
                     learning.end_episode(
                         episode_id=episode_id,
                         success=True,
-                        quality=0.7,
+                        quality=quality,
                         cost=0.0,
-                        outcome={"streamed": True, "duration": chat_time},
+                        outcome={
+                            "streamed": True,
+                            "duration": chat_time,
+                            "content_length": len(full_content),
+                            **{k: v for k, v in analysis.items() if k != "empty"},
+                        },
+                    )
+                except Exception:
+                    pass
+
+                # Domain-specific record for streaming too
+                try:
+                    learning.record(
+                        unit_name="Orchestrator",
+                        unit_type="chat",
+                        domain=_domain,
+                        task_type=_task_type,
+                        context={"goal": message[:500]},
+                        action={"domain": _domain, "task_type": _task_type, "streamed": True},
+                        outcome={"content_length": len(full_content), **analysis},
+                        success=True,
+                        quality=quality,
+                        execution_time=chat_time,
                     )
                 except Exception:
                     pass

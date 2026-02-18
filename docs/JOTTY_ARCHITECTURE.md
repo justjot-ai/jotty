@@ -471,6 +471,7 @@ All tests use mocks (no real LLM calls), run fast (< 1s each), and work offline.
 
 ## See Also
 
+- **Core Flow & Relationships**: `docs/CORE_FLOW_AND_RELATIONSHIPS.md` - File-by-file flow and integration (who imports whom in `core/`; which files are not integrated)
 - **Happy Path Guide**: `docs/HAPPY_PATH_GUIDE.md` - Step-by-step flow from user message to response
 - **Contributing**: `CONTRIBUTING.md` - Development workflow and patterns
 - **SWOT Analysis**: `docs/SWOT_ANALYSIS.md` - Strengths, weaknesses, opportunities, threats

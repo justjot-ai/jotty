@@ -1,0 +1,377 @@
+{
+  "timestamp": "2026-02-18T15:47:28.680495",
+  "tasks_count": 5,
+  "results": [
+    {
+      "task_id": "R1_coding_basics",
+      "domain": "coding",
+      "success": true,
+      "error": null,
+      "content_length": 8860,
+      "min_length": 800,
+      "length_ok": true,
+      "checks_passed": 5,
+      "checks_total": 5,
+      "checks_detail": {
+        "class": true,
+        "def get": true,
+        "def put": true,
+        "threading": true,
+        "test": true
+      },
+      "quality_score": 1.0,
+      "elapsed_seconds": 35.25,
+      "episodes_before": 259,
+      "episodes_after": 260,
+      "episodes_added": 1,
+      "learning_injected": true,
+      "content_preview": "Here's a complete implementation of a thread-safe LRU cache with TTL expiration:\n\n```python\nimport threading\nimport time\nfrom typing import Any, Optional, Generic, TypeVar, Dict\nfrom collections import OrderedDict\n\nK = TypeVar('K')  # Key type\nV = TypeVar('V')  # Value type\n\nclass TTLLRUCache(Generic[K, V]):\n    \"\"\"\n    A thread-safe LRU cache with TTL (time-to-live) expiration.\n    \n    Provides O(1) get and put operations with lazy TTL expiration checking.\n    Uses RLock for thread safety with"
+    },
+    {
+      "task_id": "R1_research_basics",
+      "domain": "research",
+      "success": true,
+      "error": null,
+      "content_length": 4320,
+      "min_length": 1200,
+      "length_ok": true,
+      "checks_passed": 5,
+      "checks_total": 5,
+      "checks_detail": {
+        "direct": true,
+        "indirect": true,
+        "gdp": true,
+        "policy": true,
+        "2024": true
+      },
+      "quality_score": 1.0,
+      "elapsed_seconds": 32.73,
+      "episodes_before": 260,
+      "episodes_after": 261,
+      "episodes_added": 1,
+      "learning_injected": true,
+      "content_preview": "# Economic Implications of Large Language Models on the Labor Market\n\n## 1. DIRECT EFFECTS: Jobs at Risk\n\n**High Risk (70-85% displacement probability):**\n- Content writers/copywriters: 78% at risk\n- Basic translators: 82% at risk\n- Data entry clerks: 85% at risk\n- Customer service representatives (text-based): 75% at risk\n- Junior legal researchers: 71% at risk\n\n**Medium Risk (40-65% displacement probability):**\n- Journalists (routine reporting): 58% at risk\n- Financial analysts (entry-level): "
+    },
+    {
+      "task_id": "R2_coding_advanced",
+      "domain": "coding",
+      "success": true,
+      "error": null,
+      "content_length": 28943,
+      "min_length": 1500,
+      "length_ok": true,
+      "checks_passed": 5,
+      "checks_total": 5,
+      "checks_detail": {
+        "token bucket": true,
+        "redis": true,
+        "lua": true,
+        "fallback": true,
+        "class": true
+      },
+      "quality_score": 1.0,
+      "elapsed_seconds": 104.74,
+      "episodes_before": 261,
+      "episodes_after": 262,
+      "episodes_added": 1,
+      "learning_injected": true,
+      "content_preview": "I'll design and implement a production-grade distributed rate limiter with all the requirements you specified.\n\n## 1. Core Rate Limiter Implementation\n\n```python\nimport time\nimport logging\nimport hashlib\nimport json\nfrom typing import Dict, Optional, Tuple, Protocol, Any\nfrom enum import Enum\nfrom dataclasses import dataclass\nfrom threading import Lock\nimport redis\nfrom redis.exceptions import RedisError, ConnectionError\nimport asyncio\nfrom contextlib import asynccontextmanager\n\n# Monitoring Pro"
+    },
+    {
+      "task_id": "R2_cross_domain",
+      "domain": "cross_domain",
+      "success": true,
+      "error": null,
+      "content_length": 11728,
+      "min_length": 2000,
+      "length_ok": true,
+      "checks_passed": 6,
+      "checks_total": 6,
+      "checks_detail": {
+        "kafka": true,
+        "xgboost": true,
+        "latency": true,
+        "shap": true,
+        "drift": true,
+        "failover": true
+      },
+      "quality_score": 1.0,
+      "elapsed_seconds": 74.42,
+      "episodes_before": 262,
+      "episodes_after": 263,
+      "episodes_added": 1,
+      "learning_injected": true,
+      "content_preview": "# Real-Time Fraud Detection System Architecture\n\n## Executive Summary\nA horizontally scalable, multi-region fraud detection system processing 50,000 TPS with <50ms P99 latency, featuring ensemble ML models, online learning, and adversarial robustness.\n\n---\n\n## A. DATA PIPELINE\n\n### Kafka Infrastructure\n```yaml\nCluster Configuration:\n- Brokers: 12 nodes (r5.2xlarge) per region\n- Partitions: 120 per topic (fraud-events, feature-requests)\n- Replication Factor: 3\n- Producer: idempotent=true, acks=al"
+    },
+    {
+      "task_id": "R3_synthesis",
+      "domain": "synthesis",
+      "success": true,
+      "error": null,
+      "content_length": 13660,
+      "min_length": 2500,
+      "length_ok": true,
+      "checks_passed": 6,
+      "checks_total": 6,
+      "checks_detail": {
+        "hippocampus": true,
+        "consolidation": true,
+        "loss": true,
+        "theorem": true,
+        "complexity": true,
+        "ewc": true
+      },
+      "quality_score": 1.0,
+      "elapsed_seconds": 75.82,
+      "episodes_before": 263,
+      "episodes_after": 264,
+      "episodes_added": 1,
+      "learning_injected": true,
+      "content_preview": "# Evolutionary Information-Theoretic Continual Learning (EvoInfoCL): A Biologically-Inspired Framework for Neural Networks\n\n## Abstract\n\nWe propose EvoInfoCL, a novel continual learning framework that synthesizes insights from complementary learning systems theory, information theory, and evolutionary biology. Our approach introduces a dual-memory architecture with dynamic consolidation mechanisms that prevent catastrophic forgetting while maintaining computational efficiency. We prove theoretic"
+    }
+  ],
+  "learning_snapshots": [
+    {
+      "label": "initial",
+      "timestamp": 1771409523.14998,
+      "episode_count": 259,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": false,
+      "guidance_research_has_learning": false,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409523 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "before_R1_coding_basics",
+      "timestamp": 1771409525.694233,
+      "episode_count": 259,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": true,
+      "guidance_research_has_learning": true,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409523 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "after_R1_coding_basics",
+      "timestamp": 1771409560.9492912,
+      "episode_count": 260,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": true,
+      "guidance_research_has_learning": true,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409523 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "before_R1_research_basics",
+      "timestamp": 1771409560.951818,
+      "episode_count": 260,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": true,
+      "guidance_research_has_learning": true,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409523 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "after_R1_research_basics",
+      "timestamp": 1771409593.686565,
+      "episode_count": 261,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": false,
+      "guidance_research_has_learning": false,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409593 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "before_R2_coding_advanced",
+      "timestamp": 1771409593.6890543,
+      "episode_count": 261,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": true,
+      "guidance_research_has_learning": true,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409593 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "after_R2_coding_advanced",
+      "timestamp": 1771409698.435524,
+      "episode_count": 262,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": false,
+      "guidance_research_has_learning": false,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409698 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "before_R2_cross_domain",
+      "timestamp": 1771409698.4380844,
+      "episode_count": 262,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": true,
+      "guidance_research_has_learning": true,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409698 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "after_R2_cross_domain",
+      "timestamp": 1771409772.8564656,
+      "episode_count": 263,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": false,
+      "guidance_research_has_learning": false,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409772 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "before_R3_synthesis",
+      "timestamp": 1771409772.8591518,
+      "episode_count": 263,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": true,
+      "guidance_research_has_learning": true,
+      "context_string_length": 158,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409772 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00"
+    },
+    {
+      "label": "after_R3_synthesis",
+      "timestamp": 1771409848.67781,
+      "episode_count": 264,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": false,
+      "guidance_research_has_learning": false,
+      "context_string_length": 273,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409848 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00\nPattern: For faster general execution, prefer model=sonnet\nPattern: For faster general execution, prefer retries=0"
+    },
+    {
+      "label": "final",
+      "timestamp": 1771409848.6803467,
+      "episode_count": 264,
+      "guidance_general_keys": [
+        "has_learning",
+        "success_rate",
+        "total_episodes",
+        "patterns",
+        "recommendations",
+        "failure_analysis",
+        "best_action",
+        "improving"
+      ],
+      "guidance_general_has_learning": true,
+      "guidance_coding_has_learning": true,
+      "guidance_research_has_learning": true,
+      "context_string_length": 273,
+      "context_string_preview": "[LEARNING CONTEXT \u2014 general]\nPerformance: 100% success across 1771409848 episodes\nTrend: IMPROVING (+29% vs historical)\nQuality benchmark: avg=0.81, best=1.00\nPattern: For faster general execution, prefer model=sonnet\nPattern: For faster general execution, prefer retries=0"
+    }
+  ],
+  "initial_episodes": 259,
+  "final_episodes": 264
+}
