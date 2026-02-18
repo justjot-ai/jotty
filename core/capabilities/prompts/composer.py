@@ -125,7 +125,18 @@ class PromptComposer:
         if constraints:
             sections.append(self._format_constraints(constraints))
 
-        # 5. PROJECT RULES (.jottyrules / .clinerules / .cursorrules / CLAUDE.md)
+        # 5. WORKSPACE IDENTITY (SOUL.md / IDENTITY.md / USER.md)
+        if workspace_dir:
+            try:
+                from .rules import load_identity_files
+
+                identity_content = load_identity_files(workspace_dir)
+                if identity_content:
+                    sections.append(self._wrap_section("Workspace Identity", identity_content))
+            except Exception as e:
+                logger.debug(f"Identity loading skipped: {e}")
+
+        # 6. PROJECT RULES (.jottyrules / .clinerules / .cursorrules / CLAUDE.md)
         if workspace_dir:
             try:
                 from .rules import load_project_rules
@@ -136,13 +147,13 @@ class PromptComposer:
             except Exception as e:
                 logger.debug(f"Rule loading skipped: {e}")
 
-        # 6. EXTRA SECTIONS
+        # 7. EXTRA SECTIONS
         if extra_sections:
             for name, content in extra_sections.items():
                 if content.strip():
                     sections.append(self._wrap_section(name, content))
 
-        # 6. TASK (always last)
+        # 8. TASK (always last)
         if task:
             sections.append(self._format_task(task))
 

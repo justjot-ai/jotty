@@ -34,7 +34,7 @@ from Jotty.core.infrastructure.foundation.data_structures import (
 )
 
 from ..memory.cortex import SwarmMemory
-from .learning import TDLambdaLearner
+from .td_lambda import TDLambdaLearner
 
 
 def _ensure_swarm_config(config: Any) -> Any:

@@ -131,14 +131,14 @@ async def test_pilot():
 
 # Template swarms
 async def test_testing():
-    from Jotty.core.intelligence.orchestration.swarms.templates.testing import TestingSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.testing_swarm import TestingSwarm
 
     swarm = TestingSwarm()
     return await swarm.execute(code="def add(a,b): return a+b")
 
 
 async def test_review():
-    from Jotty.core.intelligence.orchestration.swarms.templates.review import ReviewSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.review_swarm import ReviewSwarm
 
     swarm = ReviewSwarm()
     return await swarm.execute(code="def add(a,b): return a+b")

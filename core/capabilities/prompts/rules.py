@@ -75,3 +75,56 @@ def load_project_rules(workspace_dir: str) -> str:
 def clear_rules_cache() -> None:
     """Clear the rules cache (call when workspace changes)."""
     load_project_rules.cache_clear()
+    load_identity_files.cache_clear()
+
+
+# =============================================================================
+# IDENTITY FILES — workspace persona/identity (SOUL.md, IDENTITY.md, USER.md)
+# =============================================================================
+
+IDENTITY_FILES = ["SOUL.md", "IDENTITY.md", "USER.md"]
+
+# Identity should be concise — 8KB cap
+_MAX_IDENTITY_SIZE = 8192
+
+
+@lru_cache(maxsize=16)
+def load_identity_files(workspace_dir: str) -> str:
+    """
+    Load persona/identity from workspace files (SOUL.md, IDENTITY.md, USER.md).
+
+    Same pattern as load_project_rules(). Files are merged if multiple exist.
+    Size-capped to keep system prompts reasonable.
+
+    Args:
+        workspace_dir: Path to the project/workspace root
+
+    Returns:
+        Combined identity text, or "" if no identity files found
+    """
+    root = Path(workspace_dir)
+    if not root.is_dir():
+        return ""
+
+    parts = []
+    total_size = 0
+    for filename in IDENTITY_FILES:
+        filepath = root / filename
+        if filepath.is_file():
+            try:
+                content = filepath.read_text(encoding="utf-8", errors="ignore")
+                # Enforce per-file + total size cap
+                remaining = _MAX_IDENTITY_SIZE - total_size
+                if remaining <= 0:
+                    break
+                if len(content) > remaining:
+                    content = content[:remaining] + "\n[...truncated]"
+                    logger.warning(f"Identity file {filepath} truncated to fit size cap")
+                if content.strip():
+                    parts.append(content.strip())
+                    total_size += len(content)
+                    logger.info(f"Loaded identity from {filepath} ({len(content)} chars)")
+            except Exception as e:
+                logger.warning(f"Failed to read {filepath}: {e}")
+
+    return "\n\n".join(parts)

@@ -70,13 +70,15 @@ class ToolExecutionGuard:
     Transparent wrapper that integrates tool call tracking and provider health.
 
     Wraps tool functions at SkillDefinition.tools load time to:
-    1. Record call metrics in ToolCallRegistry (for learning)
-    2. Record success/failure in ProviderHealthManager (for deferral)
+    1. Check tool access policy (deny-wins cascade)
+    2. Record call metrics in ToolCallRegistry (for learning)
+    3. Record success/failure in ProviderHealthManager (for deferral)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, workspace_dir: str = "") -> None:
         self._registry = ToolCallRegistry()
         self._health = get_provider_health()
+        self._workspace_dir = workspace_dir
 
     @property
     def interceptor_registry(self) -> ToolCallRegistry:
@@ -87,6 +89,20 @@ class ToolExecutionGuard:
     def health_manager(self):
         """Access the underlying ProviderHealthManager."""
         return self._health
+
+    def _check_policy(self, tool_name: str, context: Optional[Dict[str, Any]] = None) -> bool:
+        """Check if tool is allowed by policy chain. Returns True if allowed."""
+        if not self._workspace_dir:
+            return True
+        try:
+            from Jotty.core.infrastructure.integration.tool_policy import get_policy_chain
+
+            chain = get_policy_chain(self._workspace_dir)
+            channel = (context or {}).get("channel")
+            group = (context or {}).get("group")
+            return chain.evaluate(tool_name, channel=channel, group=group)
+        except Exception:
+            return True  # Fail open
 
     def wrap_skill_tools(self, skill_name: str, tools: Dict[str, Callable]) -> Dict[str, Callable]:
         """
@@ -113,10 +129,15 @@ class ToolExecutionGuard:
     def _wrap_sync(
         self, skill_name: str, tool_name: str, tool_func: Callable, interceptor: Any
     ) -> Callable:
-        """Create a sync wrapper with tracking."""
+        """Create a sync wrapper with tracking and policy check."""
 
         @functools.wraps(tool_func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Policy check: deny-wins cascade
+            context = kwargs.get("_policy_context")
+            if not self._check_policy(tool_name, context):
+                return {"success": False, "error": f"Tool '{tool_name}' blocked by policy"}
+
             start = time.time()
             try:
                 result = tool_func(*args, **kwargs)
@@ -178,10 +199,15 @@ class ToolExecutionGuard:
     def _wrap_async(
         self, skill_name: str, tool_name: str, tool_func: Callable, interceptor: Any
     ) -> Callable:
-        """Create an async wrapper with tracking."""
+        """Create an async wrapper with tracking and policy check."""
 
         @functools.wraps(tool_func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Policy check: deny-wins cascade
+            context = kwargs.get("_policy_context")
+            if not self._check_policy(tool_name, context):
+                return {"success": False, "error": f"Tool '{tool_name}' blocked by policy"}
+
             start = time.time()
             try:
                 result = await tool_func(*args, **kwargs)
@@ -244,11 +270,16 @@ _lock = threading.Lock()
 _instance: Optional[ToolExecutionGuard] = None
 
 
-def get_tool_execution_guard() -> ToolExecutionGuard:
+def get_tool_execution_guard(workspace_dir: str = "") -> ToolExecutionGuard:
     """Get singleton ToolExecutionGuard instance."""
     global _instance
     if _instance is None:
         with _lock:
             if _instance is None:
-                _instance = ToolExecutionGuard()
+                # Auto-detect workspace_dir from cwd if not provided
+                if not workspace_dir:
+                    import os
+
+                    workspace_dir = os.getcwd()
+                _instance = ToolExecutionGuard(workspace_dir=workspace_dir)
     return _instance

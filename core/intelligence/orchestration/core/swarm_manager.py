@@ -53,10 +53,10 @@ if TYPE_CHECKING:
         SharedContext,  # type: ignore[import-not-found, import]
     )
     from Jotty.core.intelligence.memory.cortex import SwarmMemory
-    from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+    from Jotty.core.intelligence.orchestration.learning.mas_learning import MASLearning
+    from Jotty.core.intelligence.orchestration.learning.swarm_learning_pipeline import (
         SwarmLearningPipeline,
     )
-    from Jotty.core.intelligence.orchestration.learning.mas_learning import MASLearning
     from Jotty.core.intelligence.orchestration.routing.swarm_provider_gateway import (
         SwarmProviderGateway,
     )
@@ -143,6 +143,50 @@ class _LiteLLMCancelledFilter(logging.Filter):
 
 
 logging.getLogger("LiteLLM").addFilter(_LiteLLMCancelledFilter())
+
+
+# =============================================================================
+# LANE QUEUE — Per-session serialization with TTL cleanup
+# =============================================================================
+
+import time as _time_module
+
+
+class _SessionLockManager:
+    """
+    Manages per-session asyncio locks with TTL-based auto-cleanup.
+
+    Requests for the same session_id are serialized (queued), while
+    different sessions run in parallel.
+    """
+
+    _TTL_SECONDS = 1800  # 30 minutes
+
+    def __init__(self) -> None:
+        self._locks: Dict[str, asyncio.Lock] = {}
+        self._last_used: Dict[str, float] = {}
+        self._mgr_lock = asyncio.Lock()
+
+    async def get_lock(self, session_id: str) -> asyncio.Lock:
+        """Get or create a lock for a session_id, with lazy TTL cleanup."""
+        async with self._mgr_lock:
+            # Cleanup expired locks (lightweight, O(n) but n is small)
+            now = _time_module.time()
+            expired = [
+                sid
+                for sid, ts in self._last_used.items()
+                if now - ts > self._TTL_SECONDS
+                and sid in self._locks
+                and not self._locks[sid].locked()
+            ]
+            for sid in expired:
+                del self._locks[sid]
+                del self._last_used[sid]
+
+            if session_id not in self._locks:
+                self._locks[session_id] = asyncio.Lock()
+            self._last_used[session_id] = now
+            return self._locks[session_id]
 
 
 # Skill Provider System - Lazy loaded via cache dict (no globals)
@@ -334,7 +378,7 @@ def _create_context_guard() -> "LLMContextManager":
 
 
 def _create_learning_pipeline(config: SwarmConfig) -> "SwarmLearningPipeline":
-    from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+    from Jotty.core.intelligence.orchestration.learning.swarm_learning_pipeline import (
         SwarmLearningPipeline,
     )
 
@@ -2048,6 +2092,9 @@ class Orchestrator:
         self.agents = agents
         self.mode = "multi" if len(agents) > 1 else "single"
 
+        # Lane queue: per-session serialization
+        self._session_locks = _SessionLockManager()
+
         # Runner and LOTUS state (created lazily in _ensure_runners)
         self.runners: Dict[str, "AgentRunner"] = {}
         self._runners_built = False
@@ -2876,6 +2923,51 @@ class Orchestrator:
             async for event in stream:
                 print(event)
         """
+
+        # Lane queue: serialize requests for the same session
+        session_id = kwargs.get("session_id", "")
+        if session_id:
+            lock = await self._session_locks.get_lock(session_id)
+            return await self._run_with_lock(
+                lock,
+                goal,
+                stream=stream,
+                stages=stages,
+                swarm=swarm,
+                agent=agent,
+                learn=learn,
+                status_callback=status_callback,
+                **kwargs,
+            )
+        return await self._run_inner(
+            goal,
+            stream=stream,
+            stages=stages,
+            swarm=swarm,
+            agent=agent,
+            learn=learn,
+            status_callback=status_callback,
+            **kwargs,
+        )
+
+    async def _run_with_lock(self, lock: asyncio.Lock, goal: str, **kwargs: Any) -> Any:
+        """Execute run() under a per-session lock."""
+        async with lock:
+            return await self._run_inner(goal, **kwargs)
+
+    async def _run_inner(
+        self,
+        goal: str,
+        *,
+        stream: bool = False,
+        stages: Optional[List[Dict[str, Any]]] = None,
+        swarm: Optional[Any] = None,
+        agent: Optional[Any] = None,
+        learn: bool = True,
+        status_callback: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Core run() logic, may be called directly or under a session lock."""
         import time as _time
 
         from Jotty.core.intelligence.learning.learning_service import LearningService
@@ -2917,8 +3009,12 @@ class Orchestrator:
                 goal, stages=stages, status_callback=status_callback, **kwargs
             )
         elif swarm is not None:
+            if stream:
+                return self._run_swarm_stream(
+                    goal, swarm=swarm, status_callback=status_callback, **kwargs
+                )
             result = await self._run_swarm(
-                goal, swarm=swarm, status_callback=status_callback, stream=stream, **kwargs
+                goal, swarm=swarm, status_callback=status_callback, stream=False, **kwargs
             )
         elif agent is not None:
             result = await self._run_agent(
@@ -3171,6 +3267,52 @@ class Orchestrator:
 
         return await swarm.execute(task=goal, **kwargs)
 
+    async def _run_swarm_stream(
+        self,
+        goal: str,
+        *,
+        swarm: Any,
+        status_callback: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Execute a swarm with streaming events wrapping execution."""
+        from Jotty.core.intelligence.orchestration.llm_providers.types import (
+            StreamEvent,
+        )
+
+        swarm_name = swarm.__name__ if isinstance(swarm, type) else swarm.__class__.__name__
+        yield StreamEvent(type="status", data=f"Starting {swarm_name}")
+
+        import time as _t
+
+        start = _t.time()
+        try:
+            result = await self._run_swarm(
+                goal, swarm=swarm, status_callback=status_callback, stream=False, **kwargs
+            )
+            elapsed = _t.time() - start
+
+            # Emit the result as a text event
+            output_str = ""
+            if hasattr(result, "output"):
+                output_str = str(result.output)
+            elif hasattr(result, "content"):
+                output_str = str(result.content)
+            else:
+                output_str = str(result)
+
+            yield StreamEvent(type="text", data=output_str)
+            yield StreamEvent(
+                type="complete",
+                data={
+                    "success": getattr(result, "success", True),
+                    "elapsed": elapsed,
+                    "swarm": swarm_name,
+                },
+            )
+        except Exception as e:
+            yield StreamEvent(type="error", data=str(e))
+
     async def _run_agent(
         self,
         goal: str,
@@ -3188,8 +3330,7 @@ class Orchestrator:
         return await agent.execute(task=goal, **kwargs)
 
     async def _run_stream(self, goal: str, **kwargs: Any) -> Any:
-        """Auto-detect with streaming. Delegates to ExecutionEngine."""
-        # For now, use ChatExecutor for streaming (the engine doesn't natively stream)
+        """Auto-detect with streaming. Delegates to ChatExecutor."""
         from Jotty.core.intelligence.orchestration.execution.unified_executor import (
             ChatExecutor as _ChatExecutor,
         )

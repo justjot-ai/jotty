@@ -46,18 +46,40 @@ def _save_result(test_name: str, content: str, metadata: dict | None = None) -> 
     print(f"  [Saved] {path}")
 
 
+_LM_INSTANCE = None
+
+
+def _get_lm():
+    """Get or create DSPy LM instance."""
+    global _LM_INSTANCE
+    if _LM_INSTANCE is None:
+        import dspy
+
+        _LM_INSTANCE = dspy.LM(
+            "anthropic/claude-sonnet-4-20250514",
+            api_key=ANTHROPIC_KEY,
+            max_tokens=2000,
+            temperature=0.3,
+        )
+    return _LM_INSTANCE
+
+
 def _configure_dspy():
     """Configure DSPy with Anthropic for swarm agents."""
     import dspy
 
-    lm = dspy.LM(
-        "anthropic/claude-sonnet-4-20250514",
-        api_key=ANTHROPIC_KEY,
-        max_tokens=2000,
-        temperature=0.3,
-    )
-    dspy.configure(lm=lm)
+    lm = _get_lm()
+    # Only call configure if not yet set (first call in process)
+    if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
+        dspy.configure(lm=lm)
     return lm
+
+
+def _dspy_context():
+    """Return a dspy.context manager for use in async tasks."""
+    import dspy
+
+    return dspy.context(lm=_get_lm())
 
 
 # ============================================================================
@@ -195,8 +217,6 @@ class TestTeamCoordinatorPatterns:
         - Results are merged
         - TeamResult contains outputs from all agents
         """
-        _configure_dspy()
-
         import dspy
         from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import (
             TeamCoordinator,
@@ -253,10 +273,11 @@ class TestTeamCoordinatorPatterns:
         )
 
         start = time.time()
-        result = await team.execute(
-            task="Should autonomous vehicles be allowed on public roads?",
-            context={},
-        )
+        with _dspy_context():
+            result = await team.execute(
+                task="Should autonomous vehicles be allowed on public roads?",
+                context={},
+            )
         elapsed = time.time() - start
 
         assert isinstance(result, TeamResult), f"Expected TeamResult, got {type(result)}"
@@ -297,8 +318,6 @@ class TestTeamCoordinatorPatterns:
         Build a team with PIPELINE pattern: Agent1 → Agent2 → Agent3.
         Verify output chaining.
         """
-        _configure_dspy()
-
         import dspy
         from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import (
             TeamCoordinator,
@@ -354,10 +373,11 @@ class TestTeamCoordinatorPatterns:
         )
 
         start = time.time()
-        result = await team.execute(
-            task="The impact of remote work on urban planning",
-            context={},
-        )
+        with _dspy_context():
+            result = await team.execute(
+                task="The impact of remote work on urban planning",
+                context={},
+            )
         elapsed = time.time() - start
 
         assert isinstance(result, TeamResult)
@@ -571,8 +591,6 @@ class TestOrchestratorSwarmIntegration:
           Orchestrator.run() → _run_swarm() → ReviewSwarm.execute()
           → _execute_domain() → PhaseExecutor → 6 DSPy agents → Anthropic
         """
-        _configure_dspy()
-
         from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
         from Jotty.core.intelligence.orchestration.swarms.templates.review_swarm import (
             ReviewSwarm,
@@ -614,12 +632,15 @@ def apply_bulk_discount(items):
     return total
 """
 
+        from Jotty.core.intelligence.orchestration.swarms.templates.review_swarm import ReviewConfig
+
         start = time.time()
-        result = await orch.run(
-            code,
-            swarm=ReviewSwarm,
-            learn=True,
-        )
+        with _dspy_context():
+            result = await orch.run(
+                code,
+                swarm=ReviewSwarm(ReviewConfig()),
+                learn=True,
+            )
         elapsed = time.time() - start
 
         assert result is not None, "Orchestrator.run(swarm=ReviewSwarm) returned None"

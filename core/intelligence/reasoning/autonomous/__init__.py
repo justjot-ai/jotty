@@ -1,23 +1,20 @@
 """
-Autonomous Agent System - Unified Planning
-
-Zero-configuration autonomous agent that handles complex workflows:
-- Intent understanding (natural language → task graph)
-- Agentic planning (fully LLM-based, no hardcoded logic)
-- Autonomous execution (enhances AutoAgent)
-- Workflow memory (enhances SwarmMemory)
-
-Uses TaskPlanner for all planning (single source of truth).
+Re-export shim — canonical location is now:
+    Jotty.core.intelligence.orchestration.intent
 """
 
-from ..planners.agentic_planner import TaskPlan, TaskPlanner
-from .enhanced_executor import AutonomousExecutor, EnhancedExecutionResult
-from .intent_parser import IntentParser, TaskGraph
+from Jotty.core.intelligence.orchestration.intent import (
+    AutonomousExecutor,
+    EnhancedExecutionResult,
+    IntentParser,
+    TaskGraph,
+)
+from Jotty.core.intelligence.reasoning.planners.agentic_planner import TaskPlan, TaskPlanner
 
 __all__ = [
     "IntentParser",
     "TaskGraph",
-    "TaskPlanner",  # Unified planner (replaces AutonomousPlanner)
+    "TaskPlanner",
     "TaskPlan",
     "AutonomousExecutor",
     "EnhancedExecutionResult",

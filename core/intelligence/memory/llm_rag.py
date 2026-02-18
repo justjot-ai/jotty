@@ -175,6 +175,137 @@ class SlidingWindowChunker:
 
 
 # =============================================================================
+# BM25 KEYWORD SCORER (Hybrid complement to LLM scoring)
+# =============================================================================
+
+
+class BM25Scorer:
+    """
+    Lightweight BM25-style keyword scorer using stdlib math only.
+
+    NOT a replacement for LLM scoring — used as a fast complementary signal
+    in hybrid retrieval (70% LLM + 30% BM25). Catches exact keyword matches
+    that LLM scoring might under-weight.
+    """
+
+    def __init__(self, k1: float = 1.5, b: float = 0.75) -> None:
+        self.k1 = k1
+        self.b = b
+
+    def score_batch(self, query: str, memories: List["MemoryEntry"]) -> Dict[str, float]:
+        """Score memories against query using BM25."""
+        import math
+
+        query_terms = self._tokenize(query)
+        if not query_terms or not memories:
+            return {m.key: 0.0 for m in memories}
+
+        # Compute average document length
+        doc_lengths = [len(self._tokenize(m.content)) for m in memories]
+        avgdl = sum(doc_lengths) / len(doc_lengths) if doc_lengths else 1.0
+        n_docs = len(memories)
+
+        # IDF for each query term
+        idf: Dict[str, float] = {}
+        for term in set(query_terms):
+            doc_freq = sum(1 for m in memories if term in self._tokenize(m.content))
+            # Standard BM25 IDF with smoothing
+            idf[term] = math.log((n_docs - doc_freq + 0.5) / (doc_freq + 0.5) + 1.0)
+
+        scores: Dict[str, float] = {}
+        for i, mem in enumerate(memories):
+            doc_terms = self._tokenize(mem.content)
+            dl = doc_lengths[i]
+            score = 0.0
+
+            term_freq: Dict[str, int] = {}
+            for t in doc_terms:
+                term_freq[t] = term_freq.get(t, 0) + 1
+
+            for term in set(query_terms):
+                tf = term_freq.get(term, 0)
+                if tf > 0:
+                    numerator = tf * (self.k1 + 1)
+                    denominator = tf + self.k1 * (1 - self.b + self.b * dl / avgdl)
+                    score += idf.get(term, 0.0) * numerator / denominator
+
+            scores[mem.key] = score
+
+        # Normalize to 0-1 range
+        max_score = max(scores.values()) if scores else 1.0
+        if max_score > 0:
+            scores = {k: v / max_score for k, v in scores.items()}
+
+        return scores
+
+    @staticmethod
+    def _tokenize(text: str) -> List[str]:
+        """Simple whitespace + lowercase tokenization."""
+        return text.lower().split()
+
+
+def _mmr_rerank(
+    scored_items: List[tuple],
+    memories: List["MemoryEntry"],
+    lambda_param: float = 0.7,
+    top_k: int = 50,
+) -> List[tuple]:
+    """
+    Maximal Marginal Relevance re-ranking to reduce redundancy.
+
+    Balances relevance (lambda) vs diversity (1-lambda).
+    Uses simple word overlap as similarity proxy (no embeddings needed).
+
+    Args:
+        scored_items: List of (memory, score) tuples
+        memories: Original memory list (for content access)
+        lambda_param: Balance between relevance and diversity (0.7 = favor relevance)
+        top_k: Max items to return
+
+    Returns:
+        Re-ranked list of (memory, score) tuples
+    """
+    if len(scored_items) <= 1:
+        return scored_items
+
+    selected: List[tuple] = []
+    remaining = list(scored_items)
+
+    # Select first item (highest score)
+    remaining.sort(key=lambda x: x[1], reverse=True)
+    selected.append(remaining.pop(0))
+
+    while remaining and len(selected) < top_k:
+        best_idx = 0
+        best_mmr = float("-inf")
+
+        for i, (mem, score) in enumerate(remaining):
+            # Max similarity to already-selected items
+            max_sim = max(
+                _word_overlap_similarity(mem.content, sel_mem.content) for sel_mem, _ in selected
+            )
+            mmr = lambda_param * score - (1 - lambda_param) * max_sim
+            if mmr > best_mmr:
+                best_mmr = mmr
+                best_idx = i
+
+        selected.append(remaining.pop(best_idx))
+
+    return selected
+
+
+def _word_overlap_similarity(text_a: str, text_b: str) -> float:
+    """Simple Jaccard similarity between word sets."""
+    words_a = set(text_a.lower().split())
+    words_b = set(text_b.lower().split())
+    if not words_a or not words_b:
+        return 0.0
+    intersection = words_a & words_b
+    union = words_a | words_b
+    return len(intersection) / len(union)
+
+
+# =============================================================================
 # RECENCY + VALUE PRE-RANKER (NO KEYWORDS!)
 # =============================================================================
 
@@ -214,9 +345,9 @@ class RecencyValueRanker:
         scored = []
 
         for memory in memories:
-            # Recency score (exponential decay, half-life = 24 hours)
+            # Recency score (exponential decay, half-life = 30 days)
             age_hours = (now - memory.last_accessed).total_seconds() / 3600
-            recency_score = math.exp(-0.029 * age_hours)  # ~0.5 at 24h
+            recency_score = math.exp(-0.000963 * age_hours)  # ~0.5 at 720h (30 days)
 
             # Value score (goal-conditioned if available)
             value_score = memory.get_value(goal)
@@ -982,6 +1113,9 @@ class LLMRAGRetriever:
         # Pure LLM semantic scoring (second pass on pre-filtered candidates)
         self.scorer = LLMRelevanceScorer(config)
 
+        # BM25 keyword scorer (hybrid complement — 30% weight)
+        self.bm25_scorer = BM25Scorer()
+
         # Brain-Inspired Memory Synthesis
         self.synthesizer = MemorySynthesizer(config)
 
@@ -1036,15 +1170,19 @@ class LLMRAGRetriever:
                 query=query, memories=candidate_memories, goal=goal
             )
 
-        # Step 2: PURE LLM semantic scoring (on pre-filtered candidates)
+        # Step 2: Hybrid scoring — LLM semantic (70%) + BM25 keyword (30%)
         relevance_scores = self.scorer.score_batch(
             query=query, memories=candidate_memories, context_hints=context_hints
         )
+        bm25_scores = self.bm25_scorer.score_batch(query=query, memories=candidate_memories)
 
-        # Step 3: Combine scores (relevance + value)
+        # Step 3: Combine scores (hybrid relevance + value)
         scored_memories = []
         for memory in candidate_memories:
-            relevance = relevance_scores.get(memory.key, 0.5)
+            llm_score = relevance_scores.get(memory.key, 0.5)
+            bm25_score = bm25_scores.get(memory.key, 0.0)
+            # Hybrid: 70% LLM semantic + 30% BM25 keyword
+            relevance = 0.7 * llm_score + 0.3 * bm25_score
 
             # Get value with optional transfer
             if goal_hierarchy and self.config.enable_goal_hierarchy:
@@ -1064,6 +1202,9 @@ class LLMRAGRetriever:
 
         # Sort by combined score
         scored_memories.sort(key=lambda x: x[1], reverse=True)
+
+        # Step 3.5: MMR re-ranking to reduce redundancy
+        scored_memories = _mmr_rerank(scored_memories, candidate_memories, lambda_param=0.7)
 
         # Step 4: Deduplication
         if self.config.enable_deduplication:

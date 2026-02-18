@@ -778,10 +778,15 @@ class AgentRunner:
                 f"break the problem into smaller parts."
             )
 
+        # Pre-compaction memory flush: extract key facts before compression
+        # so nothing is permanently lost when context is trimmed.
+        total_chars = sum(len(p) for p in parts)
+        if total_chars > _max_chars and parts:
+            self._extract_and_flush_to_memory(parts, self.agent)
+
         # Budget guard: compress (not drop) when total exceeds budget.
         # Delegates to SmartContextManager.compress_parts() for fair-share
         # compression that keeps start + end of each chunk.
-        total_chars = sum(len(p) for p in parts)
         if total_chars > _max_chars and parts:
             try:
                 from Jotty.core.infrastructure.context.facade import get_context_manager
@@ -808,6 +813,47 @@ class AgentRunner:
         for i, p in enumerate(parts, 1):
             logger.info(f" Context {i}: {p[:500]}")
         return parts
+
+    def _extract_and_flush_to_memory(self, parts: List[str], agent: Any) -> None:
+        """
+        Pre-compaction memory flush: extract key facts before compression.
+
+        Called right before compress_parts() drops middle content, so that
+        important information is persisted to episodic memory and not permanently lost.
+        Fire-and-forget: wrapped in try/except, never blocks execution.
+        """
+        try:
+            # Only flush if content is substantial (>2000 tokens ~ 8000 chars)
+            total_chars = sum(len(p) for p in parts)
+            if total_chars < 8000:
+                return
+
+            # Extract last meaningful content (assistant output + tool results)
+            key_facts = []
+            for p in reversed(parts[-3:]):  # Last 3 parts most likely to have recent work
+                snippet = p[:500].strip()
+                if snippet:
+                    key_facts.append(snippet)
+
+            if not key_facts:
+                return
+
+            flush_content = (
+                "[Pre-compaction flush] Key context before compression:\n"
+                + "\n---\n".join(key_facts)
+            )
+
+            # Store to episodic memory if agent has memory
+            memory = getattr(agent, "memory", None)
+            if memory is not None and hasattr(memory, "store"):
+                memory.store(
+                    flush_content[:2000],
+                    level="episodic",
+                    metadata={"source": "pre_compaction_flush"},
+                )
+                logger.debug(f"Pre-compaction flush: saved {len(flush_content)} chars to memory")
+        except Exception as e:
+            logger.debug(f"Pre-compaction memory flush skipped: {e}")
 
     async def _record_post_execution_learning(
         self,

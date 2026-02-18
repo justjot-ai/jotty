@@ -339,7 +339,11 @@ class ModeRouter:
             context.emit_event(SDKEventType.THINKING, {"status": stage, "message": detail})
 
         try:
-            result = await agent.execute(goal, status_callback=status_callback)
+            # Forward session_id from context for lane queue + routing
+            exec_kwargs: Dict[str, Any] = {"status_callback": status_callback}
+            if hasattr(context, "session_id") and context.session_id:
+                exec_kwargs["session_id"] = context.session_id
+            result = await agent.execute(goal, **exec_kwargs)
 
             # Get errors from result (dict or object attribute)
             errors = (

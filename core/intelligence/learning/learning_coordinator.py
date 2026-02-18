@@ -144,7 +144,7 @@ class LearningManager:
         # Initialize TD(λ) learner if RL enabled
         if getattr(self.config, "enable_rl", False):
             try:
-                from .learning import TDLambdaLearner
+                from .td_lambda import TDLambdaLearner
 
                 self._td_lambda_learner = TDLambdaLearner(self.config)
                 logger.info("TD(λ) Learner initialized (LearningManager)")

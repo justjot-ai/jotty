@@ -17,6 +17,79 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+# =============================================================================
+# NO_REPLY SENTINEL — signals "process but don't send response to user"
+# =============================================================================
+NO_REPLY = object()
+
+
+def is_no_reply(result: Any) -> bool:
+    """Check if a result is the NO_REPLY sentinel (identity check)."""
+    return result is NO_REPLY
+
+
+# =============================================================================
+# STRUCTURED SESSION KEY — {channel}:{user}:{thread}
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class SessionKey:
+    """
+    Structured session identifier: {channel}:{user_id}:{thread_id}.
+
+    Replaces opaque session_id strings with structured keys for better
+    routing, debugging, and per-session operations (like lane queuing).
+
+    Backward compatible: plain strings parse as unknown:{raw}:default.
+    """
+
+    channel: str
+    user_id: str
+    thread_id: str = "default"
+
+    @property
+    def raw(self) -> str:
+        """Canonical string form: channel:user_id:thread_id."""
+        return f"{self.channel}:{self.user_id}:{self.thread_id}"
+
+    @classmethod
+    def build(cls, channel: str, user_id: str, thread_id: str = "default") -> "SessionKey":
+        """Build a SessionKey from components."""
+        return cls(channel=channel, user_id=user_id, thread_id=thread_id)
+
+    @classmethod
+    def parse(cls, raw_string: str) -> "SessionKey":
+        """
+        Parse a raw session_id string into a SessionKey.
+
+        Handles structured format (channel:user:thread) and legacy plain strings.
+        """
+        if not raw_string:
+            return cls(channel="unknown", user_id="unknown", thread_id="default")
+
+        parts = raw_string.split(":", 2)
+        if len(parts) == 3:
+            return cls(channel=parts[0], user_id=parts[1], thread_id=parts[2])
+        elif len(parts) == 2:
+            return cls(channel=parts[0], user_id=parts[1], thread_id="default")
+        else:
+            # Legacy: plain string → unknown:{raw}:default
+            return cls(channel="unknown", user_id=raw_string, thread_id="default")
+
+    def __str__(self) -> str:
+        return self.raw
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, SessionKey):
+            return self.raw == other.raw
+        if isinstance(other, str):
+            return self.raw == other
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.raw)
+
 
 class InterfaceType(Enum):
     """Source interface for a message."""
@@ -81,6 +154,14 @@ class JottyMessage:
     # Optional reply context
     reply_to: Optional[str] = None  # message_id being replied to
 
+    # NO_REPLY: if True, process but suppress output to user
+    suppress_output: bool = False
+
+    @property
+    def session_key(self) -> SessionKey:
+        """Structured session key parsed from session_id."""
+        return SessionKey.parse(self.session_id)
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for storage/serialization."""
         return {
@@ -94,6 +175,7 @@ class JottyMessage:
             "metadata": self.metadata,
             "attachments": [a.to_dict() for a in self.attachments],
             "reply_to": self.reply_to,
+            "suppress_output": self.suppress_output,
         }
 
     @classmethod
@@ -114,6 +196,7 @@ class JottyMessage:
             metadata=data.get("metadata", {}),
             attachments=[Attachment.from_dict(a) for a in data.get("attachments", [])],
             reply_to=data.get("reply_to"),
+            suppress_output=data.get("suppress_output", False),
         )
 
     @classmethod
