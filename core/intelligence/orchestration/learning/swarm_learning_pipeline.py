@@ -1277,14 +1277,47 @@ class SwarmLearningPipeline:
                 )
 
     def _step_credit_assignment(self, ctx: Any) -> Any:
-        """Credit assignment: record which agent/approach deserves credit."""
-        self.credit_assigner.record_improvement_application(
-            improvement={"learned_pattern": ctx["goal"][:200], "task": ctx["goal"][:100]},
-            student_score=0.0,
-            teacher_score=0.0,
-            final_score=ctx["episode_reward"],
-            context={"task": ctx["goal"][:100], "episode": self.episode_count},
-        )
+        """Credit assignment: per-stage contribution for pipelines, per-agent for swarms."""
+        result = ctx["result"]
+        meta = getattr(result, "override_metadata", None) or {}
+
+        if meta.get("pipeline") and meta.get("stages"):
+            stage_data = meta["stages"]
+            pipeline_q = meta.get("pipeline_quality", ctx["episode_reward"])
+            for stage_name, info in stage_data.items():
+                stage_q = info.get("quality", 0.5)
+                # Marginal contribution: how much does this stage's quality
+                # differ from the pipeline average?
+                marginal = stage_q - pipeline_q
+                self.credit_assigner.record_improvement_application(
+                    improvement={
+                        "stage": stage_name,
+                        "task": ctx["goal"][:100],
+                        "type": "pipeline_stage",
+                    },
+                    student_score=pipeline_q,
+                    teacher_score=stage_q,
+                    final_score=stage_q,
+                    context={
+                        "task": ctx["goal"][:80],
+                        "episode": self.episode_count,
+                        "stage": stage_name,
+                        "marginal_contribution": round(marginal, 4),
+                        "pipeline_quality": round(pipeline_q, 3),
+                    },
+                )
+        else:
+            self.credit_assigner.record_improvement_application(
+                improvement={
+                    "agent": ctx["agent_name"],
+                    "task": ctx["goal"][:100],
+                    "type": "single_agent",
+                },
+                student_score=0.0,
+                teacher_score=0.0,
+                final_score=ctx["episode_reward"],
+                context={"task": ctx["goal"][:100], "episode": self.episode_count},
+            )
 
     def _step_auditor_fixes(self, ctx: Any) -> Any:
         """Auditor fix_instructions -> negative TD signal + procedural memory."""

@@ -739,8 +739,8 @@ The user has requested {section_name} visualization format. You MUST:
             self._status("Preparing", "loading tools")
             tools = self.tool_generator.generate_all_tools()
 
-            # Filter tools if enabled_tools is set
-            if self.enabled_tools:
+            # Filter tools if enabled_tools is set (empty list = no tools)
+            if self.enabled_tools is not None:
                 tools = [t for t in tools if t["name"] in self.enabled_tools]
 
             logger.info(f"Loaded {len(tools)} tools")
@@ -851,8 +851,15 @@ The user has requested {section_name} visualization format. You MUST:
                     # Add tool results message
                     messages.append({"role": "user", "content": tool_results_for_message})
 
+                elif response.stop_reason == "max_tokens":
+                    logger.info(
+                        f"Response truncated at max_tokens "
+                        f"({len(full_content)} chars collected)"
+                    )
+                    steps.append("truncated_max_tokens")
+                    break
+
                 else:
-                    # Unknown stop reason
                     logger.warning(f"Unknown stop reason: {response.stop_reason}")
                     break
 

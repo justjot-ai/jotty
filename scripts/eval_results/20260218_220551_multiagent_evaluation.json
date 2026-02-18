@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-02-18T22:05:51.354249",
+  "results": [
+    {
+      "task_id": "S1_cache_single",
+      "domain": "coding",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.786,
+      "content_length": 29412,
+      "checks_passed": 6,
+      "checks_total": 8,
+      "elapsed_seconds": 89.62440586090088,
+      "episodes_before": 14,
+      "episodes_after": 15,
+      "error": null
+    },
+    {
+      "task_id": "P1_distributed_cache",
+      "domain": "coding",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.9342666666666668,
+      "content_length": 50000,
+      "checks_passed": 11,
+      "checks_total": 12,
+      "elapsed_seconds": 266.80075573921204,
+      "episodes_before": 15,
+      "episodes_after": 17,
+      "stages": [
+        {
+          "name": "architecture",
+          "success": true,
+          "time": 72.36805081367493,
+          "output_length": 15446
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 85.38620352745056,
+          "output_length": 27034
+        },
+        {
+          "name": "testing",
+          "success": true,
+          "time": 105.51202869415283,
+          "output_length": 29250
+        }
+      ],
+      "error": null
+    }
+  ]
+}

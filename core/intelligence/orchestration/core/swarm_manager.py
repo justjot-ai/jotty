@@ -1919,6 +1919,86 @@ class ExecutionEngine:
         _status("Setup complete", "")
 
 
+def _build_response_digest(content: str, max_len: int = 1500) -> str:
+    """
+    Build a structural digest of a response for storage in episode outcomes.
+    Shows outline + representative samples instead of an arbitrary character cutoff.
+    """
+    import re as _re
+
+    lines = content.split("\n")
+    words = content.split()
+
+    # Extract headings (skip code blocks)
+    headings = []
+    in_code = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code = not in_code
+            continue
+        if not in_code and stripped.startswith("#"):
+            title = stripped.lstrip("# ").strip()
+            if title:
+                headings.append(title)
+
+    code_blocks = len(_re.findall(r"```\w*\n.*?```", content, _re.DOTALL))
+
+    parts = [f"[{len(words)} words, {len(headings)} sections, {code_blocks} code blocks]"]
+
+    if headings:
+        parts.append("Outline: " + " → ".join(headings[:10]))
+
+    # Opening paragraph
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and not stripped.startswith("```"):
+            parts.append("Opens: " + stripped[:200])
+            break
+
+    # One sample from the middle
+    mid_sections: list = []
+    current_heading = ""
+    current_text: list = []
+    in_code_blk = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code_blk = not in_code_blk
+        if not in_code_blk and stripped.startswith("#") and stripped.lstrip("# ").strip():
+            if current_text and current_heading:
+                body = "\n".join(current_text).strip()
+                if len(body) > 80:
+                    mid_sections.append((current_heading, body))
+            current_heading = stripped.lstrip("# ").strip()
+            current_text = []
+        else:
+            current_text.append(line)
+    if current_text and current_heading:
+        body = "\n".join(current_text).strip()
+        if len(body) > 80:
+            mid_sections.append((current_heading, body))
+
+    if mid_sections:
+        mid = mid_sections[len(mid_sections) // 2]
+        paras = [p.strip() for p in mid[1].split("\n\n") if p.strip()]
+        sample = paras[0] if paras else mid[1]
+        parts.append(f"[{mid[0]}]: {sample[:300]}")
+
+    # First code block sample (if present)
+    code_match = _re.search(r"```\w*\n(.*?)```", content, _re.DOTALL)
+    if code_match:
+        code_lines = code_match.group(1).strip().split("\n")
+        if len(code_lines) > 8:
+            code_sample = "\n".join(code_lines[:6]) + f"\n... ({len(code_lines)} lines)"
+        else:
+            code_sample = "\n".join(code_lines)
+        parts.append(f"Code: ```\n{code_sample}\n```")
+
+    digest = "\n".join(parts)
+    return digest[:max_len]
+
+
 class Orchestrator:
     """
     Composable swarm orchestrator with lazy initialization.
@@ -3085,13 +3165,7 @@ class Orchestrator:
                 **{k: v for k, v in response_analysis.items() if k != "empty"},
             }
             if result_text:
-                outcome["response_excerpt"] = result_text[:1500]
-
-            episode_id = (
-                f"run_{int(run_start)}_{uuid.uuid4().hex[:6]}"
-                if not hasattr(self, "_last_ep")
-                else f"run_{int(run_start)}"
-            )
+                outcome["response_excerpt"] = _build_response_digest(result_text)
 
             # 1. Record with rich metadata
             import uuid as _uuid
@@ -3134,8 +3208,29 @@ class Orchestrator:
                     logger.debug(f"Post-execution reflection failed: {e}")
 
             # 3. Full learning pipeline (heavy — background, fire-and-forget)
-            if isinstance(result, EpisodeResult):
-                self._schedule_background_learning(result, goal)
+            #    For chat() path, wrap LLMExecutionResult into EpisodeResult
+            #    so TD-Lambda, credit assignment, and validation all fire.
+            learnable_result = result
+            if result and not isinstance(result, EpisodeResult):
+                learnable_result = EpisodeResult(
+                    success=success,
+                    output=result_text[:50000] if result_text else "",
+                    trajectory=[],
+                    tagged_outputs=[],
+                    episode=0,
+                    execution_time=run_time,
+                    architect_results=[],
+                    auditor_results=[],
+                    agent_contributions={},
+                    override_metadata={
+                        "source": "chat",
+                        "domain": detected_domain,
+                        "task_type": detected_task_type,
+                        "quality": round(heuristic_quality, 3),
+                    },
+                )
+            if isinstance(learnable_result, EpisodeResult):
+                self._schedule_background_learning(learnable_result, goal)
 
         # ── LLM judge (awaited inline to ensure completion) ──
         if learn and result_text and len(result_text) > 1000 and success:
@@ -3308,6 +3403,27 @@ class Orchestrator:
                 if retrieval_ctx:
                     ctx_parts.append(retrieval_ctx)
 
+                # 4. Paradigm guidance from Thompson Sampling
+                paradigm = optimal_params.get("paradigm")
+                if paradigm:
+                    paradigm_guidance = {
+                        "direct": "Respond directly and comprehensively in a single pass.",
+                        "relay": "Break the task into sequential sub-tasks. Address each in order.",
+                        "debate": "Consider multiple perspectives. Present arguments for and against before concluding.",
+                        "refinement": "Draft an initial response, then critically review and improve it.",
+                    }
+                    guidance = paradigm_guidance.get(paradigm, "")
+                    if guidance:
+                        ctx_parts.append(f"[APPROACH] Use {paradigm} paradigm: {guidance}")
+
+                # 5. Tool routing guidance
+                tools_hint = optimal_params.get("tools_hint")
+                if tools_hint:
+                    ctx_parts.append(
+                        f"[TOOL GUIDANCE] Recommended tools for {detected_domain}: "
+                        + ", ".join(tools_hint)
+                    )
+
                 if ctx_parts:
                     kwargs.setdefault("learning_context", "")
                     kwargs["learning_context"] += "\n" + "\n".join(ctx_parts)
@@ -3335,6 +3451,9 @@ class Orchestrator:
                 chat_start,
                 _domain=detected_domain,
                 _task_type=detected_task_type,
+                _optimal_params=optimal_params,
+                _effective_provider=effective_provider,
+                _effective_model=effective_model,
             )
 
         # Non-streaming execution
@@ -3361,7 +3480,7 @@ class Orchestrator:
                     **{k: v for k, v in response_analysis.items() if k != "empty"},
                 }
                 if content:
-                    outcome["response_excerpt"] = content[:1500]
+                    outcome["response_excerpt"] = _build_response_digest(content)
 
                 action_meta: Dict[str, Any] = {
                     "provider": effective_provider or "auto",
@@ -3371,7 +3490,11 @@ class Orchestrator:
                     "had_history": bool(history),
                     "max_steps": max_steps,
                     "tools_enabled": bool(enabled_tools),
+                    "temperature": optimal_params.get("temperature") or 0.5,
+                    "paradigm": optimal_params.get("paradigm") or "direct",
                 }
+                if optimal_params.get("tools_hint"):
+                    action_meta["tools_used"] = ",".join(optimal_params["tools_hint"])
                 if optimal_params.get("exploration"):
                     action_meta["exploration"] = True
                     action_meta["exploration_reason"] = optimal_params.get("exploration_reason", "")
@@ -3404,7 +3527,8 @@ class Orchestrator:
                     except Exception as e:
                         logger.debug(f"Post-execution reflection failed: {e}")
 
-        # ── POST-EXECUTION: LLM judge (awaited inline, updates quality) ──
+        # ── POST-EXECUTION: Adaptive LLM judge ──
+        # Cold start (<10 judged): inline. Stable: background (or skip).
         if learn and episode_id and result:
             _jcontent = getattr(result, "content", "")
             _jsuccess = getattr(result, "success", False)
@@ -3412,29 +3536,40 @@ class Orchestrator:
                 try:
                     _jra = analyze_response(_jcontent, message)
                     _jhq = _jra.get("quality_score", 0.8)
-                    llm_score = await learning.llm_judge_quality(
-                        goal=message,
-                        content=_jcontent,
-                        domain=detected_domain,
-                        heuristic_score=_jhq,
-                    )
-                    blended = llm_score * 0.6 + _jhq * 0.4
-                    learning._store.update_episode_quality(
-                        episode_id=episode_id,
-                        quality=blended,
-                        outcome_patch={
-                            "llm_judged": True,
-                            "llm_score": round(llm_score, 3),
-                            "heuristic_quality": round(_jhq, 3),
-                        },
-                    )
-                    learning._update_values(
-                        detected_domain,
-                        detected_task_type,
-                        {"domain": detected_domain, "provider": effective_provider or "auto"},
-                        True,
-                        blended,
-                    )
+
+                    if learning.should_judge_inline(detected_domain):
+                        llm_score = await learning.llm_judge_quality(
+                            goal=message,
+                            content=_jcontent,
+                            domain=detected_domain,
+                            heuristic_score=_jhq,
+                        )
+                        blended = llm_score * 0.6 + _jhq * 0.4
+                        learning._store.update_episode_quality(
+                            episode_id=episode_id,
+                            quality=blended,
+                            outcome_patch={
+                                "llm_judged": True,
+                                "llm_score": round(llm_score, 3),
+                                "heuristic_quality": round(_jhq, 3),
+                            },
+                        )
+                        learning._update_values(
+                            detected_domain,
+                            detected_task_type,
+                            {"domain": detected_domain, "provider": effective_provider or "auto"},
+                            True,
+                            blended,
+                        )
+                    else:
+                        learning.schedule_background_judge(
+                            episode_id=episode_id,
+                            goal=message,
+                            content=_jcontent,
+                            domain=detected_domain,
+                            heuristic_quality=_jhq,
+                        )
+
                     learning.analyze_exploration_results(detected_domain)
                 except Exception as e:
                     logger.debug(f"LLM judge failed: {e}")
@@ -3451,6 +3586,9 @@ class Orchestrator:
         start_time: float,
         _domain: str = "general",
         _task_type: str = "chat",
+        _optimal_params: Optional[Dict[str, Any]] = None,
+        _effective_provider: Optional[str] = None,
+        _effective_model: Optional[str] = None,
     ) -> Any:
         """Wrap streaming chat with LearningService episode tracking."""
         import time as _time
@@ -3475,6 +3613,24 @@ class Orchestrator:
                 analysis = analyze_response(full_content, message) if full_content else {}
                 quality = analysis.get("quality_score", 0.7)
 
+                _op = _optimal_params or {}
+                stream_action_meta: Dict[str, Any] = {
+                    "provider": _effective_provider or "auto",
+                    "model": _effective_model or "default",
+                    "domain": _domain,
+                    "task_type": _task_type,
+                    "temperature": _op.get("temperature") or 0.5,
+                    "paradigm": _op.get("paradigm") or "direct",
+                    "streamed": True,
+                }
+                if _op.get("tools_hint"):
+                    stream_action_meta["tools_used"] = ",".join(_op["tools_hint"])
+                if _op.get("exploration"):
+                    stream_action_meta["exploration"] = True
+                    stream_action_meta["exploration_reason"] = _op.get("exploration_reason", "")
+                if _op.get("strategy"):
+                    stream_action_meta["strategy"] = _op["strategy"]
+
                 try:
                     learning.end_episode(
                         episode_id=episode_id,
@@ -3487,6 +3643,7 @@ class Orchestrator:
                             "content_length": len(full_content),
                             **{k: v for k, v in analysis.items() if k != "empty"},
                         },
+                        action_metadata=stream_action_meta,
                     )
                 except Exception:
                     pass
@@ -3670,12 +3827,17 @@ class Orchestrator:
         learning = LearningService.get_instance()
         pipeline_start = _time.time()
 
+        # Classify the pipeline goal to get actual domain (not config default)
+        from Jotty.core.intelligence.learning.learning_service import classify_domain
+
+        pipeline_domain, pipeline_task_type = classify_domain(goal)
+
         # Start a pipeline-level episode
         pipeline_episode = learning.start_episode(
             unit_name="Orchestrator",
             unit_type="pipeline",
-            domain=getattr(self.config, "domain", "general") or "general",
-            task_type="pipeline",
+            domain=pipeline_domain,
+            task_type=pipeline_task_type,
             context={"goal": goal[:500], "stages": [s["name"] for s in stages]},
         )
 
@@ -3705,27 +3867,28 @@ class Orchestrator:
             if status_callback:
                 status_callback(stage_name, f"Starting stage {i+1}/{len(stages)}")
 
-            # Build context from previous stages
+            # Build context from previous stages (generous limit for weaker models)
             stage_context = {"goal": goal, "stage": stage_name, "previous_outputs": {}}
             for dep in depends_on:
                 if dep in stage_outputs:
-                    stage_context["previous_outputs"][dep] = str(stage_outputs[dep])[:1500]
+                    stage_context["previous_outputs"][dep] = str(stage_outputs[dep])[:8000]
 
-            # Query learning for stage guidance
+            # Query learning for THIS DOMAIN (not stage name) so we get real data
+            stage_task_type = stage_def.get("task_type", pipeline_task_type)
             guidance = learning.query(
-                domain=stage_name,
-                task_type=stage_def.get("task_type", stage_name),
+                domain=pipeline_domain,
+                task_type=stage_task_type,
                 context=stage_context,
             )
             if guidance.get("recommendations"):
                 stage_context["learning_recommendations"] = guidance["recommendations"]
 
-            # Start stage episode
+            # Record stage under pipeline domain so learning accumulates properly
             stage_episode = learning.start_episode(
                 unit_name=stage_name,
                 unit_type="pipeline_stage",
-                domain=stage_name,
-                task_type=stage_def.get("task_type", stage_name),
+                domain=pipeline_domain,
+                task_type=stage_task_type,
                 context=stage_context,
                 parent_episode_id=pipeline_episode,
             )
@@ -3745,7 +3908,7 @@ class Orchestrator:
                     task = stage_def.get("task", goal)
                     if depends_on and stage_outputs:
                         context_str = "\n".join(
-                            f"[{dep}]: {str(stage_outputs.get(dep, ''))[:500]}"
+                            f"[{dep}]: {str(stage_outputs.get(dep, ''))[:4000]}"
                             for dep in depends_on
                             if dep in stage_outputs
                         )
@@ -3786,12 +3949,25 @@ class Orchestrator:
 
             stage_time = _time.time() - stage_start
 
+            # Measure actual stage output quality (not hardcoded)
+            stage_quality = 0.1
+            stage_output_str = str(stage_output) if stage_output else ""
+            if stage_success and stage_output_str:
+                from Jotty.core.intelligence.learning.learning_service import (
+                    analyze_response,
+                )
+
+                stage_task = stage_def.get("task", goal)
+                stage_analysis = analyze_response(stage_output_str, stage_task)
+                stage_quality = stage_analysis.get("quality_score", 0.5)
+
             # Record stage result
             stage_results[stage_name] = {
                 "success": stage_success,
                 "time": stage_time,
                 "output": stage_output,
                 "error": stage_error,
+                "quality": stage_quality,
             }
             if stage_output is not None:
                 stage_outputs[stage_name] = stage_output
@@ -3799,13 +3975,17 @@ class Orchestrator:
             if not stage_success:
                 all_success = False
 
-            # End stage episode
+            # End stage episode with measured quality
             learning.end_episode(
                 episode_id=stage_episode,
                 success=stage_success,
-                quality=0.8 if stage_success else 0.1,
+                quality=stage_quality,
                 cost=getattr(stage_output, "cost", 0.0) if stage_output else 0.0,
-                outcome={"output": str(stage_output)[:500]} if stage_output else {},
+                outcome={
+                    "output_length": len(stage_output_str),
+                    "quality": round(stage_quality, 3),
+                    "output": stage_output_str[:500],
+                },
                 error_message=stage_error,
             )
 
@@ -3813,17 +3993,22 @@ class Orchestrator:
                 status = "completed" if stage_success else "failed"
                 status_callback(stage_name, f"Stage {status} ({stage_time:.1f}s)")
 
-        # End pipeline episode
+        # End pipeline episode with aggregated quality from actual stage measurements
         pipeline_time = _time.time() - pipeline_start
+        stage_qualities = [r["quality"] for r in stage_results.values()]
+        pipeline_quality = sum(stage_qualities) / max(len(stage_qualities), 1)
         learning.end_episode(
             episode_id=pipeline_episode,
             success=all_success,
-            quality=sum(1 for r in stage_results.values() if r["success"])
-            / max(len(stage_results), 1),
+            quality=pipeline_quality,
             cost=total_cost,
             outcome={
                 "stages_completed": sum(1 for r in stage_results.values() if r["success"]),
                 "stages_total": len(stages),
+                "stage_qualities": {
+                    name: round(r["quality"], 3) for name, r in stage_results.items()
+                },
+                "pipeline_quality": round(pipeline_quality, 3),
             },
         )
 
@@ -3831,9 +4016,16 @@ class Orchestrator:
         last_stage = stages[-1]["name"] if stages else ""
         final_output = stage_outputs.get(last_stage, "")
 
+        # Concatenate all stage outputs for a complete result
+        all_outputs = []
+        for sname in [s["name"] for s in stages]:
+            if sname in stage_outputs:
+                all_outputs.append(f"=== {sname.upper()} ===\n{str(stage_outputs[sname])}")
+        combined_output = "\n\n".join(all_outputs) if all_outputs else str(final_output)
+
         return EpisodeResult(
             success=all_success,
-            output=str(final_output)[:5000] if final_output else "",
+            output=combined_output[:50000] if combined_output else "",
             trajectory=[],
             tagged_outputs=[],
             episode=0,
@@ -3843,8 +4035,14 @@ class Orchestrator:
             agent_contributions={},
             override_metadata={
                 "pipeline": True,
+                "pipeline_quality": round(pipeline_quality, 3),
                 "stages": {
-                    name: {"success": r["success"], "time": r["time"]}
+                    name: {
+                        "success": r["success"],
+                        "time": r["time"],
+                        "quality": round(r["quality"], 3),
+                        "output_length": len(str(r.get("output", ""))),
+                    }
                     for name, r in stage_results.items()
                 },
                 "total_cost": total_cost,

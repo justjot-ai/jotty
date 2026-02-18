@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-02-18T23:28:18.921320",
+  "results": [
+    {
+      "task_id": "S1_raft_single",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8336000000000001,
+      "content_length": 10007,
+      "checks_passed": 7,
+      "checks_total": 8,
+      "elapsed_seconds": 46.4526047706604,
+      "episodes_before": 0,
+      "episodes_after": 0,
+      "error": null
+    },
+    {
+      "task_id": "P1_consensus_raft",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8936,
+      "content_length": 17895,
+      "checks_passed": 19,
+      "checks_total": 19,
+      "elapsed_seconds": 93.84185934066772,
+      "episodes_before": 0,
+      "episodes_after": 9,
+      "stages": [
+        {
+          "name": "formal_model",
+          "success": true,
+          "time": 26.78857398033142,
+          "output_length": 4106
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 33.26275992393494,
+          "output_length": 7423
+        },
+        {
+          "name": "adversarial_testing",
+          "success": true,
+          "time": 30.107139348983765,
+          "output_length": 6290
+        }
+      ],
+      "error": null
+    },
+    {
+      "task_id": "P_R2_crdt_system",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.9048,
+      "content_length": 18266,
+      "checks_passed": 18,
+      "checks_total": 18,
+      "elapsed_seconds": 97.88912796974182,
+      "episodes_before": 9,
+      "episodes_after": 17,
+      "stages": [
+        {
+          "name": "theory",
+          "success": true,
+          "time": 25.170928955078125,
+          "output_length": 3694
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 34.67302918434143,
+          "output_length": 8138
+        },
+        {
+          "name": "verification",
+          "success": true,
+          "time": 29.672452688217163,
+          "output_length": 6371
+        }
+      ],
+      "error": null
+    }
+  ]
+}

@@ -21,6 +21,13 @@ def _get_client_kwargs(api_key: Optional[str] = None) -> Any:
     return get_anthropic_client_kwargs(api_key=api_key)
 
 
+_MODEL_MAX_OUTPUT: Dict[str, int] = {
+    "claude-3-haiku-20240307": 4096,
+    "claude-3-sonnet-20240229": 4096,
+    "claude-3-opus-20240229": 4096,
+}
+
+
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude provider."""
 
@@ -31,6 +38,10 @@ class AnthropicProvider(LLMProvider):
         self._client_kwargs = _get_client_kwargs(api_key)
         self.api_key = self._client_kwargs.get("api_key") or os.environ.get("ANTHROPIC_API_KEY")
         self._client: Optional[Anthropic] = None  # type: ignore[name-defined]
+
+    def _cap_max_tokens(self, max_tokens: int) -> int:
+        limit = _MODEL_MAX_OUTPUT.get(self.model)
+        return min(max_tokens, limit) if limit else max_tokens
 
     @property
     def client(self) -> Any:
@@ -53,7 +64,7 @@ class AnthropicProvider(LLMProvider):
     ) -> LLMResponse:
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=max_tokens,
+            max_tokens=self._cap_max_tokens(max_tokens),
             system=system,
             messages=messages,
             tools=self.convert_tools(tools),
@@ -72,7 +83,7 @@ class AnthropicProvider(LLMProvider):
 
         with self.client.messages.stream(
             model=self.model,
-            max_tokens=max_tokens,
+            max_tokens=self._cap_max_tokens(max_tokens),
             system=system,
             messages=messages,
             tools=self.convert_tools(tools),

@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-02-18T21:38:27.996313",
+  "results": [
+    {
+      "task_id": "S1_cache_single",
+      "domain": "coding",
+      "learn": true,
+      "success": false,
+      "quality_score": 0.1432,
+      "content_length": 242,
+      "checks_passed": 0,
+      "checks_total": 8,
+      "elapsed_seconds": 447.78500628471375,
+      "episodes_before": 6,
+      "episodes_after": 7,
+      "error": null
+    },
+    {
+      "task_id": "P1_distributed_cache",
+      "domain": "coding",
+      "learn": true,
+      "success": false,
+      "quality_score": 0.30000000000000004,
+      "content_length": 0,
+      "checks_passed": 0,
+      "checks_total": 12,
+      "elapsed_seconds": 803.6629512310028,
+      "episodes_before": 7,
+      "episodes_after": 9,
+      "stages": [],
+      "error": "name 'uuid' is not defined"
+    },
+    {
+      "task_id": "P2_ml_pipeline",
+      "domain": "research",
+      "learn": true,
+      "success": false,
+      "quality_score": 0.30000000000000004,
+      "content_length": 0,
+      "checks_passed": 0,
+      "checks_total": 12,
+      "elapsed_seconds": 473.727087020874,
+      "episodes_before": 0,
+      "episodes_after": 1,
+      "stages": [],
+      "error": "name 'uuid' is not defined"
+    }
+  ]
+}

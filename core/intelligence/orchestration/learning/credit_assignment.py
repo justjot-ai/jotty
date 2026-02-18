@@ -106,8 +106,10 @@ class CreditAssignment:
             alpha = 0.3  # Learning rate
             credit.direct_credit = alpha * direct_credit + (1 - alpha) * credit.direct_credit
 
-        # Track success
-        if final_score >= 0.8:  # Threshold for success
+        # Track success — threshold adapts to context
+        is_pipeline = context.get("stage") is not None
+        success_threshold = 0.6 if is_pipeline else 0.8
+        if final_score >= success_threshold:
             credit.success_count += 1
 
         # Calculate success rate

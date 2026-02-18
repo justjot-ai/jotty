@@ -1,0 +1,634 @@
+
+======================================================================
+  JOTTY LEARNING CURVE EVALUATION
+======================================================================
+
+  Date: 2026-02-19T04:11:44.212810
+  Model: claude-3-haiku-20240307
+  Learning curve: 4 tasks (same domain, sequential)
+  A/B test: same task with vs without learning
+  Goal: does quality improve as learning accumulates?
+  Initial episodes: 0
+
+======================================================================
+  ROUND 1/4 — R1_raft (cold start, 0 prior episodes)
+======================================================================
+
+
+  --- Pipeline: R1_raft ---
+
+  Domain: system_design/consensus
+  Stages: 3
+  Learning state: 0 episodes
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLj8Eqn7P7T8eqTeVXw'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLj8Eqn7P7T8eqTeVXw'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLj9sa23gLCjShVWbU9'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLj9sa23gLCjShVWbU9'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjBKsrXfCHvDav8koe'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjBKsrXfCHvDav8koe'}
+  [FAIL] Quality=0.14 | Checks=0/19 | Length=76 | Time=2.0s
+  Episodes: 0 → 0 (+0)
+    Stage formal_model   : [OK] 0 chars, 1.3s
+    Stage implementation : [OK] 0 chars, 0.3s
+    Stage adversarial_testing: [OK] 0 chars, 0.3s
+    [-] formal_model:election safety
+    [-] formal_model:log matching
+    [-] formal_model:leader completeness
+    [-] formal_model:state machine safety
+    [-] formal_model:majority
+    [-] formal_model:partition
+    [-] implementation:class RaftNode
+    [-] implementation:RequestVote
+    [-] implementation:AppendEntries
+    [-] implementation:async def
+    [-] implementation:Follower
+    [-] implementation:Leader
+    [-] implementation:term
+    [-] adversarial_testing:def test_
+    [-] adversarial_testing:assert
+    [-] adversarial_testing:partition
+    [-] adversarial_testing:async
+    [-] adversarial_testing:election
+    [-] adversarial_testing:NetworkSimulator
+  Waiting for background learning...
+
+======================================================================
+  ROUND 2/4 — R2_crdt (0 episodes of learning)
+======================================================================
+
+
+  --- Pipeline: R2_crdt ---
+
+  Domain: system_design/crdt
+  Stages: 3
+  Learning state: 0 episodes
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjReMEAriHrendvyKX'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjReMEAriHrendvyKX'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjTJomxqvbDF9DnScc'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjTJomxqvbDF9DnScc'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjUor7A4w7JnQoweNZ'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjUor7A4w7JnQoweNZ'}
+  [FAIL] Quality=0.14 | Checks=0/15 | Length=63 | Time=1.1s
+  Episodes: 0 → 0 (+0)
+    Stage theory         : [OK] 0 chars, 0.4s
+    Stage implementation : [OK] 0 chars, 0.3s
+    Stage verification   : [OK] 0 chars, 0.4s
+    [-] theory:semilattice
+    [-] theory:commutativ
+    [-] theory:associativ
+    [-] theory:idempoten
+    [-] theory:convergence
+    [-] implementation:class GCounter
+    [-] implementation:class PNCounter
+    [-] implementation:class ORSet
+    [-] implementation:class LWWRegister
+    [-] implementation:def merge
+    [-] verification:def test_
+    [-] verification:@given
+    [-] verification:hypothesis
+    [-] verification:assert
+    [-] verification:commutativ
+  Waiting for background learning...
+
+======================================================================
+  ROUND 3/4 — R3_dist_lock (0 episodes of learning)
+======================================================================
+
+
+  --- Pipeline: R3_dist_lock ---
+
+  Domain: system_design/distributed
+  Stages: 3
+  Learning state: 0 episodes
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjjAo65AFyPcqBG84o'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjjAo65AFyPcqBG84o'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjkdrGgvHZpnGoiuNB'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjkdrGgvHZpnGoiuNB'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjn5R8MAx2oXJU8TaY'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLjn5R8MAx2oXJU8TaY'}
+  [FAIL] Quality=0.14 | Checks=0/15 | Length=67 | Time=1.0s
+  Episodes: 0 → 0 (+0)
+    Stage protocol_design: [OK] 0 chars, 0.3s
+    Stage implementation : [OK] 0 chars, 0.3s
+    Stage testing        : [OK] 0 chars, 0.4s
+    [-] protocol_design:fencing token
+    [-] protocol_design:lease
+    [-] protocol_design:deadlock
+    [-] protocol_design:reentrant
+    [-] protocol_design:fairness
+    [-] implementation:class LockServer
+    [-] implementation:class LockClient
+    [-] implementation:FencingToken
+    [-] implementation:async def acquire
+    [-] implementation:async def release
+    [-] testing:def test_
+    [-] testing:assert
+    [-] testing:deadlock
+    [-] testing:fencing
+    [-] testing:async
+  Waiting for background learning...
+
+======================================================================
+  ROUND 4/4 — R4_event_source (0 episodes of learning)
+======================================================================
+
+
+  --- Pipeline: R4_event_source ---
+
+  Domain: system_design/cqrs
+  Stages: 3
+  Learning state: 0 episodes
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLk37JHQ98goLCD96ir'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLk37JHQ98goLCD96ir'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLk4bbciG9DhqZ5agEP'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLk4bbciG9DhqZ5agEP'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLk6ArH71EvAvq8kSXV'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLk6ArH71EvAvq8kSXV'}
+  [FAIL] Quality=0.14 | Checks=0/15 | Length=64 | Time=1.2s
+  Episodes: 0 → 0 (+0)
+    Stage architecture   : [OK] 0 chars, 0.5s
+    Stage implementation : [OK] 0 chars, 0.4s
+    Stage testing        : [OK] 0 chars, 0.4s
+    [-] architecture:event store
+    [-] architecture:CQRS
+    [-] architecture:snapshot
+    [-] architecture:projection
+    [-] architecture:schema
+    [-] implementation:class Event
+    [-] implementation:class EventStore
+    [-] implementation:class Aggregate
+    [-] implementation:async def
+    [-] implementation:class Projection
+    [-] testing:def test_
+    [-] testing:assert
+    [-] testing:async
+    [-] testing:snapshot
+    [-] testing:idempoten
+  Waiting for background learning...
+
+======================================================================
+  A/B TEST — Same task: without learning vs with learning
+======================================================================
+
+  Episodes available: 0
+
+  --- A: NO LEARNING (learn=False) ---
+
+  --- Pipeline: AB_no_learn [NO LEARNING] ---
+
+  Domain: system_design/gossip
+  Stages: 3
+  Learning state: 0 episodes
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkLbWkZiE4EcqmkL7k'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkLbWkZiE4EcqmkL7k'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkN2bG9Yh2UASqpk4M'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkN2bG9Yh2UASqpk4M'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkPSuzQNdCL7ivmDST'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkPSuzQNdCL7ivmDST'}
+  [FAIL] Quality=0.14 | Checks=0/15 | Length=58 | Time=1.0s
+  Episodes: 0 → 0 (+0)
+    Stage design         : [OK] 0 chars, 0.3s
+    Stage implementation : [OK] 0 chars, 0.3s
+    Stage testing        : [OK] 0 chars, 0.3s
+    [-] design:SWIM
+    [-] design:failure detection
+    [-] design:ping
+    [-] design:suspect
+    [-] design:protocol period
+    [-] implementation:class GossipNode
+    [-] implementation:class FailureDetector
+    [-] implementation:async def
+    [-] implementation:ping
+    [-] implementation:suspect
+    [-] testing:def test_
+    [-] testing:assert
+    [-] testing:async
+    [-] testing:partition
+    [-] testing:failure
+
+  --- B: WITH LEARNING (learn=True) ---
+
+  --- Pipeline: AB_with_learn ---
+
+  Domain: system_design/gossip
+  Stages: 3
+  Learning state: 0 episodes
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkQzC1nZd4L3YB26wx'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkQzC1nZd4L3YB26wx'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkSWxjx5t4XAayiNW1'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkSWxjx5t4XAayiNW1'}
+ERROR:Jotty.core.intelligence.orchestration.execution.unified_executor:Execution failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkULbW7CR1dBAC4Die'}
+Traceback (most recent call last):
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/execution/unified_executor.py", line 776, in execute
+    response = await self.llm_provider.call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/Jotty/core/intelligence/orchestration/llm_providers/anthropic.py", line 54, in call
+    response = self.client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py", line 932, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1361, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/www/sites/personal/stock_market/venv/lib/python3.11/site-packages/anthropic/_base_client.py", line 1134, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 8192 > 4096, which is the maximum allowed number of output tokens for claude-3-haiku-20240307'}, 'request_id': 'req_011CYGLkULbW7CR1dBAC4Die'}
+  [FAIL] Quality=0.14 | Checks=0/15 | Length=58 | Time=1.1s
+  Episodes: 0 → 0 (+0)
+    Stage design         : [OK] 0 chars, 0.3s
+    Stage implementation : [OK] 0 chars, 0.4s
+    Stage testing        : [OK] 0 chars, 0.3s
+    [-] design:SWIM
+    [-] design:failure detection
+    [-] design:ping
+    [-] design:suspect
+    [-] design:protocol period
+    [-] implementation:class GossipNode
+    [-] implementation:class FailureDetector
+    [-] implementation:async def
+    [-] implementation:ping
+    [-] implementation:suspect
+    [-] testing:def test_
+    [-] testing:assert
+    [-] testing:async
+    [-] testing:partition
+    [-] testing:failure
+
+======================================================================
+  ANALYSIS
+======================================================================
+
+
+  --- CREDIT ASSIGNMENT ANALYSIS ---
+
+  Credit Assigner: CreditAssignment
+  Credits recorded: 5 patterns
+    [pipeline_stage] formal_model         direct=0.000 apps=3 success=0
+    [pipeline_stage] theory               direct=0.000 apps=3 success=0
+    [pipeline_stage] protocol_design      direct=0.000 apps=3 success=0
+    [pipeline_stage] architecture         direct=0.000 apps=3 success=0
+    [pipeline_stage] design               direct=0.000 apps=3 success=0
+
+  Credit summary: 5 patterns, 15 applications, avg_direct=0.000
+
+  Adaptive credit weights: AdaptiveWeightGroup(base_reward=0.300, cooperation_bonus=0.400, predictability_bonus=0.300)
+
+  Effectiveness report:
+    generation          : recent=0.00 historical=0.00 trend=+1.00
+    _global             : recent=0.00 historical=0.00 trend=+1.00
+
+  --- LEARNING STATE ANALYSIS ---
+
+  data_science   : 1 episodes, rate=0%, context=0 chars, retrieval=0 chars
+  coding         : 1 episodes, rate=0%, context=0 chars, retrieval=0 chars
+
+  Total patterns: 0
+
+  --- FINAL RESULTS ---
+
+  [FAIL] R1_raft                   Q=0.14 Checks=0/19 Len=    76 Time=2s Ep=0→0
+  [FAIL] R2_crdt                   Q=0.14 Checks=0/15 Len=    63 Time=1s Ep=0→0
+  [FAIL] R3_dist_lock              Q=0.14 Checks=0/15 Len=    67 Time=1s Ep=0→0
+  [FAIL] R4_event_source           Q=0.14 Checks=0/15 Len=    64 Time=1s Ep=0→0
+  [FAIL] AB_no_learn               Q=0.14 Checks=0/15 Len=    58 Time=1s Ep=0→0 [NO-LEARN]
+  [FAIL] AB_with_learn             Q=0.14 Checks=0/15 Len=    58 Time=1s Ep=0→0
+
+  --- LEARNING CURVE ---
+
+  R1 █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ Q=0.14 Chk=0/19 Ep=0
+  R2 █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ Q=0.14 Chk=0/15 Ep=0
+  R3 █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ Q=0.14 Chk=0/15 Ep=0
+  R4 █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ Q=0.14 Chk=0/15 Ep=0
+
+  Trend: R1=0.14 → R4=0.14 (-0.00)
+  Range: 0.14 — 0.14
+  Check trend: R1=0% → R4=0%
+
+  --- A/B TEST — SAME TASK ---
+
+  Without learning: Q=0.14 Checks=0%
+  With learning:    Q=0.14 Checks=0%
+  Delta: +0.00 → NO DIFFERENCE
+
+  --- SCORES ---
+
+  Success Rate              [--------------------]   0.0%
+  Avg Quality               [##------------------]  14.0%
+  Episodes Recorded         [--------------------]   0.0%
+  Learning Curve            [##########----------]  50.0%
+  A/B Learning Δ            [##########----------]  50.0%
+  Credit Assignment         [##############------]  70.0%
+
+  OVERALL: [**...] 30.7%
+
+  Report saved: /var/www/sites/personal/stock_market/Jotty/scripts/eval_results/20260219_041209_learning_curve.json

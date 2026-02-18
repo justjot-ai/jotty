@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-02-18T22:43:53.828530",
+  "results": [
+    {
+      "task_id": "S1_cache_single",
+      "domain": "coding",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.7684,
+      "content_length": 28713,
+      "checks_passed": 6,
+      "checks_total": 8,
+      "elapsed_seconds": 88.12488460540771,
+      "episodes_before": 24,
+      "episodes_after": 25,
+      "error": null
+    },
+    {
+      "task_id": "P1_distributed_cache",
+      "domain": "coding",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8633333333333333,
+      "content_length": 50000,
+      "checks_passed": 10,
+      "checks_total": 12,
+      "elapsed_seconds": 333.35934686660767,
+      "episodes_before": 25,
+      "episodes_after": 27,
+      "stages": [
+        {
+          "name": "architecture",
+          "success": true,
+          "time": 131.00602960586548,
+          "output_length": 27727
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 94.15136122703552,
+          "output_length": 30503
+        },
+        {
+          "name": "testing",
+          "success": true,
+          "time": 104.93881344795227,
+          "output_length": 30075
+        }
+      ],
+      "error": null
+    },
+    {
+      "task_id": "P_R2_event_system",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.9146666666666667,
+      "content_length": 50000,
+      "checks_passed": 11,
+      "checks_total": 12,
+      "elapsed_seconds": 253.7751955986023,
+      "episodes_before": 18,
+      "episodes_after": 21,
+      "stages": [
+        {
+          "name": "architecture",
+          "success": true,
+          "time": 71.81600785255432,
+          "output_length": 17670
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 74.90856099128723,
+          "output_length": 27008
+        },
+        {
+          "name": "testing",
+          "success": true,
+          "time": 87.55520844459534,
+          "output_length": 31114
+        }
+      ],
+      "error": null
+    }
+  ]
+}

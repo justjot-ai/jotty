@@ -1,0 +1,122 @@
+
+======================================================================
+  JOTTY LEARNING CURVE EVALUATION
+======================================================================
+
+  Date: 2026-02-19T04:15:28.833887
+  Model: claude-3-haiku-20240307
+  Learning curve: 4 tasks (same domain, sequential)
+  A/B test: same task with vs without learning
+  Goal: does quality improve as learning accumulates?
+  Initial episodes: 0
+
+======================================================================
+  ROUND 1/4 — R1_raft (cold start, 0 prior episodes)
+======================================================================
+
+
+  --- Pipeline: R1_raft ---
+
+  Domain: system_design/consensus
+  Stages: 3
+  Learning state: 0 episodes
+  [PASS] Quality=0.86 | Checks=18/19 | Length=18611 | Time=47.8s
+  Episodes: 0 → 0 (+0)
+    Stage formal_model   : [OK] 4860 chars, 12.0s
+    Stage implementation : [OK] 7366 chars, 17.0s
+    Stage adversarial_testing: [OK] 6309 chars, 15.9s
+    [+] formal_model:election safety
+    [+] formal_model:log matching
+    [+] formal_model:leader completeness
+    [+] formal_model:state machine safety
+    [+] formal_model:majority
+    [+] formal_model:partition
+    [+] implementation:class RaftNode
+    [-] implementation:RequestVote
+    [+] implementation:AppendEntries
+    [+] implementation:async def
+    [+] implementation:Follower
+    [+] implementation:Leader
+    [+] implementation:term
+    [+] adversarial_testing:def test_
+    [+] adversarial_testing:assert
+    [+] adversarial_testing:partition
+    [+] adversarial_testing:async
+    [+] adversarial_testing:election
+    [+] adversarial_testing:NetworkSimulator
+  Waiting for background learning...
+
+======================================================================
+  ROUND 2/4 — R2_crdt (0 episodes of learning)
+======================================================================
+
+
+  --- Pipeline: R2_crdt ---
+
+  Domain: system_design/crdt
+  Stages: 3
+  Learning state: 0 episodes
+  [PASS] Quality=0.86 | Checks=14/15 | Length=11054 | Time=34.7s
+  Episodes: 0 → 16 (+16)
+    Stage theory         : [OK] 2475 chars, 8.2s
+    Stage implementation : [OK] 5188 chars, 13.4s
+    Stage verification   : [OK] 3328 chars, 10.3s
+    [+] theory:semilattice
+    [+] theory:commutativ
+    [+] theory:associativ
+    [+] theory:idempoten
+    [+] theory:convergence
+    [+] implementation:class GCounter
+    [+] implementation:class PNCounter
+    [+] implementation:class ORSet
+    [+] implementation:class LWWRegister
+    [+] implementation:def merge
+    [+] verification:def test_
+    [-] verification:@given
+    [+] verification:hypothesis
+    [+] verification:assert
+    [+] verification:commutativ
+  Waiting for background learning...
+
+======================================================================
+  ROUND 3/4 — R3_dist_lock (16 episodes of learning)
+======================================================================
+
+
+  --- Pipeline: R3_dist_lock ---
+
+  Domain: system_design/distributed
+  Stages: 3
+  Learning state: 16 episodes
+  [PASS] Quality=0.86 | Checks=14/15 | Length=11760 | Time=36.7s
+  Episodes: 16 → 16 (+0)
+    Stage protocol_design: [OK] 3392 chars, 10.6s
+    Stage implementation : [OK] 4577 chars, 11.9s
+    Stage testing        : [OK] 3724 chars, 10.9s
+    [+] protocol_design:fencing token
+    [+] protocol_design:lease
+    [+] protocol_design:deadlock
+    [+] protocol_design:reentrant
+    [+] protocol_design:fairness
+    [+] implementation:class LockServer
+    [+] implementation:class LockClient
+    [+] implementation:FencingToken
+    [+] implementation:async def acquire
+    [-] implementation:async def release
+    [+] testing:def test_
+    [+] testing:assert
+    [+] testing:deadlock
+    [+] testing:fencing
+    [+] testing:async
+  Waiting for background learning...
+
+======================================================================
+  ROUND 4/4 — R4_event_source (16 episodes of learning)
+======================================================================
+
+
+  --- Pipeline: R4_event_source ---
+
+  Domain: system_design/cqrs
+  Stages: 3
+  Learning state: 16 episodes

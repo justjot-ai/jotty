@@ -122,6 +122,7 @@ _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     ],
     "system_design": [
         "system design",
+        "design a",
         "architect",
         "scalab",
         "distributed",
@@ -141,6 +142,36 @@ _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
         "sharding",
         "partition",
         "p99",
+        "infrastructure",
+        "capacity planning",
+        "concurrent users",
+        "concurrent players",
+        "crdt",
+        "server mesh",
+        "auto-scal",
+        "multiplayer",
+        "requests/sec",
+        "req/s",
+        "rps",
+        "qps",
+        "semilattice",
+        "raft",
+        "paxos",
+        "vector clock",
+        "gossip",
+        "failure detect",
+        "cluster member",
+        "service discover",
+        "load shed",
+        "circuit break",
+        "bulkhead",
+        "backpressure",
+        "health check",
+        "service mesh",
+        "tick rate",
+        "netcode",
+        "matchmaking",
+        "real-time",
     ],
     "data_science": [
         "machine learning",
@@ -252,19 +283,41 @@ def classify_domain(text: str) -> Tuple[str, str]:
     match count. Falls back to 'general' if no strong match.
     """
     text_lower = text.lower()
-    scores: Dict[str, int] = {}
+    scores: Dict[str, float] = {}
     for domain, keywords in _DOMAIN_KEYWORDS.items():
         score = sum(1 for kw in keywords if kw in text_lower)
         if score > 0:
-            scores[domain] = score
+            scores[domain] = float(score)
 
     if not scores:
         return "general", "general"
 
-    # Pick the domain with the highest keyword hit count
-    best_domain = max(scores, key=scores.get)  # type: ignore[arg-type]
+    # Generic implementation keywords appear in almost every technical task.
+    # When a specialized domain (system_design, data_science, economics) also
+    # matches, demote generic coding keywords to fractional weight so the
+    # specialized domain wins.
+    _generic_coding = {
+        "implement",
+        "function",
+        "class ",
+        "code",
+        "python",
+        "javascript",
+        "typescript",
+        "unit test",
+        "integration test",
+    }
+    specialized = {d for d in scores if d not in ("coding", "writing", "general")}
+    if "coding" in scores and specialized:
+        coding_hits = [kw for kw in _DOMAIN_KEYWORDS["coding"] if kw in text_lower]
+        generic_count = sum(1 for kw in coding_hits if kw in _generic_coding)
+        specific_count = len(coding_hits) - generic_count
+        scores["coding"] = specific_count + generic_count * 0.25
 
-    # Derive task_type from the top keywords that matched
+    specificity_bonus = {"system_design": 1.0, "economics": 0.8, "data_science": 0.5}
+    adjusted = {d: s + specificity_bonus.get(d, 0) for d, s in scores.items()}
+    best_domain = max(adjusted, key=adjusted.get)  # type: ignore[arg-type]
+
     keywords_hit = [kw for kw in _DOMAIN_KEYWORDS[best_domain] if kw in text_lower]
     task_type = keywords_hit[0].strip() if keywords_hit else best_domain
 
@@ -634,17 +687,17 @@ class LearningService:
                     recommendations.append(p.recommendation)
             result["recommendations"] = recommendations
 
-            # 4. Recent failure analysis
-            if rate < 0.8:
-                failures = self._store.get_failure_analysis(domain, task_type, limit=5)
-                result["failure_analysis"] = [
-                    {
-                        "error_type": f.get("error_type", "unknown"),
-                        "error_message": f.get("error_message", "")[:200],
-                        "task_type": f.get("task_type", ""),
-                    }
-                    for f in failures
-                ]
+            # 4. Failure/low-quality analysis (even at high success rate,
+            #    low-quality episodes teach what to avoid)
+            failures = self._store.get_failure_analysis(domain, task_type, limit=5)
+            result["failure_analysis"] = [
+                {
+                    "error_type": f.get("error_type", "unknown"),
+                    "description": f.get("error_message", "")[:200],
+                    "task_type": f.get("task_type", ""),
+                }
+                for f in failures
+            ]
 
             # 5. Best action from value estimates
             best = self._get_best_action(domain, task_type)
@@ -983,134 +1036,56 @@ class LearningService:
 
     def build_context_string(self, domain: str, task_type: str = "", unit_name: str = "") -> str:
         """
-        Build a rich, actionable learning context string for injection into
-        agent system prompts or swarm context.
+        Build learning context — ADAPTIVE: only inject when there's
+        a real signal to give. Silence when the model is already succeeding.
 
-        Includes: success rate, quality benchmarks, best strategies,
-        structural expectations, domain-specific patterns, and failure warnings.
+        Injecting generic instructions into a capable model's prompt is
+        actively harmful — it wastes context window and causes verbose,
+        unfocused output. Only speak when we have:
+        - Real failure patterns to correct (success_rate < 90%)
+        - Concrete structural template from a highly-relevant prior response
         """
         guidance = self.query(domain, task_type, unit_name=unit_name)
-        parts: List[str] = []
-        parts.append(f"[LEARNING CONTEXT — {domain}]")
 
         total = guidance.get("total_episodes", 0)
         rate = guidance.get("success_rate", 0.0)
 
         if not guidance.get("has_learning"):
-            # Even without domain-specific data, try cross-domain transfer
-            xfer_domains = ["general", "coding", "research", "system_design"]
-            for xd in xfer_domains:
-                if xd == domain:
-                    continue
-                xg = self.query(xd, "")
-                if xg.get("has_learning") and xg.get("total_episodes", 0) >= 5:
-                    xfer_patterns = self.transfer(xd, domain)
-                    if xfer_patterns:
-                        parts.append(f"Cross-domain insight from {xd}:")
-                        for xp in xfer_patterns[:2]:
-                            parts.append(f"  - {xp['recommendation']}")
-                        break
-            if len(parts) == 1:
-                return ""
-            return "\n".join(parts)
+            return ""
 
-        parts.append(f"Performance: {rate:.0%} success across {total} episodes")
+        # ADAPTIVE GATE: if the model is already performing well in this domain,
+        # don't inject anything. Context injection hurts more than it helps
+        # when baseline quality is high.
+        has_failures = rate < 0.90 and total >= 5
+        is_cold_start = total < 5
+        if not has_failures and not is_cold_start:
+            return ""
 
-        # Improvement trend with direction
-        report = self._store.get_improvement_report(domain)
-        trend = report.get("trend", 0)
-        if trend > 0.05:
-            parts.append(f"Trend: IMPROVING (+{trend:.0%} vs historical)")
-        elif trend < -0.05:
-            parts.append(f"Trend: DECLINING ({trend:.0%} vs historical) — increase rigor")
-        elif total > 10:
-            parts.append("Trend: STABLE")
+        parts: List[str] = []
 
-        # Quality benchmarks from recent episodes
-        try:
-            recent = self._store.query_episodes(domain=domain, limit=20)
-            if recent:
-                qualities = [e.quality for e in recent if e.quality > 0]
-                if qualities:
-                    avg_q = sum(qualities) / len(qualities)
-                    best_q = max(qualities)
-                    parts.append(f"Quality benchmark: avg={avg_q:.2f}, best={best_q:.2f}")
+        if is_cold_start:
+            # Cold start: show structure from best prior response (if any)
+            best = self.get_best_approach_for_domain(domain, task_type)
+            if best and best.get("outline"):
+                parts.append(
+                    f"[Prior {domain} response structure (Q={best['quality']:.2f}): "
+                    f"{best['outline'][:300]}]"
+                )
 
-                # Extract what made best episodes good
-                best_episodes = sorted(
-                    [e for e in recent if e.success],
-                    key=lambda e: e.quality,
-                    reverse=True,
-                )[:3]
-                if best_episodes:
-                    structural_signals = set()
-                    for ep in best_episodes:
-                        out = ep.outcome or {}
-                        if out.get("has_code"):
-                            structural_signals.add("include code examples")
-                        if out.get("has_headings"):
-                            structural_signals.add("use clear section headings")
-                        if out.get("has_numbered_list"):
-                            structural_signals.add("use numbered lists for steps")
-                        if out.get("has_citations"):
-                            structural_signals.add("cite sources and papers")
-                        if out.get("has_math"):
-                            structural_signals.add("include mathematical formulations")
-                        if out.get("has_table"):
-                            structural_signals.add("use tables for comparisons")
-                        wc = out.get("word_count", 0)
-                        if wc > 2000:
-                            structural_signals.add(f"aim for {wc//500*500}+ word depth")
-                    if structural_signals:
-                        parts.append(
-                            "Best responses tend to: " + "; ".join(sorted(structural_signals)[:4])
-                        )
-        except Exception as e:
-            logger.debug(f"Quality benchmark extraction failed: {e}")
+        if has_failures:
+            # Real failures exist — give corrective guidance
+            parts.append(f"[{domain}: {rate:.0%} success across {total} tasks]")
 
-        # Best action from TD-Lambda value estimates
-        best = guidance.get("best_action")
-        if best and best.get("confidence", 0) > 0.3:
-            parts.append(
-                f"Recommended approach: {best['action']} (value={best['expected_value']:.2f})"
-            )
+            failures = guidance.get("failure_analysis", [])
+            if failures:
+                parts.append("Prior failures:")
+                for f in failures[:3]:
+                    desc = f.get("description", f.get("error_type", ""))
+                    if desc:
+                        parts.append(f"  - {desc}")
 
-        # High-confidence patterns (>= 0.5)
-        for p in guidance.get("patterns", []):
-            if p.get("confidence", 0) >= 0.5:
-                parts.append(f"Pattern: {p['recommendation']}")
-
-        # Failure warnings
-        failures = guidance.get("failure_analysis", [])
-        if failures:
-            error_types = set(f.get("error_type", "") for f in failures if f.get("error_type"))
-            if error_types:
-                parts.append(f"Known failure modes to avoid: {', '.join(error_types)}")
-
-        # Best approach template — concrete example of what worked best
-        best = self.get_best_approach_for_domain(domain, task_type)
-        if best and best.get("structural_features"):
-            parts.append(
-                f"Best prior response (quality={best['quality']:.2f}) featured: "
-                + "; ".join(best["structural_features"][:5])
-            )
-
-        # Cross-domain transfer (always check for insights from related domains)
-        related_domains = {
-            "coding": ["system_design", "data_science"],
-            "research": ["data_science", "writing"],
-            "system_design": ["coding"],
-            "data_science": ["coding", "math"],
-            "synthesis": ["research", "data_science", "coding"],
-        }
-        for rd in related_domains.get(domain, []):
-            xfer = self.transfer(rd, domain)
-            if xfer:
-                best_xfer = max(xfer, key=lambda x: x.get("confidence", 0))
-                if best_xfer.get("confidence", 0) >= 0.6:
-                    parts.append(f"From {rd} experience: {best_xfer['recommendation']}")
-                    break
-
+        if not parts:
+            return ""
         return "\n".join(parts)
 
     # =========================================================================
@@ -1135,33 +1110,37 @@ class LearningService:
             best = max(successful, key=lambda e: e.quality)
             outcome = best.outcome or {}
 
-            approach = {
+            approach: Dict[str, Any] = {
                 "quality": best.quality,
                 "execution_time": best.execution_time,
                 "structural_features": [],
+                "outline": None,
                 "action": best.action,
             }
 
+            # Extract outline from stored digest if available
+            excerpt = outcome.get("response_excerpt", "")
+            if "Outline:" in excerpt:
+                for line in excerpt.split("\n"):
+                    if line.startswith("Outline:"):
+                        approach["outline"] = line[len("Outline:") :].strip()
+                        break
+
             if outcome.get("has_code"):
                 approach["structural_features"].append(
-                    f"included {outcome.get('code_block_count', 'multiple')} code blocks"
+                    f"{outcome.get('code_block_count', 'multiple')} code blocks"
                 )
             if outcome.get("has_headings"):
-                approach["structural_features"].append("organized with section headings")
-            if outcome.get("has_numbered_list"):
-                approach["structural_features"].append("used numbered lists")
+                approach["structural_features"].append("section headings")
             if outcome.get("has_citations"):
                 approach["structural_features"].append("cited references")
             if outcome.get("has_math"):
-                approach["structural_features"].append("included mathematical formulations")
+                approach["structural_features"].append("math formulations")
             if outcome.get("has_table"):
-                approach["structural_features"].append("used comparison tables")
+                approach["structural_features"].append("comparison tables")
             wc = outcome.get("word_count", 0)
             if wc:
-                approach["structural_features"].append(f"~{wc} words depth")
-            gc = outcome.get("goal_coverage", 0)
-            if gc:
-                approach["goal_coverage"] = gc
+                approach["structural_features"].append(f"~{wc} words")
 
             return approach
         except Exception as e:
@@ -1195,15 +1174,19 @@ class LearningService:
                 provider="anthropic", model="claude-sonnet-4-20250514", max_steps=1
             )
 
+            digest = self._build_judge_digest(content, goal, domain)
+
             prompt = (
-                f"Rate this response on a scale of 0.0 to 1.0. Consider:\n"
-                f"- Correctness and accuracy\n"
-                f"- Completeness (does it address all parts of the task?)\n"
-                f"- Depth and specificity (concrete details, not vague)\n"
-                f"- Structure and clarity\n\n"
+                f"Rate this {domain} response quality from 0.0 to 1.0.\n\n"
+                f"Scoring guide:\n"
+                f"  0.9-1.0 = Exceptional: expert-level, thorough, well-structured, no errors\n"
+                f"  0.7-0.9 = Good: solid coverage, mostly correct, good structure\n"
+                f"  0.5-0.7 = Adequate: addresses the task but lacks depth or has gaps\n"
+                f"  0.3-0.5 = Weak: major gaps, errors, or shallow treatment\n"
+                f"  0.0-0.3 = Poor: mostly wrong, off-topic, or trivial\n\n"
                 f"TASK: {goal[:500]}\n\n"
-                f"RESPONSE (first 2000 chars): {content[:2000]}\n\n"
-                f'Reply with ONLY a JSON object: {{"score": 0.XX, "reason": "brief explanation"}}'
+                f"{digest}\n\n"
+                f'Reply with ONLY a JSON object: {{"score": 0.XX, "reason": "one sentence"}}'
             )
 
             result = await judge.execute(prompt)
@@ -1229,6 +1212,209 @@ class LearningService:
             return heuristic_score
 
     # =========================================================================
+    # THOMPSON SAMPLING — Principled Bayesian exploration
+    # =========================================================================
+
+    def _build_judge_digest(self, content: str, goal: str, domain: str) -> str:
+        """
+        Build a structural digest of a response for the LLM judge.
+
+        Instead of an arbitrary character cutoff, extract:
+        1. Table of contents (headings hierarchy)
+        2. Structural stats (code blocks, tables, citations, math, word count)
+        3. Representative samples from distinct sections
+        4. Opening paragraph (framing quality)
+        5. A code sample if present (correctness signal)
+        """
+        lines = content.split("\n")
+        words = content.split()
+
+        # 1. Extract headings as table of contents (skip code blocks)
+        headings = []
+        in_code = False
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code:
+                continue
+            if stripped.startswith("#"):
+                level = len(stripped) - len(stripped.lstrip("#"))
+                title = stripped.lstrip("# ").strip()
+                if title:
+                    headings.append(("  " * (level - 1)) + f"- {title}")
+
+        # 2. Structural inventory
+        code_blocks = _CODE_BLOCK_RE.findall(content)
+        tables = re.findall(r"(\|.+\|(?:\n\|.+\|)+)", content)
+        citations = _CITATION_RE.findall(content)
+        math_exprs = re.findall(r"[=∑∫∂∇λαβγ]|\\frac|O\(n", content)
+        numbered_lists = re.findall(r"(?:^|\n)\s*\d+\.\s+(.+)", content)
+
+        stats_lines = [
+            f"RESPONSE STRUCTURE ({len(words)} words, {len(content)} chars):",
+            f"  Sections: {len(headings)}",
+            f"  Code blocks: {len(code_blocks)}",
+            f"  Tables: {len(tables)}",
+            f"  Citations/references: {len(citations)}",
+            f"  Math expressions: {len(math_exprs)}",
+            f"  Numbered list items: {len(numbered_lists)}",
+        ]
+
+        # 3. Table of contents
+        if headings:
+            stats_lines.append("\nTABLE OF CONTENTS:")
+            stats_lines.extend(headings[:20])
+
+        # 4. Opening paragraph (first non-empty, non-heading block up to 300 chars)
+        opening = ""
+        for line in lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                opening = stripped
+                break
+        if opening:
+            stats_lines.append(f"\nOPENING:\n  {opening[:300]}")
+
+        # 5. Representative samples — one paragraph from each of the first
+        #    few sections (not just start/middle which may land mid-sentence)
+        sections: List[Tuple[str, str]] = []
+        current_heading = "(intro)"
+        current_text: List[str] = []
+        in_code_block = False
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                in_code_block = not in_code_block
+            if not in_code_block and stripped.startswith("#") and stripped.lstrip("# ").strip():
+                if current_text:
+                    body = "\n".join(current_text).strip()
+                    if len(body) > 50:
+                        sections.append((current_heading, body))
+                current_heading = stripped.lstrip("# ").strip()
+                current_text = []
+            else:
+                current_text.append(line)
+        if current_text:
+            body = "\n".join(current_text).strip()
+            if len(body) > 50:
+                sections.append((current_heading, body))
+
+        if sections:
+            # Pick ~3 evenly spaced sections
+            indices = [0]
+            if len(sections) > 2:
+                indices.append(len(sections) // 2)
+            if len(sections) > 1:
+                indices.append(len(sections) - 1)
+
+            stats_lines.append("\nSAMPLE EXCERPTS (one from each section):")
+            for idx in indices:
+                heading, body = sections[idx]
+                # Take first meaningful paragraph (skip blanks)
+                paragraphs = [p.strip() for p in body.split("\n\n") if p.strip()]
+                sample = paragraphs[0] if paragraphs else body
+                stats_lines.append(f"\n  [{heading}]")
+                stats_lines.append(f"  {sample[:400]}")
+
+        # 6. One code sample if present (first block, truncated)
+        if code_blocks:
+            block = code_blocks[0]
+            block_lines = block.split("\n")
+            if len(block_lines) > 15:
+                sample_code = (
+                    "\n".join(block_lines[:12]) + f"\n  ... ({len(block_lines)} lines total)"
+                )
+            else:
+                sample_code = block
+            stats_lines.append(f"\nCODE SAMPLE:\n{sample_code[:500]}")
+
+        return "\n".join(stats_lines)
+
+    # =========================================================================
+    # THOMPSON SAMPLING — Principled Bayesian exploration
+    # =========================================================================
+
+    def _get_arm_stats(self, domain: str) -> Dict[str, Dict[str, float]]:
+        """
+        Build Beta distribution parameters for each arm from episode history.
+        Arms: temperature values, model choices, paradigm choices.
+        Returns {arm_key: {"alpha": float, "beta": float, "n": int}}
+        """
+        episodes = self._store.query_episodes(domain=domain, limit=100)
+        arms: Dict[str, Dict[str, float]] = {}
+
+        for ep in episodes:
+            if not ep.success or ep.quality <= 0:
+                continue
+            action = ep.action or {}
+            q = ep.quality
+
+            # Temperature arm
+            temp = action.get("temperature")
+            if temp is not None:
+                key = f"temp={temp}"
+                if key not in arms:
+                    arms[key] = {"alpha": 1.0, "beta": 1.0, "n": 0}
+                arms[key]["alpha"] += q
+                arms[key]["beta"] += 1.0 - q
+                arms[key]["n"] += 1
+
+            # Model arm
+            model = action.get("model")
+            if model and model != "default":
+                key = f"model={model}"
+                if key not in arms:
+                    arms[key] = {"alpha": 1.0, "beta": 1.0, "n": 0}
+                arms[key]["alpha"] += q
+                arms[key]["beta"] += 1.0 - q
+                arms[key]["n"] += 1
+
+            # Paradigm arm
+            paradigm = action.get("paradigm")
+            if paradigm:
+                key = f"paradigm={paradigm}"
+                if key not in arms:
+                    arms[key] = {"alpha": 1.0, "beta": 1.0, "n": 0}
+                arms[key]["alpha"] += q
+                arms[key]["beta"] += 1.0 - q
+                arms[key]["n"] += 1
+
+            # Tool set arm
+            tools = action.get("tools_used")
+            if tools and isinstance(tools, str):
+                key = f"tools={tools}"
+                if key not in arms:
+                    arms[key] = {"alpha": 1.0, "beta": 1.0, "n": 0}
+                arms[key]["alpha"] += q
+                arms[key]["beta"] += 1.0 - q
+                arms[key]["n"] += 1
+
+        return arms
+
+    def _thompson_sample(self, arms: Dict[str, Dict[str, float]], prefix: str) -> Optional[str]:
+        """
+        Thompson Sampling: sample from Beta(alpha, beta) for each arm
+        matching prefix, return the arm with highest sample.
+        """
+        import random as _rng
+
+        candidates = {k: v for k, v in arms.items() if k.startswith(prefix)}
+        if not candidates:
+            return None
+
+        best_key = None
+        best_sample = -1.0
+        for key, stats in candidates.items():
+            sample = _rng.betavariate(stats["alpha"], stats["beta"])
+            if sample > best_sample:
+                best_sample = sample
+                best_key = key
+
+        return best_key
+
+    # =========================================================================
     # EXECUTION STEERING — Learning changes actual behavior
     # =========================================================================
 
@@ -1236,16 +1422,19 @@ class LearningService:
         self, domain: str, task_type: str = "", goal: str = ""
     ) -> Dict[str, Any]:
         """
-        Return optimal execution parameters derived from learned values.
+        Return optimal execution parameters derived from Thompson Sampling
+        over learned Beta distributions.
 
-        This is the key differentiator: learning doesn't just inject text,
-        it actually changes model selection, temperature, and strategy.
+        Steers: model, temperature, paradigm, tool selection.
+        Principled exploration via posterior sampling — no epsilon needed.
 
         Returns dict with:
             model: str — recommended model (or None for default)
             temperature: float — recommended temperature
-            strategy: str — recommended approach
-            exploration: bool — whether this is an exploratory run
+            paradigm: str — recommended paradigm (direct/relay/debate/refinement)
+            tools_hint: list — recommended tools to enable
+            strategy: str — how the decision was made
+            exploration: bool — whether this is an under-explored arm
             exploration_reason: str — what's being explored
         """
         import random
@@ -1253,60 +1442,127 @@ class LearningService:
         params: Dict[str, Any] = {
             "model": None,
             "temperature": None,
+            "paradigm": None,
+            "tools_hint": None,
             "strategy": "default",
             "exploration": False,
             "exploration_reason": "",
         }
 
-        # --- Gather learned signal ---
-        episodes = self._store.query_episodes(domain=domain, limit=30)
+        episodes = self._store.query_episodes(domain=domain, limit=50)
         successful = [e for e in episodes if e.success and e.quality > 0]
-        recent_qualities = [e.quality for e in successful[-10:]] if successful else []
-        avg_quality = sum(recent_qualities) / len(recent_qualities) if recent_qualities else 0.5
 
-        # --- Model selection based on quality history ---
-        # Low quality → upgrade model; High quality → can use cheaper model
-        if avg_quality < 0.5 and len(successful) >= 3:
-            params["model"] = "claude-sonnet-4-20250514"
-            params["strategy"] = "upgrade_model_low_quality"
-        elif avg_quality > 0.85 and len(successful) >= 5:
-            params["model"] = "claude-sonnet-4-20250514"
-            params["strategy"] = "efficient_high_quality"
-
-        # --- Temperature selection ---
-        # High variance in quality → lower temperature (more consistent)
-        # Low variance + high quality → can afford higher temperature (more creative)
-        if len(recent_qualities) >= 3:
-            variance = sum((q - avg_quality) ** 2 for q in recent_qualities) / len(recent_qualities)
-            if variance > 0.04:
-                params["temperature"] = 0.3  # High variance → be more deterministic
-            elif avg_quality > 0.8 and variance < 0.01:
-                params["temperature"] = 0.7  # Stable high quality → allow creativity
-            else:
-                params["temperature"] = 0.5  # Balanced
-
-        # --- Epsilon-greedy exploration ---
-        # With probability epsilon, deliberately try something different
-        # Higher epsilon when we have fewer episodes (more to learn)
-        epsilon = max(0.05, 0.25 - len(successful) * 0.01)  # Decays from 25% to 5%
-
-        if random.random() < epsilon:
-            params["exploration"] = True
-            exploration_type = random.choice(["temperature", "model"])
-
-            if exploration_type == "temperature":
-                # Try a temperature we haven't used much
-                temps = [0.2, 0.4, 0.6, 0.8, 1.0]
+        if len(successful) < 2:
+            paradigms = ["direct", "relay", "debate", "refinement"]
+            temps = [0.3, 0.5, 0.7]
+            if len(successful) == 0:
                 params["temperature"] = random.choice(temps)
-                params["exploration_reason"] = f"exploring temperature={params['temperature']}"
-            elif exploration_type == "model":
-                models = ["claude-sonnet-4-20250514", "claude-sonnet-4-20250514"]
-                params["model"] = random.choice(models)
-                params["exploration_reason"] = f"exploring model={params['model']}"
+                params["paradigm"] = random.choice(paradigms)
+                params["exploration"] = True
+                params["exploration_reason"] = "cold_start: seeding first arms"
+                params["strategy"] = "thompson_cold_start"
+                return params
+            params["exploration"] = True
+            params["temperature"] = random.choice(temps)
+            params["paradigm"] = random.choice(paradigms)
+            params["exploration_reason"] = f"cold_start: only {len(successful)} episodes"
+            params["strategy"] = "thompson_cold_start"
+            params["tools_hint"] = self._recommend_tools(domain, goal)
+            return params
 
-            params["strategy"] = "epsilon_greedy_exploration"
+        # --- Thompson Sampling over learned arms ---
+        arms = self._get_arm_stats(domain)
 
+        # Temperature selection via Thompson Sampling
+        temp_arm = self._thompson_sample(arms, "temp=")
+        if temp_arm:
+            params["temperature"] = float(temp_arm.split("=")[1])
+            stats = arms[temp_arm]
+            if stats["n"] < 3:
+                params["exploration"] = True
+                params["exploration_reason"] = (
+                    f"thompson: {temp_arm} under-explored (n={stats['n']})"
+                )
+
+        # Model selection via Thompson Sampling
+        model_arm = self._thompson_sample(arms, "model=")
+        if model_arm:
+            params["model"] = model_arm.split("=", 1)[1]
+            stats = arms[model_arm]
+            if stats["n"] < 3:
+                params["exploration"] = True
+                params["exploration_reason"] = (
+                    f"thompson: {model_arm} under-explored (n={stats['n']})"
+                )
+
+        # Paradigm selection via Thompson Sampling
+        paradigm_arm = self._thompson_sample(arms, "paradigm=")
+        if paradigm_arm:
+            params["paradigm"] = paradigm_arm.split("=", 1)[1]
+            stats = arms[paradigm_arm]
+            if stats["n"] < 3:
+                params["exploration"] = True
+                params["exploration_reason"] = f"thompson: {paradigm_arm} under-explored"
+
+        # Tool routing based on domain patterns
+        params["tools_hint"] = self._recommend_tools(domain, goal)
+
+        # --- Inject unseen arms for exploration ---
+        # If we've never tried certain arms, inject them so Thompson can explore
+        all_temps_tried = {k for k in arms if k.startswith("temp=")}
+        all_paradigms_tried = {k for k in arms if k.startswith("paradigm=")}
+
+        available_paradigms = {"direct", "relay", "debate", "refinement"}
+        tried_paradigms = {k.split("=")[1] for k in all_paradigms_tried}
+        untried = available_paradigms - tried_paradigms
+
+        if untried and random.random() < 0.3:  # 30% chance to try new paradigm
+            chosen = random.choice(list(untried))
+            params["paradigm"] = chosen
+            params["exploration"] = True
+            params["exploration_reason"] = f"thompson: trying untried paradigm={chosen}"
+
+        if not all_temps_tried and not params.get("temperature"):
+            params["temperature"] = random.choice([0.3, 0.5, 0.7])
+            params["exploration"] = True
+            params["exploration_reason"] = "thompson: no temp history, seeding"
+
+        params["strategy"] = "thompson_sampling" if len(successful) >= 2 else "default"
         return params
+
+    def _recommend_tools(self, domain: str, goal: str = "") -> Optional[List[str]]:
+        """
+        Recommend which tools to enable based on domain and learned patterns.
+        Returns tool list or None for default.
+        """
+        domain_tool_map = {
+            "coding": ["code_interpreter", "file_write"],
+            "research": ["web_search", "arxiv_search"],
+            "economics": ["web_search", "calculator"],
+            "data_science": ["code_interpreter", "calculator", "file_write"],
+            "system_design": [],
+        }
+
+        base = domain_tool_map.get(domain)
+        if base is None:
+            return None
+
+        # Check if web_search helped in past episodes
+        episodes = self._store.query_episodes(domain=domain, limit=20)
+        web_eps = [
+            e
+            for e in episodes
+            if e.action.get("tools_used") and "web_search" in str(e.action.get("tools_used", ""))
+        ]
+        non_web_eps = [e for e in episodes if e.success and e.quality > 0 and e not in web_eps]
+
+        if web_eps and non_web_eps:
+            web_q = sum(e.quality for e in web_eps if e.quality > 0) / max(len(web_eps), 1)
+            non_q = sum(e.quality for e in non_web_eps) / max(len(non_web_eps), 1)
+            if web_q > non_q + 0.05 and "web_search" not in base:
+                base = base + ["web_search"]
+
+        return base if base else None
 
     # =========================================================================
     # RETRIEVAL-AUGMENTED LEARNING — Retrieve actual prior response excerpts
@@ -1390,9 +1646,8 @@ class LearningService:
 
     def build_retrieval_context(self, domain: str, task_type: str = "", goal: str = "") -> str:
         """
-        Build a context string with actual prior response excerpts.
-        This is retrieval-augmented learning: not just metadata, but
-        actual examples of what worked.
+        Build a context string with structural digests of prior successful responses.
+        Shows HOW the best responses were structured, not just feature checklists.
         """
         similar = self.retrieve_similar_responses(domain, task_type, goal, top_k=2)
         if not similar:
@@ -1401,22 +1656,33 @@ class LearningService:
         parts = ["[PRIOR SUCCESSFUL APPROACHES]"]
         for i, resp in enumerate(similar, 1):
             parts.append(f"\nExample {i} (quality={resp['quality']:.2f}, {resp['domain']}):")
-            features = resp.get("structural_features", {})
-            if features:
-                feat_strs = []
-                if features.get("has_code"):
-                    feat_strs.append("included code")
-                if features.get("has_headings"):
-                    feat_strs.append("used headings")
-                if features.get("has_citations"):
-                    feat_strs.append("cited sources")
-                if features.get("word_count"):
-                    feat_strs.append(f"~{features['word_count']} words")
-                if feat_strs:
-                    parts.append(f"  Features: {', '.join(feat_strs)}")
-            parts.append(f"  Excerpt: {resp['excerpt'][:500]}")
+            if resp.get("goal_preview"):
+                parts.append(f"  Task: {resp['goal_preview']}")
+            excerpt = resp.get("excerpt", "")
+            if excerpt:
+                parts.append(f"  {excerpt[:800]}")
 
         return "\n".join(parts)
+
+    # =========================================================================
+    # ADAPTIVE JUDGE SCHEDULING
+    # =========================================================================
+
+    def should_judge_inline(self, domain: str) -> bool:
+        """
+        Decide whether to judge inline (blocking) or background (async).
+
+        Cold start (<10 LLM-judged episodes): inline — we need accurate signal.
+        Stable (>=10 LLM-judged episodes): background — heuristic is calibrated.
+        """
+        conn = self._store._get_conn()
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM episodes WHERE domain = ? "
+            "AND outcome LIKE '%llm_judged%'",
+            (domain,),
+        ).fetchone()
+        judged_count = row["cnt"] if row else 0
+        return judged_count < 10
 
     # =========================================================================
     # BACKGROUND LLM JUDGE — Fire-and-forget quality assessment
@@ -1476,6 +1742,128 @@ class LearningService:
         except RuntimeError:
             # No event loop — skip background judge
             logger.debug("No event loop for background judge, skipping")
+
+    # =========================================================================
+    # TAUTOLOGY FILTER — LLM-based pattern filtering + DB purge
+    # =========================================================================
+
+    _tautology_cache: Dict[str, bool] = {}
+
+    def _is_tautological_pattern(self, domain: str, recommendation: str) -> bool:
+        """Check single pattern against cache, falling back to heuristic."""
+        cache_key = f"{domain}:{recommendation[:100]}"
+        if cache_key in self._tautology_cache:
+            return self._tautology_cache[cache_key]
+        is_taut = self._heuristic_tautology_check(domain, recommendation)
+        self._tautology_cache[cache_key] = is_taut
+        return is_taut
+
+    def _batch_tautology_filter(self, candidates: List[Tuple[str, str, str]]) -> Dict[str, bool]:
+        """
+        Classify multiple patterns in one LLM call.
+
+        Args:
+            candidates: List of (pattern_id, domain, recommendation)
+
+        Returns:
+            Dict mapping pattern_id → is_tautological
+        """
+        uncached = []
+        results: Dict[str, bool] = {}
+        for pid, domain, rec in candidates:
+            cache_key = f"{domain}:{rec[:100]}"
+            if cache_key in self._tautology_cache:
+                results[pid] = self._tautology_cache[cache_key]
+            else:
+                uncached.append((pid, domain, rec))
+
+        if not uncached:
+            return results
+
+        # Build a single batched prompt
+        lines = []
+        for i, (pid, domain, rec) in enumerate(uncached, 1):
+            lines.append(f"{i}. [{domain}] {rec}")
+        prompt = (
+            "For each pattern below, answer YES if it is TAUTOLOGICAL "
+            "(obvious domain convention any competent AI already knows, e.g. "
+            "'for coding tasks: include code examples' or "
+            "'for research tasks: cite sources'), NO if it teaches something non-obvious.\n\n"
+            + "\n".join(lines)
+            + "\n\nRespond with ONLY the numbers and yes/no, one per line. Example:\n1. yes\n2. no"
+        )
+
+        try:
+            import anthropic
+
+            client = anthropic.Anthropic()
+            resp = client.messages.create(
+                model="claude-3-5-haiku-20241022",
+                max_tokens=len(uncached) * 10,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            answer_text = resp.content[0].text.strip().lower()
+
+            for i, (pid, domain, rec) in enumerate(uncached, 1):
+                is_taut = f"{i}. yes" in answer_text or f"{i}.yes" in answer_text
+                results[pid] = is_taut
+                self._tautology_cache[f"{domain}:{rec[:100]}"] = is_taut
+                if is_taut:
+                    logger.debug(f"Tautological: {rec[:80]}")
+        except Exception as e:
+            logger.debug(f"Batch tautology LLM failed, using heuristic: {e}")
+            for pid, domain, rec in uncached:
+                is_taut = self._heuristic_tautology_check(domain, rec)
+                results[pid] = is_taut
+                self._tautology_cache[f"{domain}:{rec[:100]}"] = is_taut
+
+        return results
+
+    def purge_stale_tautological_patterns(self) -> int:
+        """
+        Scan all existing patterns in DB and delete any that are tautological.
+        Returns count of purged patterns.
+        """
+        all_patterns = self._store.get_patterns(limit=500)
+        if not all_patterns:
+            return 0
+
+        candidates = [
+            (p.pattern_id, p.source_domain, p.recommendation)
+            for p in all_patterns
+            if p.pattern_type in ("quality_driver", "causal")
+        ]
+        if not candidates:
+            return 0
+
+        verdicts = self._batch_tautology_filter(candidates)
+        to_delete = [pid for pid, is_taut in verdicts.items() if is_taut]
+        if to_delete:
+            deleted = self._store.delete_patterns(to_delete)
+            logger.info(f"Purged {deleted} tautological patterns from DB")
+            return deleted
+        return 0
+
+    @staticmethod
+    def _heuristic_tautology_check(domain: str, recommendation: str) -> bool:
+        """Fast fallback when LLM is unavailable."""
+        rec_lower = recommendation.lower()
+        obvious = {
+            "coding": ["include code", "code examples", "use headings", "section heading"],
+            "research": ["cite sources", "cite papers", "use headings", "references"],
+            "system_design": ["use headings", "include code", "use diagrams", "code examples"],
+            "economics": ["cite sources", "include math", "mathematical formul"],
+            "data_science": [
+                "include code",
+                "code examples",
+                "include math",
+                "mathematical formul",
+            ],
+        }
+        for phrase in obvious.get(domain, []):
+            if phrase in rec_lower:
+                return True
+        return False
 
     # =========================================================================
     # EXPLORATION ANALYSIS — Close the A/B loop
@@ -1665,13 +2053,13 @@ class LearningService:
         }
         return "; ".join(diagnoses.get(issue, issue) for issue, _ in top_issues)
 
-    def generate_curriculum(self, top_n: int = 3) -> List[Dict[str, Any]]:
+    def generate_curriculum(self, top_n: int = 3, min_episodes: int = 1) -> List[Dict[str, Any]]:
         """
         Generate a learning curriculum: practice tasks for the weakest domains.
 
         Returns a list of suggested practice tasks with rationale.
         """
-        weak = self.identify_weak_domains()
+        weak = self.identify_weak_domains(min_episodes=min_episodes)
         if not weak:
             return []
 
@@ -1735,18 +2123,130 @@ class LearningService:
 
             for template in templates[:1]:
                 task = template.format(**domain_fills)
+                current_q = domain_info["avg_quality"]
+                target_q = min(0.90, current_q + 0.02)
                 curriculum.append(
                     {
                         "domain": domain,
                         "task": task,
-                        "rationale": f"Domain '{domain}' quality={domain_info['avg_quality']:.2f}. "
+                        "rationale": f"Domain '{domain}' quality={current_q:.2f}. "
                         f"Issue: {domain_info['needs']}",
-                        "target_quality": 0.85,
-                        "current_quality": domain_info["avg_quality"],
+                        "target_quality": round(target_q, 3),
+                        "current_quality": current_q,
                     }
                 )
 
         return curriculum
+
+    # =========================================================================
+    # AUTO-CURRICULUM — Execute practice tasks for weak domains
+    # =========================================================================
+
+    async def run_curriculum(
+        self, max_tasks: int = 3, provider: str = "anthropic", min_episodes: int = 1
+    ) -> List[Dict[str, Any]]:
+        """
+        Auto-execute practice tasks for the weakest domains.
+
+        This is the active learning loop:
+        1. Identify weak domains
+        2. Generate targeted practice tasks
+        3. Execute them through the Orchestrator
+        4. Record results (the learning system learns from these too)
+
+        Returns list of practice results.
+        """
+        curriculum = self.generate_curriculum(top_n=max_tasks, min_episodes=min_episodes)
+        if not curriculum:
+            logger.info("Auto-curriculum: no weak domains, skipping")
+            return []
+
+        results = []
+        try:
+            import asyncio
+
+            from Jotty.core.intelligence.orchestration.core.swarm_manager import (
+                Orchestrator,
+            )
+
+            orch = object.__new__(Orchestrator)
+            orch.config = type(
+                "C",
+                (),
+                {
+                    "domain": "general",
+                    "base_path": None,
+                    "learning_wait_timeout_seconds": 0,
+                },
+            )()
+            orch.agents = []
+            orch.mode = "single"
+            orch.runners = {}
+            orch._runners_built = False
+            orch._efficiency_stats = {}
+            orch._intelligence_metrics = {}
+            orch._engine = None
+            orch._learning_ready = asyncio.Event()
+            orch._learning_ready.set()
+
+            for item in curriculum[:max_tasks]:
+                domain = item["domain"]
+                task = item["task"]
+                target_q = item["target_quality"]
+
+                logger.info(
+                    f"Auto-curriculum: practicing {domain} "
+                    f"(current={item['current_quality']:.2f}, target={target_q:.2f})"
+                )
+
+                try:
+                    result = await orch.chat(
+                        message=task + "\n\nDo NOT use any tools.",
+                        provider=provider,
+                        learn=True,
+                    )
+                    content = getattr(result, "content", "")
+                    success = getattr(result, "success", False)
+
+                    response_analysis = analyze_response(content, task) if content else {}
+                    quality = response_analysis.get("quality_score", 0.0)
+
+                    results.append(
+                        {
+                            "domain": domain,
+                            "task": task[:100],
+                            "success": success,
+                            "quality": round(quality, 3),
+                            "target_quality": target_q,
+                            "improved": quality >= target_q,
+                            "content_length": len(content),
+                        }
+                    )
+
+                    logger.info(
+                        f"Auto-curriculum result: {domain} "
+                        f"quality={quality:.3f} (target={target_q:.2f}) "
+                        f"{'IMPROVED' if quality >= target_q else 'needs more practice'}"
+                    )
+
+                except Exception as e:
+                    results.append(
+                        {
+                            "domain": domain,
+                            "task": task[:100],
+                            "success": False,
+                            "quality": 0.0,
+                            "target_quality": target_q,
+                            "improved": False,
+                            "error": str(e)[:200],
+                        }
+                    )
+                    logger.warning(f"Auto-curriculum task failed for {domain}: {e}")
+
+        except Exception as e:
+            logger.error(f"Auto-curriculum execution failed: {e}")
+
+        return results
 
     def improvement_report(self, domain: str = "") -> Dict[str, Any]:
         """Get improvement report for monitoring."""
@@ -1802,10 +2302,14 @@ class LearningService:
         3. Speed patterns (what's fast vs slow)
         4. Domain-specific insights (coding needs code, research needs citations)
         5. Failure avoidance patterns
+
+        Also purges stale tautological patterns from prior runs.
         """
         episodes = self._store.query_episodes(domain=domain, limit=100)
         if len(episodes) < self._min_episodes_for_pattern:
             return
+
+        self.purge_stale_tautological_patterns()
 
         successes = [e for e in episodes if e.success and e.quality >= 0.7]
         failures = [e for e in episodes if not e.success]
@@ -1844,61 +2348,57 @@ class LearningService:
                         )
                     )
 
-        # 2. Quality driver patterns — what structural features appear in best responses
-        if len(high_quality) >= 2:
+        # 2. Quality driver patterns — only from LLM-judged episodes to avoid
+        #    Goodhart's Law (heuristic rewards has_code → pattern says "use code" → circular).
+        #    Tautological patterns are filtered by _is_tautological_pattern() which
+        #    uses LLM classification instead of hardcoded skip lists.
+        llm_judged = [e for e in high_quality if (e.outcome or {}).get("llm_judged")]
+        quality_source = llm_judged if len(llm_judged) >= 2 else high_quality
+        if len(quality_source) >= 2:
             quality_signals: Dict[str, int] = defaultdict(int)
-            for e in high_quality:
+            for e in quality_source:
                 out = e.outcome or {}
                 if out.get("has_code"):
                     quality_signals["include_code"] += 1
-                if out.get("has_headings"):
-                    quality_signals["use_headings"] += 1
-                if out.get("has_numbered_list"):
-                    quality_signals["use_numbered_lists"] += 1
                 if out.get("has_citations"):
                     quality_signals["cite_sources"] += 1
                 if out.get("has_math"):
                     quality_signals["include_math"] += 1
                 if out.get("has_table"):
                     quality_signals["use_tables"] += 1
-                if out.get("word_count", 0) > 2000:
-                    quality_signals["depth_over_2000_words"] += 1
-                ss = out.get("structure_score", 0)
-                if ss > 0.5:
-                    quality_signals["high_structure"] += 1
                 gc = out.get("goal_coverage", 0)
                 if gc > 0.7:
                     quality_signals["high_goal_coverage"] += 1
 
             readable_names = {
                 "include_code": "include code examples with implementations",
-                "use_headings": "organize with clear section headings",
-                "use_numbered_lists": "use numbered lists for sequential steps",
                 "cite_sources": "cite sources, papers, and references",
                 "include_math": "include mathematical formulations where relevant",
                 "use_tables": "use tables for data comparisons",
-                "depth_over_2000_words": "provide in-depth responses (2000+ words)",
-                "high_structure": "use well-structured formatting (headings, lists, code blocks)",
                 "high_goal_coverage": "address all key aspects of the task",
             }
 
             for signal, count in quality_signals.items():
                 if count >= 2:
-                    confidence = count / len(high_quality)
+                    desc = readable_names.get(signal, signal)
+                    recommendation = f"For {domain} tasks: {desc}"
+                    if self._is_tautological_pattern(domain, recommendation):
+                        continue
+
+                    confidence = count / len(quality_source)
                     pattern_id = hashlib.md5(f"quality_{domain}_{signal}".encode()).hexdigest()[:12]
 
-                    desc = readable_names.get(signal, signal)
                     self._store.save_pattern(
                         PatternRecord(
                             pattern_id=pattern_id,
                             source_domain=domain,
                             pattern_type="quality_driver",
                             description=(
-                                f"High-quality {domain} responses tend to {desc} "
-                                f"({count}/{len(high_quality)} top episodes)"
+                                f"LLM-judged high-quality {domain} responses tend to {desc} "
+                                f"({count}/{len(quality_source)} top episodes)"
                             ),
                             conditions={"domain": domain},
-                            recommendation=f"For {domain} tasks: {desc}",
+                            recommendation=recommendation,
                             confidence=confidence,
                             evidence_count=count,
                             applicable_domains=[domain, "general"],
@@ -2007,11 +2507,170 @@ class LearningService:
                         )
                     )
 
+        # 6. CAUSAL patterns — A/B comparison of feature presence vs absence
+        if len(episodes) >= 3:
+            self._extract_causal_patterns(domain, episodes)
+
+        # 7. Cross-domain transfer patterns
+        self._extract_transfer_patterns(domain, episodes)
+
         logger.debug(
             f"Pattern extraction complete for domain={domain}: "
             f"{len(successes)} successes, {len(high_quality)} high-quality, "
             f"{len(failures)} failures"
         )
+
+    def _extract_causal_patterns(self, domain: str, episodes: List[EpisodeRecord]) -> None:
+        """
+        Causal analysis: compare episodes WITH a feature vs WITHOUT.
+        Only records patterns where the causal effect is statistically meaningful.
+        Skips tautological features (code in coding, citations in research).
+        """
+        features_to_test = [
+            ("has_code", "including code examples"),
+            ("has_headings", "using section headings"),
+            ("has_citations", "citing sources"),
+            ("has_table", "using tables"),
+            ("has_numbered_list", "using numbered lists"),
+            ("has_math", "including math formulations"),
+        ]
+
+        successful = [e for e in episodes if e.success and e.quality > 0]
+        if len(successful) < 3:
+            return
+
+        for feature_key, feature_desc in features_to_test:
+            with_feature = [e for e in successful if (e.outcome or {}).get(feature_key)]
+            without_feature = [e for e in successful if not (e.outcome or {}).get(feature_key)]
+
+            if len(with_feature) < 1 or len(without_feature) < 1:
+                continue
+
+            avg_with = sum(e.quality for e in with_feature) / len(with_feature)
+            avg_without = sum(e.quality for e in without_feature) / len(without_feature)
+            delta = avg_with - avg_without
+
+            min_evidence = len(with_feature) + len(without_feature)
+            # Require at least 3 per group and 8 total for statistical meaning
+            if len(with_feature) < 3 or len(without_feature) < 3 or min_evidence < 8:
+                continue
+            if delta < 0.05:
+                # Only save positive "use X" patterns — "avoid X" patterns are
+                # almost always confounded by output length (shorter outputs lack
+                # features AND sometimes score differently, creating a spurious
+                # negative correlation).
+                continue
+
+            recommendation = (
+                f"For {domain} tasks: {feature_desc} "
+                f"(quality boost: +{delta*100:.1f}% across {min_evidence} episodes)"
+            )
+            if self._is_tautological_pattern(domain, recommendation):
+                continue
+
+            pattern_id = hashlib.md5(
+                f"causal_{domain}_{feature_key}_improves".encode()
+            ).hexdigest()[:12]
+
+            self._store.save_pattern(
+                PatternRecord(
+                    pattern_id=pattern_id,
+                    source_domain=domain,
+                    pattern_type="causal",
+                    description=(
+                        f"In {domain}, {feature_desc} improves quality by "
+                        f"{delta*100:.1f}% "
+                        f"(with={avg_with:.3f} [{len(with_feature)} eps] "
+                        f"vs without={avg_without:.3f} [{len(without_feature)} eps])"
+                    ),
+                    conditions={
+                        "domain": domain,
+                        "feature": feature_key,
+                        "direction": "improves",
+                        "delta": round(delta, 4),
+                    },
+                    recommendation=recommendation,
+                    confidence=min(0.95, 0.4 + min(len(with_feature), len(without_feature)) * 0.1),
+                    evidence_count=len(with_feature) + len(without_feature),
+                    applicable_domains=[domain],
+                )
+            )
+
+    def _extract_transfer_patterns(self, domain: str, domain_episodes: List[EpisodeRecord]) -> None:
+        """
+        Cross-domain transfer: if a feature helps in domain A, suggest it for domain B.
+        'Structured headings improved quality 40% in coding → apply to economics too.'
+        """
+        # Get causal patterns from THIS domain
+        patterns = self._store.get_patterns(domain=domain)
+        causal = [p for p in patterns if p.pattern_type == "causal"]
+
+        if not causal:
+            return
+
+        # Get all OTHER domains
+        conn = self._store._get_conn()
+        rows = conn.execute(
+            "SELECT DISTINCT domain FROM episodes WHERE domain != ? AND domain != ''",
+            (domain,),
+        ).fetchall()
+        other_domains = [r["domain"] for r in rows]
+
+        for pattern in causal:
+            delta = pattern.conditions.get("delta", 0)
+            feature = pattern.conditions.get("feature", "")
+            direction = pattern.conditions.get("direction", "")
+
+            if abs(delta) < 0.05 or direction != "improves":
+                continue
+
+            for other_domain in other_domains:
+                # Check if this feature is already tested in the other domain
+                other_patterns = self._store.get_patterns(domain=other_domain)
+                already_tested = any(
+                    p.pattern_type == "causal" and p.conditions.get("feature") == feature
+                    for p in other_patterns
+                )
+                if already_tested:
+                    continue
+
+                pattern_id = hashlib.md5(
+                    f"transfer_{domain}_{other_domain}_{feature}".encode()
+                ).hexdigest()[:12]
+
+                feature_desc = {
+                    "has_code": "including code examples",
+                    "has_headings": "using section headings",
+                    "has_citations": "citing sources",
+                    "has_table": "using tables",
+                    "has_numbered_list": "using numbered lists",
+                    "has_math": "including math formulations",
+                }.get(feature, feature)
+
+                self._store.save_pattern(
+                    PatternRecord(
+                        pattern_id=pattern_id,
+                        source_domain=domain,
+                        pattern_type="cross_domain_transfer",
+                        description=(
+                            f"In {domain}, {feature_desc} improved quality by "
+                            f"{delta*100:.1f}%. Transfer hypothesis: apply to {other_domain}."
+                        ),
+                        conditions={
+                            "source_domain": domain,
+                            "target_domain": other_domain,
+                            "feature": feature,
+                            "source_delta": round(delta, 4),
+                        },
+                        recommendation=(
+                            f"Try {feature_desc} in {other_domain} tasks — "
+                            f"it improved {domain} quality by {delta*100:.1f}%"
+                        ),
+                        confidence=min(0.6, 0.3 + abs(delta)),
+                        evidence_count=pattern.evidence_count,
+                        applicable_domains=[other_domain, domain],
+                    )
+                )
 
     def _get_best_action(self, domain: str, task_type: str) -> Optional[Dict[str, Any]]:
         """Find the highest-value action for this state."""
@@ -2036,11 +2695,11 @@ class LearningService:
         """Get success rate with caching."""
         key = f"{domain}:{task_type}"
         cached = self._success_rate_cache.get(key)
-        if cached and (time.time() - cached[1]) < self._cache_ttl:
-            return cached[0], int(cached[1])  # Using cached timestamp slot for total
+        if cached and (time.time() - cached[2]) < self._cache_ttl:
+            return cached[0], cached[1]
 
         rate, total = self._store.get_success_rate(domain, task_type)
-        self._success_rate_cache[key] = (rate, time.time())
+        self._success_rate_cache[key] = (rate, total, time.time())
         return rate, total
 
     def _get_cached_patterns(self, domain: str) -> List[PatternRecord]:

@@ -1,0 +1,356 @@
+{
+  "timestamp": "2026-02-18T20:56:10.267674",
+  "version": 2,
+  "results": [
+    {
+      "task_id": "BASELINE_coding",
+      "domain": "coding",
+      "detected_domain": "coding",
+      "success": true,
+      "error": null,
+      "content_length": 26796,
+      "min_length": 2000,
+      "length_ok": true,
+      "checks_passed": 7,
+      "checks_total": 7,
+      "checks_detail": {
+        "class": true,
+        "deque": true,
+        "steal": true,
+        "fork": true,
+        "join": true,
+        "test": true,
+        "deadlock": true
+      },
+      "quality_score": 0.931,
+      "elapsed_seconds": 93.17,
+      "episodes_before": 15,
+      "episodes_after": 15,
+      "episodes_added": 0,
+      "thompson_strategy": "thompson_sampling",
+      "thompson_paradigm": "direct",
+      "thompson_exploration": true,
+      "thompson_reason": "thompson: trying untried paradigm=direct",
+      "retrieval_examples": 2,
+      "content_preview": "I'll implement a production-quality work-stealing thread pool in Python with all the features you requested.\n\n```python\nimport threading\nimport time\nimport queue\nimport weakref\nimport psutil\nimport os\nfrom collections import deque\nfrom abc import ABC, abstractmethod\nfrom typing import Any, List, Optional, Callable, Set\nfrom concurrent.futures import Future\nfrom dataclasses import dataclass\nfrom enum import Enum\nimport random\nimport logging\n\n# Configure logging\nlogging.basicConfig(level=logging.I"
+    },
+    {
+      "task_id": "R1_coding",
+      "domain": "coding",
+      "detected_domain": "coding",
+      "success": true,
+      "error": null,
+      "content_length": 20718,
+      "min_length": 2000,
+      "length_ok": true,
+      "checks_passed": 7,
+      "checks_total": 7,
+      "checks_detail": {
+        "class": true,
+        "insert": true,
+        "delete": true,
+        "search": true,
+        "threading": true,
+        "cas": true,
+        "test": true
+      },
+      "quality_score": 0.911,
+      "elapsed_seconds": 81.19,
+      "episodes_before": 15,
+      "episodes_after": 16,
+      "episodes_added": 1,
+      "thompson_strategy": "thompson_sampling",
+      "thompson_paradigm": "relay",
+      "thompson_exploration": true,
+      "thompson_reason": "thompson: paradigm=relay under-explored",
+      "retrieval_examples": 2,
+      "content_preview": "I'll implement a lock-free concurrent skip list in Python with proper memory safety and linearizability. This is indeed challenging, especially the delete operation.\n\n```python\nimport threading\nimport ctypes\nimport random\nimport time\nfrom typing import Optional, Any, List\nfrom dataclasses import dataclass\n\nclass AtomicPointer:\n    \"\"\"Atomic pointer wrapper using ctypes for CAS operations\"\"\"\n    \n    def __init__(self, initial_value=None):\n        self._value = ctypes.py_object(initial_value)\n   "
+    },
+    {
+      "task_id": "R1_economics",
+      "domain": "economics",
+      "detected_domain": "economics",
+      "success": true,
+      "error": null,
+      "content_length": 8673,
+      "min_length": 2500,
+      "length_ok": true,
+      "checks_passed": 6,
+      "checks_total": 6,
+      "checks_detail": {
+        "acemoglu": true,
+        "production function": true,
+        "bellman": true,
+        "gini": true,
+        "mirrlees": true,
+        "equilibrium": true
+      },
+      "quality_score": 0.898,
+      "elapsed_seconds": 62.29,
+      "episodes_before": 16,
+      "episodes_after": 17,
+      "episodes_added": 1,
+      "thompson_strategy": "thompson_sampling",
+      "thompson_paradigm": "refinement",
+      "thompson_exploration": true,
+      "thompson_reason": "thompson: trying untried paradigm=refinement",
+      "retrieval_examples": 2,
+      "content_preview": "# Formal Economic Model of AI-Induced Labor Market Disruption\n\n## 1. FORMAL MODEL\n\nFollowing Acemoglu & Restrepo (2018), I construct a task-based production framework where AI automation creates endogenous task reallocation.\n\n### Production Function\n\nThe aggregate production function is:\n\n$$Y = \\left[\\int_0^1 y(i)^{\\frac{\\sigma-1}{\\sigma}} di\\right]^{\\frac{\\sigma}{\\sigma-1}}$$\n\nwhere $y(i)$ is output of task $i$ and $\\sigma > 1$ is the elasticity of substitution between tasks.\n\nEach task $i$ can"
+    },
+    {
+      "task_id": "R1_system_design",
+      "domain": "system_design",
+      "detected_domain": "system_design",
+      "success": true,
+      "error": null,
+      "content_length": 14224,
+      "min_length": 2000,
+      "length_ok": true,
+      "checks_passed": 6,
+      "checks_total": 6,
+      "checks_detail": {
+        "crdt": true,
+        "rga": true,
+        "vector clock": true,
+        "tombstone": true,
+        "bandwidth": true,
+        "latency": true
+      },
+      "quality_score": 0.907,
+      "elapsed_seconds": 73.46,
+      "episodes_before": 17,
+      "episodes_after": 18,
+      "episodes_added": 1,
+      "thompson_strategy": "thompson_sampling",
+      "thompson_paradigm": "debate",
+      "thompson_exploration": false,
+      "thompson_reason": "",
+      "retrieval_examples": 2,
+      "content_preview": "# CRDT-Based Collaborative Text Editor for 10M Concurrent Users\n\n## 1. CRDT ALGORITHM: RGA (Replicated Growable Array)\n\n### Data Structure\n\n```rust\n#[derive(Clone, Debug)]\nstruct RGANode {\n    id: UID,           // Unique identifier (site_id, counter)\n    content: char,     // Character content\n    tombstone: bool,   // Deleted but not GC'd\n    left: Option<UID>, // Left neighbor UID\n}\n\n#[derive(Clone, Debug)]\nstruct UID {\n    site_id: u64,    // Unique site identifier\n    counter: u64,    // Mo"
+    },
+    {
+      "task_id": "R2_coding",
+      "domain": "coding",
+      "detected_domain": "coding",
+      "success": true,
+      "error": null,
+      "content_length": 23771,
+      "min_length": 2000,
+      "length_ok": true,
+      "checks_passed": 7,
+      "checks_total": 7,
+      "checks_detail": {
+        "class": true,
+        "deque": true,
+        "steal": true,
+        "fork": true,
+        "join": true,
+        "test": true,
+        "deadlock": true
+      },
+      "quality_score": 0.919,
+      "elapsed_seconds": 87.33,
+      "episodes_before": 20,
+      "episodes_after": 21,
+      "episodes_added": 1,
+      "thompson_strategy": "thompson_sampling",
+      "thompson_paradigm": "relay",
+      "thompson_exploration": true,
+      "thompson_reason": "thompson: paradigm=relay under-explored",
+      "retrieval_examples": 2,
+      "content_preview": "I'll implement a production-quality work-stealing thread pool in Python. Here's the complete implementation:\n\n## Core Implementation\n\n```python\nimport threading\nimport time\nimport queue\nimport weakref\nfrom collections import deque\nfrom concurrent.futures import Future\nfrom typing import Any, Callable, Optional, List, Dict, Set\nfrom abc import ABC, abstractmethod\nimport psutil\nimport random\n\nclass WorkStealingDeque:\n    \"\"\"Lock-free work-stealing deque using fine-grained locking.\"\"\"\n    \n    def "
+    },
+    {
+      "task_id": "R2_economics",
+      "domain": "economics",
+      "detected_domain": "economics",
+      "success": true,
+      "error": null,
+      "content_length": 9031,
+      "min_length": 2500,
+      "length_ok": true,
+      "checks_passed": 6,
+      "checks_total": 6,
+      "checks_detail": {
+        "euler": true,
+        "phillips": true,
+        "taylor": true,
+        "cbdc": true,
+        "steady state": true,
+        "diamond": true
+      },
+      "quality_score": 0.93,
+      "elapsed_seconds": 70.38,
+      "episodes_before": 21,
+      "episodes_after": 22,
+      "episodes_added": 1,
+      "thompson_strategy": "thompson_sampling",
+      "thompson_paradigm": "direct",
+      "thompson_exploration": true,
+      "thompson_reason": "thompson: paradigm=direct under-explored",
+      "retrieval_examples": 2,
+      "content_preview": "# A DSGE Model of Monetary Policy with Central Bank Digital Currency\n\n## I. Model Setup\n\n### 1.1 Three-Sector Framework\n\nConsider a closed economy with three sectors:\n- **Households**: Optimize consumption, labor supply, and portfolio allocation across cash (C), bank deposits (D), and CBDC (B)\n- **Firms**: Set prices under Calvo pricing with nominal rigidities\n- **Central Bank**: Conducts monetary policy through conventional interest rates and CBDC rate\n\n### 1.2 Money in Utility Specification\n\nT"
+    },
+    {
+      "task_id": "R2_system_design",
+      "domain": "system_design",
+      "detected_domain": "system_design",
+      "success": true,
+      "error": null,
+      "content_length": 26237,
+      "min_length": 2500,
+      "length_ok": true,
+      "checks_passed": 6,
+      "checks_total": 6,
+      "checks_detail": {
+        "prediction": true,
+        "reconciliation": true,
+        "interpolation": true,
+        "elo": true,
+        "spatial": true,
+        "tick": true
+      },
+      "quality_score": 0.961,
+      "elapsed_seconds": 113.33,
+      "episodes_before": 22,
+      "episodes_after": 23,
+      "episodes_added": 1,
+      "thompson_strategy": "thompson_sampling",
+      "thompson_paradigm": "refinement",
+      "thompson_exploration": true,
+      "thompson_reason": "thompson: trying untried paradigm=refinement",
+      "retrieval_examples": 2,
+      "content_preview": "# Real-Time Multiplayer Game Server Infrastructure\n## Supporting 1M Concurrent Players with Authoritative Server Model\n\n---\n\n## 1. NETCODE: Client-Side Prediction & Server Reconciliation\n\n### State Buffer Design\n```cpp\nstruct GameState {\n    uint32_t tick;\n    Vector3 position;\n    Quaternion rotation;\n    float velocity;\n    uint32_t timestamp;\n    uint32_t hash; // integrity check\n};\n\nclass StateBuffer {\n    std::deque<GameState> buffer;\n    static const size_t MAX_BUFFER_SIZE = 1024; // ~17 s"
+    }
+  ],
+  "learning_snapshots": [
+    {
+      "label": "initial",
+      "timestamp": 1771427696.3618865,
+      "episode_count": 15,
+      "context_string_length": 0,
+      "domain": "general"
+    },
+    {
+      "label": "before_BASELINE_coding",
+      "timestamp": 1771427698.7895687,
+      "episode_count": 15,
+      "context_string_length": 137,
+      "domain": "coding"
+    },
+    {
+      "label": "after_BASELINE_coding",
+      "timestamp": 1771427791.95885,
+      "episode_count": 15,
+      "context_string_length": 137,
+      "domain": "coding"
+    },
+    {
+      "label": "before_R1_coding",
+      "timestamp": 1771427791.9646673,
+      "episode_count": 15,
+      "context_string_length": 137,
+      "domain": "coding"
+    },
+    {
+      "label": "after_R1_coding",
+      "timestamp": 1771427873.1528833,
+      "episode_count": 16,
+      "context_string_length": 137,
+      "domain": "coding"
+    },
+    {
+      "label": "before_R1_economics",
+      "timestamp": 1771427873.1574078,
+      "episode_count": 16,
+      "context_string_length": 396,
+      "domain": "economics"
+    },
+    {
+      "label": "after_R1_economics",
+      "timestamp": 1771427935.4451282,
+      "episode_count": 17,
+      "context_string_length": 396,
+      "domain": "economics"
+    },
+    {
+      "label": "before_R1_system_design",
+      "timestamp": 1771427935.446735,
+      "episode_count": 17,
+      "context_string_length": 489,
+      "domain": "system_design"
+    },
+    {
+      "label": "after_R1_system_design",
+      "timestamp": 1771428008.9038482,
+      "episode_count": 18,
+      "context_string_length": 489,
+      "domain": "system_design"
+    },
+    {
+      "label": "mid_round",
+      "timestamp": 1771428008.906652,
+      "episode_count": 18,
+      "context_string_length": 0,
+      "domain": "general"
+    },
+    {
+      "label": "post_curriculum",
+      "timestamp": 1771428099.2010212,
+      "episode_count": 20,
+      "context_string_length": 0,
+      "domain": "general"
+    },
+    {
+      "label": "before_R2_coding",
+      "timestamp": 1771428099.2018328,
+      "episode_count": 20,
+      "context_string_length": 137,
+      "domain": "coding"
+    },
+    {
+      "label": "after_R2_coding",
+      "timestamp": 1771428186.5307224,
+      "episode_count": 21,
+      "context_string_length": 137,
+      "domain": "coding"
+    },
+    {
+      "label": "before_R2_economics",
+      "timestamp": 1771428186.5359397,
+      "episode_count": 21,
+      "context_string_length": 396,
+      "domain": "economics"
+    },
+    {
+      "label": "after_R2_economics",
+      "timestamp": 1771428256.9227588,
+      "episode_count": 22,
+      "context_string_length": 411,
+      "domain": "economics"
+    },
+    {
+      "label": "before_R2_system_design",
+      "timestamp": 1771428256.9249623,
+      "episode_count": 22,
+      "context_string_length": 489,
+      "domain": "system_design"
+    },
+    {
+      "label": "after_R2_system_design",
+      "timestamp": 1771428370.2611454,
+      "episode_count": 23,
+      "context_string_length": 505,
+      "domain": "system_design"
+    },
+    {
+      "label": "final",
+      "timestamp": 1771428370.2659802,
+      "episode_count": 23,
+      "context_string_length": 0,
+      "domain": "general"
+    }
+  ],
+  "initial_episodes": 15,
+  "final_episodes": 23
+}

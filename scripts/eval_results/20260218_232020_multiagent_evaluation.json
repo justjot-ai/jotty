@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-02-18T23:20:20.210122",
+  "results": [
+    {
+      "task_id": "S1_raft_single",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8792,
+      "content_length": 7489,
+      "checks_passed": 8,
+      "checks_total": 8,
+      "elapsed_seconds": 33.45540475845337,
+      "episodes_before": 26,
+      "episodes_after": 26,
+      "error": null
+    },
+    {
+      "task_id": "P1_consensus_raft",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8852,
+      "content_length": 19605,
+      "checks_passed": 19,
+      "checks_total": 19,
+      "elapsed_seconds": 86.95222520828247,
+      "episodes_before": 26,
+      "episodes_after": 29,
+      "stages": [
+        {
+          "name": "formal_model",
+          "success": true,
+          "time": 25.00784468650818,
+          "output_length": 4182
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 29.413180589675903,
+          "output_length": 6954
+        },
+        {
+          "name": "adversarial_testing",
+          "success": true,
+          "time": 28.68656277656555,
+          "output_length": 8393
+        }
+      ],
+      "error": null
+    },
+    {
+      "task_id": "P_R2_crdt_system",
+      "domain": "coding",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8417333333333334,
+      "content_length": 10744,
+      "checks_passed": 15,
+      "checks_total": 18,
+      "elapsed_seconds": 58.42439556121826,
+      "episodes_before": 34,
+      "episodes_after": 34,
+      "stages": [
+        {
+          "name": "theory",
+          "success": true,
+          "time": 20.55721950531006,
+          "output_length": 3469
+        },
+        {
+          "name": "implementation",
+          "success": true,
+          "time": 14.493662595748901,
+          "output_length": 2935
+        },
+        {
+          "name": "verification",
+          "success": true,
+          "time": 19.038877964019775,
+          "output_length": 4277
+        }
+      ],
+      "error": null
+    }
+  ]
+}

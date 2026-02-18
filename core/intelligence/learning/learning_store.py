@@ -475,6 +475,22 @@ class LearningStore:
         rows = conn.execute(query, params).fetchall()
         return [self._row_to_pattern(row) for row in rows]
 
+    def delete_patterns(self, pattern_ids: List[str]) -> int:
+        """Delete patterns by their IDs. Returns count of deleted rows."""
+        if not pattern_ids:
+            return 0
+        conn = self._get_conn()
+        placeholders = ",".join("?" * len(pattern_ids))
+        cursor = conn.execute(
+            f"DELETE FROM patterns WHERE pattern_id IN ({placeholders})",
+            pattern_ids,
+        )
+        conn.commit()
+        deleted = cursor.rowcount
+        if deleted:
+            logger.info(f"Deleted {deleted} patterns")
+        return deleted
+
     def _row_to_pattern(self, row: sqlite3.Row) -> PatternRecord:
         return PatternRecord(
             pattern_id=row["pattern_id"],
@@ -643,9 +659,13 @@ class LearningStore:
     def get_failure_analysis(
         self, domain: str = "", task_type: str = "", limit: int = 10
     ) -> List[Dict[str, Any]]:
-        """Get recent failures with error details for causal analysis."""
+        """Get recent failures AND low-quality episodes for learning.
+
+        Returns episodes where success=0 OR quality < 0.6, ordered by
+        most recent first.
+        """
         conn = self._get_conn()
-        conditions = ["success = 0"]
+        conditions = ["(success = 0 OR quality < 0.6)"]
         params: list = []
 
         if domain:
@@ -658,7 +678,7 @@ class LearningStore:
         where = f"WHERE {' AND '.join(conditions)}"
         rows = conn.execute(
             f"""SELECT episode_id, unit_name, task_type, error_type, error_message,
-                       context, action, outcome, timestamp
+                       context, action, outcome, quality, timestamp
                 FROM episodes {where}
                 ORDER BY timestamp DESC LIMIT ?""",
             params + [limit],
@@ -669,8 +689,14 @@ class LearningStore:
                 "episode_id": row["episode_id"],
                 "unit_name": row["unit_name"],
                 "task_type": row["task_type"],
-                "error_type": row["error_type"],
-                "error_message": row["error_message"],
+                "error_type": row["error_type"]
+                or ("low_quality" if row.get("quality", 1) < 0.6 else ""),
+                "error_message": row["error_message"]
+                or (
+                    f"Quality was {row.get('quality', 0):.2f} — below threshold"
+                    if row.get("quality", 1) < 0.6
+                    else ""
+                ),
                 "context": json.loads(row["context"]),
                 "action": json.loads(row["action"]),
                 "outcome": json.loads(row["outcome"]),
