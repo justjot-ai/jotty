@@ -1,0 +1,120 @@
+
+======================================================================
+  JOTTY SINGLE-SHOT LEARNING EVALUATION
+======================================================================
+
+  Date: 2026-02-19T04:31:02.997612
+  Model: claude-3-haiku-20240307
+  Mode: SINGLE-SHOT — entire task in one call, 4096 max tokens
+  Learning curve: 4 tasks (same domain, sequential)
+  A/B test: same task with vs without learning
+  Goal: does quality improve as learning accumulates?
+  Initial episodes: 0
+
+======================================================================
+  ROUND 1/4 — S1_raft (cold start, 0 prior episodes)
+======================================================================
+
+
+  --- Single-shot: S1_raft ---
+
+  [PASS] Quality=0.74 | Checks=14/15 | Length=4935 | Time=12.8s
+  Waiting for background learning...
+
+======================================================================
+  ROUND 2/4 — S2_crdt (0 episodes of learning)
+======================================================================
+
+
+  --- Single-shot: S2_crdt ---
+
+  [PASS] Quality=0.86 | Checks=14/14 | Length=7442 | Time=19.6s
+  Waiting for background learning...
+
+======================================================================
+  ROUND 3/4 — S3_dist_lock (0 episodes of learning)
+======================================================================
+
+
+  --- Single-shot: S3_dist_lock ---
+
+  [PASS] Quality=0.64 | Checks=8/15 | Length=5294 | Time=12.4s
+  Waiting for background learning...
+
+======================================================================
+  ROUND 4/4 — S4_event_source (3 episodes of learning)
+======================================================================
+
+
+  --- Single-shot: S4_event_source ---
+
+  [PASS] Quality=0.87 | Checks=13/14 | Length=6531 | Time=15.6s
+  Waiting for background learning...
+
+======================================================================
+  A/B TEST — Same task: without learning vs with learning
+======================================================================
+
+  Episodes available: 3
+
+  --- A: NO LEARNING (learn=False) ---
+
+  --- Single-shot: AB_no_learn [NO LEARNING] ---
+
+  [PASS] Quality=0.53 | Checks=6/12 | Length=3080 | Time=6.1s
+
+  --- B: WITH LEARNING (learn=True) ---
+
+  --- Single-shot: AB_with_learn ---
+
+  [PASS] Quality=0.56 | Checks=7/12 | Length=3784 | Time=15.4s
+
+======================================================================
+  ANALYSIS
+======================================================================
+
+
+  --- CREDIT ASSIGNMENT ANALYSIS ---
+
+  Credit Assigner: CreditAssignment
+  No credit records yet.
+
+  Credit summary: 0 patterns, 0 applications, avg_direct=0.000
+
+  Adaptive credit weights: AdaptiveWeightGroup(base_reward=0.300, cooperation_bonus=0.400, predictability_bonus=0.300)
+
+  Effectiveness report:
+    _global             : recent=0.00 historical=0.00 trend=+0.00
+
+  --- LEARNING STATE ANALYSIS ---
+
+  system_design  : 5 episodes, rate=100%, context=0 chars, retrieval=0 chars
+
+  Total patterns: 0
+
+  --- FINAL RESULTS ---
+
+  [PASS] S1_raft                   Q=0.74 Checks=14/15 Len=  4935 Time=13s Ep=0→0
+  [PASS] S2_crdt                   Q=0.86 Checks=14/14 Len=  7442 Time=20s Ep=0→0
+  [PASS] S3_dist_lock              Q=0.64 Checks=8/15 Len=  5294 Time=12s Ep=0→3
+  [PASS] S4_event_source           Q=0.87 Checks=13/14 Len=  6531 Time=16s Ep=3→3
+  [PASS] AB_no_learn               Q=0.53 Checks=6/12 Len=  3080 Time=6s Ep=3→3 [NO-LEARN]
+  [PASS] AB_with_learn             Q=0.56 Checks=7/12 Len=  3784 Time=15s Ep=3→3
+
+  --- A/B TEST — SAME TASK ---
+
+  Without learning: Q=0.53 Checks=50%
+  With learning:    Q=0.56 Checks=58%
+  Delta: +0.03 → LEARNING WINS
+
+  --- SCORES ---
+
+  Success Rate              [####################] 100.0%
+  Avg Quality               [##############------]  73.5%
+  Episodes Recorded         [######--------------]  30.0%
+  A/B Learning Δ            [#############-------]  66.7%
+  Credit Assignment         [--------------------]   0.0%
+
+  OVERALL: [***..] 54.0%
+
+  Report saved: /var/www/sites/personal/stock_market/Jotty/scripts/eval_results/20260219_043307_single_learning.json

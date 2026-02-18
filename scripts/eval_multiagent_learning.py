@@ -1188,8 +1188,8 @@ class MultiAgentEval:
                 await self.run_single_task(task, learn=True)
             else:
                 await self.run_pipeline_task(task, learn=True)
-            print("  Waiting for background learning...")
-            await asyncio.sleep(3)
+            print("  Waiting for background learning (LLM judge)...")
+            await asyncio.sleep(20)
 
         # ── A/B TEST ──
         separator("A/B TEST — Same task: without learning vs with learning")
@@ -1207,7 +1207,7 @@ class MultiAgentEval:
             await self.run_single_task({**ab_task, "id": "AB_with_learn"}, learn=True)
         else:
             await self.run_pipeline_task({**AB_TEST_TASK, "id": "AB_with_learn"}, learn=True)
-        await asyncio.sleep(3)
+        await asyncio.sleep(20)
 
         # ── ANALYSIS ──
         separator("ANALYSIS")

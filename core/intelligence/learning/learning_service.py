@@ -1648,7 +1648,19 @@ class LearningService:
         """
         Build a context string with structural digests of prior successful responses.
         Shows HOW the best responses were structured, not just feature checklists.
+
+        Uses the same adaptive gate as build_context_string — only inject when
+        the model is struggling or cold-starting, never when already succeeding.
         """
+        guidance = self.query(domain, task_type)
+        total = guidance.get("total_episodes", 0)
+        rate = guidance.get("success_rate", 0.0)
+
+        has_failures = rate < 0.90 and total >= 5
+        is_cold_start = total < 5
+        if not has_failures and not is_cold_start:
+            return ""
+
         similar = self.retrieve_similar_responses(domain, task_type, goal, top_k=2)
         if not similar:
             return ""

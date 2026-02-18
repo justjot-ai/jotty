@@ -1,0 +1,91 @@
+{
+  "timestamp": "2026-02-19T04:26:35.016375",
+  "model": "claude-3-haiku-20240307",
+  "mode": "single",
+  "results": [
+    {
+      "task_id": "S1_raft",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.6281333333333333,
+      "content_length": 3841,
+      "checks_passed": 11,
+      "checks_total": 15,
+      "elapsed_seconds": 13.99608039855957,
+      "episodes_before": 0,
+      "episodes_after": 0,
+      "error": null
+    },
+    {
+      "task_id": "S2_crdt",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8428,
+      "content_length": 9082,
+      "checks_passed": 14,
+      "checks_total": 14,
+      "elapsed_seconds": 29.913841485977173,
+      "episodes_before": 0,
+      "episodes_after": 0,
+      "error": null
+    },
+    {
+      "task_id": "S3_dist_lock",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.6676,
+      "content_length": 6397,
+      "checks_passed": 9,
+      "checks_total": 15,
+      "elapsed_seconds": 12.793458461761475,
+      "episodes_before": 0,
+      "episodes_after": 3,
+      "error": null
+    },
+    {
+      "task_id": "S4_event_source",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8644000000000001,
+      "content_length": 9203,
+      "checks_passed": 14,
+      "checks_total": 14,
+      "elapsed_seconds": 21.316898822784424,
+      "episodes_before": 3,
+      "episodes_after": 3,
+      "error": null
+    },
+    {
+      "task_id": "AB_no_learn",
+      "domain": "system_design",
+      "learn": false,
+      "success": true,
+      "quality_score": 0.8872,
+      "content_length": 9176,
+      "checks_passed": 12,
+      "checks_total": 12,
+      "elapsed_seconds": 19.212732076644897,
+      "episodes_before": 3,
+      "episodes_after": 3,
+      "error": null
+    },
+    {
+      "task_id": "AB_with_learn",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.5633333333333334,
+      "content_length": 3683,
+      "checks_passed": 7,
+      "checks_total": 12,
+      "elapsed_seconds": 10.134369134902954,
+      "episodes_before": 3,
+      "episodes_after": 3,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+
+======================================================================
+  JOTTY SINGLE-SHOT LEARNING EVALUATION
+======================================================================
+
+  Date: 2026-02-19T04:34:15.865298
+  Model: claude-3-haiku-20240307
+  Mode: SINGLE-SHOT — entire task in one call, 4096 max tokens
+  Learning curve: 4 tasks (same domain, sequential)
+  A/B test: same task with vs without learning
+  Goal: does quality improve as learning accumulates?
+  Initial episodes: 0
+
+======================================================================
+  ROUND 1/4 — S1_raft (cold start, 0 prior episodes)
+======================================================================
+
+
+  --- Single-shot: S1_raft ---
+
+  [PASS] Quality=0.63 | Checks=11/15 | Length=3118 | Time=9.5s
+  Waiting for background learning (LLM judge)...
+
+======================================================================
+  ROUND 2/4 — S2_crdt (0 episodes of learning)
+======================================================================
+
+
+  --- Single-shot: S2_crdt ---
+
+  [PASS] Quality=0.84 | Checks=14/14 | Length=7258 | Time=20.2s
+  Waiting for background learning (LLM judge)...
+
+======================================================================
+  ROUND 3/4 — S3_dist_lock (2 episodes of learning)
+======================================================================
+
+
+  --- Single-shot: S3_dist_lock ---
+
+  [PASS] Quality=0.67 | Checks=9/15 | Length=5772 | Time=12.0s
+  Waiting for background learning (LLM judge)...

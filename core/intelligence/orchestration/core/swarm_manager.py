@@ -3380,10 +3380,12 @@ class Orchestrator:
                 logger.debug(f"LearningService episode start failed: {e}")
 
             # Inject learning context: domain guidance + retrieval-augmented examples
+            # All context injection respects the adaptive gate — only inject when
+            # the model is struggling (success_rate < 90%) or cold-starting (< 5 episodes).
             try:
                 ctx_parts: List[str] = []
 
-                # 1. Domain-specific guidance (stats, patterns, best approach)
+                # 1. Domain-specific guidance (has its own adaptive gate)
                 domain_ctx = learning.build_context_string(
                     domain=detected_domain, task_type=detected_task_type
                 )
@@ -3396,33 +3398,34 @@ class Orchestrator:
                     if general_ctx and general_ctx != domain_ctx:
                         ctx_parts.append(general_ctx)
 
-                # 3. Retrieval-augmented: actual excerpts from best prior responses
+                # 3. Retrieval-augmented examples (has its own adaptive gate)
                 retrieval_ctx = learning.build_retrieval_context(
                     domain=detected_domain, task_type=detected_task_type, goal=message
                 )
                 if retrieval_ctx:
                     ctx_parts.append(retrieval_ctx)
 
-                # 4. Paradigm guidance from Thompson Sampling
-                paradigm = optimal_params.get("paradigm")
-                if paradigm:
-                    paradigm_guidance = {
-                        "direct": "Respond directly and comprehensively in a single pass.",
-                        "relay": "Break the task into sequential sub-tasks. Address each in order.",
-                        "debate": "Consider multiple perspectives. Present arguments for and against before concluding.",
-                        "refinement": "Draft an initial response, then critically review and improve it.",
-                    }
-                    guidance = paradigm_guidance.get(paradigm, "")
-                    if guidance:
-                        ctx_parts.append(f"[APPROACH] Use {paradigm} paradigm: {guidance}")
+                # 4-5. Paradigm + tool guidance only when adaptive gate is open
+                # (i.e., domain_ctx or retrieval_ctx was non-empty)
+                if ctx_parts:
+                    paradigm = optimal_params.get("paradigm")
+                    if paradigm:
+                        paradigm_guidance = {
+                            "direct": "Respond directly and comprehensively in a single pass.",
+                            "relay": "Break the task into sequential sub-tasks. Address each in order.",
+                            "debate": "Consider multiple perspectives. Present arguments for and against before concluding.",
+                            "refinement": "Draft an initial response, then critically review and improve it.",
+                        }
+                        guidance = paradigm_guidance.get(paradigm, "")
+                        if guidance:
+                            ctx_parts.append(f"[APPROACH] Use {paradigm} paradigm: {guidance}")
 
-                # 5. Tool routing guidance
-                tools_hint = optimal_params.get("tools_hint")
-                if tools_hint:
-                    ctx_parts.append(
-                        f"[TOOL GUIDANCE] Recommended tools for {detected_domain}: "
-                        + ", ".join(tools_hint)
-                    )
+                    tools_hint = optimal_params.get("tools_hint")
+                    if tools_hint:
+                        ctx_parts.append(
+                            f"[TOOL GUIDANCE] Recommended tools for {detected_domain}: "
+                            + ", ".join(tools_hint)
+                        )
 
                 if ctx_parts:
                     kwargs.setdefault("learning_context", "")
