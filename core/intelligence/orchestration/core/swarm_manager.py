@@ -2979,24 +2979,41 @@ class Orchestrator:
         learning = LearningService.get_instance()
         run_start = _time.time()
 
-        # ── PRE-EXECUTION: classify domain + inject learning guidance ──
+        # ── PRE-EXECUTION: classify domain + learning-steered params ──
         detected_domain, detected_task_type = classify_domain(goal)
+        optimal_params: Dict[str, Any] = {}
 
         if learn:
-            # Inject domain-specific learning context
+            # Get optimal execution parameters from learning
             try:
+                optimal_params = learning.get_optimal_execution_params(
+                    domain=detected_domain,
+                    task_type=detected_task_type,
+                    goal=goal,
+                )
+            except Exception:
+                pass
+
+            # Inject learning context + retrieval-augmented examples
+            try:
+                ctx_parts: List[str] = []
                 guidance_str = learning.build_context_string(
                     domain=detected_domain, task_type=detected_task_type
                 )
                 if guidance_str:
-                    kwargs.setdefault("learning_context", "")
-                    kwargs["learning_context"] += "\n" + guidance_str
-
-                # Also inject general guidance if domain != general
+                    ctx_parts.append(guidance_str)
                 if detected_domain != "general":
                     general_str = learning.build_context_string(domain="general", task_type="run")
                     if general_str and general_str != guidance_str:
-                        kwargs["learning_context"] += "\n" + general_str
+                        ctx_parts.append(general_str)
+                retrieval_ctx = learning.build_retrieval_context(
+                    domain=detected_domain, task_type=detected_task_type, goal=goal
+                )
+                if retrieval_ctx:
+                    ctx_parts.append(retrieval_ctx)
+                if ctx_parts:
+                    kwargs.setdefault("learning_context", "")
+                    kwargs["learning_context"] += "\n" + "\n".join(ctx_parts)
             except Exception as e:
                 logger.debug(f"Pre-execution learning guidance failed: {e}")
 
@@ -3050,7 +3067,6 @@ class Orchestrator:
             run_time = _time.time() - run_start
             success = getattr(result, "success", True) if result else False
 
-            # Analyze output quality if we have text content
             result_text = ""
             if isinstance(result, EpisodeResult):
                 result_text = getattr(result, "output", "") or str(result)
@@ -3058,19 +3074,30 @@ class Orchestrator:
                 result_text = str(result)
 
             response_analysis = analyze_response(result_text, goal) if result_text else {}
-            quality = response_analysis.get(
+            heuristic_quality = response_analysis.get(
                 "quality_score",
                 getattr(result, "quality_score", 0.8 if success else 0.0),
             )
 
-            # Build rich outcome
-            outcome = {
+            # Build rich outcome with excerpt for retrieval
+            outcome: Dict[str, Any] = {
                 "output_length": len(result_text),
                 **{k: v for k, v in response_analysis.items() if k != "empty"},
             }
+            if result_text:
+                outcome["response_excerpt"] = result_text[:1500]
 
-            # 1. Record to LearningService with rich metadata
+            episode_id = (
+                f"run_{int(run_start)}_{uuid.uuid4().hex[:6]}"
+                if not hasattr(self, "_last_ep")
+                else f"run_{int(run_start)}"
+            )
+
+            # 1. Record with rich metadata
             try:
+                import uuid as _uuid
+
+                ep_id = f"run_{int(run_start)}_{_uuid.uuid4().hex[:6]}"
                 learning.record(
                     unit_name="Orchestrator",
                     unit_type="orchestrator",
@@ -3081,30 +3108,45 @@ class Orchestrator:
                         "mode": execution_mode,
                         "domain": detected_domain,
                         "task_type": detected_task_type,
+                        "strategy": optimal_params.get("strategy", "default"),
+                        "exploration": optimal_params.get("exploration", False),
                     },
                     outcome=outcome,
                     success=success,
-                    quality=quality,
+                    quality=heuristic_quality,
                     execution_time=run_time,
                 )
             except Exception as e:
                 logger.debug(f"LearningService record failed: {e}")
 
-            # 2. Post-execution reflection
-            if success and result_text:
+            # 2. Fire-and-forget LLM judge
+            if success and len(result_text) > 1000:
                 try:
-                    learning.post_execution_reflect(
-                        episode_id=f"run_{int(run_start)}",
+                    learning.schedule_background_judge(
+                        episode_id=ep_id,
                         goal=goal,
                         content=result_text,
                         domain=detected_domain,
-                        quality_score=quality,
+                        heuristic_quality=heuristic_quality,
+                    )
+                except Exception:
+                    pass
+
+            # 3. Post-execution reflection
+            if success and result_text:
+                try:
+                    learning.post_execution_reflect(
+                        episode_id=ep_id,
+                        goal=goal,
+                        content=result_text,
+                        domain=detected_domain,
+                        quality_score=heuristic_quality,
                         execution_time=run_time,
                     )
                 except Exception as e:
                     logger.debug(f"Post-execution reflection failed: {e}")
 
-            # 3. Full learning pipeline (heavy — background, fire-and-forget)
+            # 4. Full learning pipeline (heavy — background, fire-and-forget)
             if isinstance(result, EpisodeResult):
                 self._schedule_background_learning(result, goal)
 
@@ -3177,8 +3219,31 @@ class Orchestrator:
         learning = LearningService.get_instance()
         chat_start = _time.time()
 
-        # ── PRE-EXECUTION: classify domain + start episode + query guidance ──
+        # ── PRE-EXECUTION: classify domain ──
         detected_domain, detected_task_type = classify_domain(message)
+
+        # ── PRE-EXECUTION: learning steers execution parameters ──
+        optimal_params: Dict[str, Any] = {}
+        effective_model = model
+        effective_provider = provider
+        if learn:
+            try:
+                optimal_params = learning.get_optimal_execution_params(
+                    domain=detected_domain,
+                    task_type=detected_task_type,
+                    goal=message,
+                )
+                # Learning overrides model/provider ONLY if caller didn't specify
+                if not model and optimal_params.get("model"):
+                    effective_model = optimal_params["model"]
+                if optimal_params.get("exploration"):
+                    logger.info(
+                        f"Exploration: {optimal_params.get('exploration_reason', 'unknown')}"
+                    )
+            except Exception as e:
+                logger.debug(f"Execution param optimization failed: {e}")
+
+        # ── PRE-EXECUTION: start episode ──
         episode_id = None
         if learn:
             try:
@@ -3192,26 +3257,39 @@ class Orchestrator:
                         "history_len": len(history or []),
                         "detected_domain": detected_domain,
                         "detected_task_type": detected_task_type,
-                        "provider": provider or "auto",
-                        "model": model or "default",
+                        "provider": effective_provider or "auto",
+                        "model": effective_model or "default",
+                        "exploration": optimal_params.get("exploration", False),
+                        "exploration_reason": optimal_params.get("exploration_reason", ""),
+                        "strategy": optimal_params.get("strategy", "default"),
                     },
                 )
             except Exception as e:
                 logger.debug(f"LearningService episode start failed: {e}")
 
-            # Query domain-specific guidance AND general guidance
+            # Inject learning context: domain guidance + retrieval-augmented examples
             try:
-                ctx_parts = []
+                ctx_parts: List[str] = []
+
+                # 1. Domain-specific guidance (stats, patterns, best approach)
                 domain_ctx = learning.build_context_string(
                     domain=detected_domain, task_type=detected_task_type
                 )
                 if domain_ctx:
                     ctx_parts.append(domain_ctx)
 
+                # 2. General guidance (if different domain)
                 if detected_domain != "general":
                     general_ctx = learning.build_context_string(domain="general", task_type="run")
                     if general_ctx and general_ctx != domain_ctx:
                         ctx_parts.append(general_ctx)
+
+                # 3. Retrieval-augmented: actual excerpts from best prior responses
+                retrieval_ctx = learning.build_retrieval_context(
+                    domain=detected_domain, task_type=detected_task_type, goal=message
+                )
+                if retrieval_ctx:
+                    ctx_parts.append(retrieval_ctx)
 
                 if ctx_parts:
                     kwargs.setdefault("learning_context", "")
@@ -3219,10 +3297,10 @@ class Orchestrator:
             except Exception:
                 pass
 
-        # ── EXECUTION ──
+        # ── EXECUTION (with learning-optimized parameters) ──
         executor = _ChatExecutor(
-            provider=provider,
-            model=model,
+            provider=effective_provider,
+            model=effective_model,
             status_callback=status_callback,
             stream_callback=stream_callback if not stream else None,
             enabled_tools=enabled_tools,
@@ -3259,52 +3337,42 @@ class Orchestrator:
                 success = getattr(result, "success", False) if result else False
                 content = getattr(result, "content", "") if result else ""
 
-                # Analyze response quality (heuristic first, LLM judge for complex)
+                # Heuristic quality (instant, no LLM call)
                 response_analysis = analyze_response(content, message) if content else {}
                 heuristic_quality = response_analysis.get("quality_score", 0.8 if success else 0.0)
 
-                # LLM self-critique for complex tasks (>1000 chars = worth judging)
-                quality = heuristic_quality
-                llm_judged = False
-                if success and len(content) > 1000:
-                    try:
-                        llm_score = await learning.llm_judge_quality(
-                            goal=message,
-                            content=content,
-                            domain=detected_domain,
-                            heuristic_score=heuristic_quality,
-                        )
-                        # Blend: 60% LLM judge + 40% heuristic (LLM is smarter but noisier)
-                        quality = llm_score * 0.6 + heuristic_quality * 0.4
-                        llm_judged = True
-                    except Exception as e:
-                        logger.debug(f"LLM judge skipped: {e}")
-
-                # Build rich outcome with structural signals
+                # Build rich outcome with structural signals + response excerpt for retrieval
                 outcome: Dict[str, Any] = {
                     "content_length": len(content),
                     **{k: v for k, v in response_analysis.items() if k != "empty"},
                 }
-                if llm_judged:
-                    outcome["llm_judged"] = True
-                    outcome["heuristic_quality"] = round(heuristic_quality, 3)
+                # Store excerpt for retrieval-augmented learning (first 1500 chars)
+                if content:
+                    outcome["response_excerpt"] = content[:1500]
 
-                # Build rich action metadata (passed into end_episode, single record)
-                action_meta = {
-                    "provider": provider or "auto",
-                    "model": model or "default",
+                # Build rich action metadata including learning-derived params
+                action_meta: Dict[str, Any] = {
+                    "provider": effective_provider or "auto",
+                    "model": effective_model or "default",
                     "domain": detected_domain,
                     "task_type": detected_task_type,
                     "had_history": bool(history),
                     "max_steps": max_steps,
                     "tools_enabled": bool(enabled_tools),
                 }
+                # Record exploration metadata so we can learn what exploration helped
+                if optimal_params.get("exploration"):
+                    action_meta["exploration"] = True
+                    action_meta["exploration_reason"] = optimal_params.get("exploration_reason", "")
+                if optimal_params.get("strategy"):
+                    action_meta["strategy"] = optimal_params["strategy"]
 
+                # Record immediately with heuristic quality (non-blocking)
                 try:
                     learning.end_episode(
                         episode_id=episode_id,
                         success=success,
-                        quality=quality,
+                        quality=heuristic_quality,
                         cost=0.0,
                         outcome=outcome,
                         error_message=error_msg,
@@ -3313,7 +3381,20 @@ class Orchestrator:
                 except Exception as e:
                     logger.debug(f"LearningService episode end failed: {e}")
 
-                # Post-execution reflection (records what worked for future guidance)
+                # Fire-and-forget: LLM judge updates quality asynchronously
+                if success and len(content) > 1000:
+                    try:
+                        learning.schedule_background_judge(
+                            episode_id=episode_id,
+                            goal=message,
+                            content=content,
+                            domain=detected_domain,
+                            heuristic_quality=heuristic_quality,
+                        )
+                    except Exception as e:
+                        logger.debug(f"Background judge scheduling failed: {e}")
+
+                # Post-execution reflection
                 if success and content:
                     try:
                         learning.post_execution_reflect(
@@ -3321,7 +3402,7 @@ class Orchestrator:
                             goal=message,
                             content=content,
                             domain=detected_domain,
-                            quality_score=quality,
+                            quality_score=heuristic_quality,
                             execution_time=chat_time,
                         )
                     except Exception as e:

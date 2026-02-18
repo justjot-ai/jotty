@@ -288,6 +288,34 @@ class LearningStore:
         )
         conn.commit()
 
+    def update_episode_quality(
+        self, episode_id: str, quality: float, outcome_patch: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Update quality score (and optionally patch outcome) for an existing episode."""
+        conn = self._get_conn()
+        if outcome_patch:
+            row = conn.execute(
+                "SELECT outcome FROM episodes WHERE episode_id = ?", (episode_id,)
+            ).fetchone()
+            if row:
+                existing = json.loads(row["outcome"]) if row["outcome"] else {}
+                existing.update(outcome_patch)
+                conn.execute(
+                    "UPDATE episodes SET quality = ?, outcome = ? WHERE episode_id = ?",
+                    (quality, json.dumps(existing, default=str), episode_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE episodes SET quality = ? WHERE episode_id = ?",
+                    (quality, episode_id),
+                )
+        else:
+            conn.execute(
+                "UPDATE episodes SET quality = ? WHERE episode_id = ?",
+                (quality, episode_id),
+            )
+        conn.commit()
+
     def get_episode_count(self, domain: Optional[str] = None) -> int:
         """Get total number of recorded episodes, optionally filtered by domain."""
         conn = self._get_conn()

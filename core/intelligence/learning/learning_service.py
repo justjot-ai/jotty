@@ -1223,6 +1223,255 @@ class LearningService:
             logger.debug(f"LLM judge failed, using heuristic: {e}")
             return heuristic_score
 
+    # =========================================================================
+    # EXECUTION STEERING — Learning changes actual behavior
+    # =========================================================================
+
+    def get_optimal_execution_params(
+        self, domain: str, task_type: str = "", goal: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Return optimal execution parameters derived from learned values.
+
+        This is the key differentiator: learning doesn't just inject text,
+        it actually changes model selection, temperature, and strategy.
+
+        Returns dict with:
+            model: str — recommended model (or None for default)
+            temperature: float — recommended temperature
+            strategy: str — recommended approach
+            exploration: bool — whether this is an exploratory run
+            exploration_reason: str — what's being explored
+        """
+        import random
+
+        params: Dict[str, Any] = {
+            "model": None,
+            "temperature": None,
+            "strategy": "default",
+            "exploration": False,
+            "exploration_reason": "",
+        }
+
+        # --- Gather learned signal ---
+        episodes = self._store.query_episodes(domain=domain, limit=30)
+        successful = [e for e in episodes if e.success and e.quality > 0]
+        recent_qualities = [e.quality for e in successful[-10:]] if successful else []
+        avg_quality = sum(recent_qualities) / len(recent_qualities) if recent_qualities else 0.5
+
+        # --- Model selection based on quality history ---
+        # Low quality → upgrade model; High quality → can use cheaper model
+        if avg_quality < 0.5 and len(successful) >= 3:
+            params["model"] = "claude-sonnet-4-20250514"
+            params["strategy"] = "upgrade_model_low_quality"
+        elif avg_quality > 0.85 and len(successful) >= 5:
+            params["model"] = "claude-sonnet-4-20250514"
+            params["strategy"] = "efficient_high_quality"
+
+        # --- Temperature selection ---
+        # High variance in quality → lower temperature (more consistent)
+        # Low variance + high quality → can afford higher temperature (more creative)
+        if len(recent_qualities) >= 3:
+            variance = sum((q - avg_quality) ** 2 for q in recent_qualities) / len(recent_qualities)
+            if variance > 0.04:
+                params["temperature"] = 0.3  # High variance → be more deterministic
+            elif avg_quality > 0.8 and variance < 0.01:
+                params["temperature"] = 0.7  # Stable high quality → allow creativity
+            else:
+                params["temperature"] = 0.5  # Balanced
+
+        # --- Epsilon-greedy exploration ---
+        # With probability epsilon, deliberately try something different
+        # Higher epsilon when we have fewer episodes (more to learn)
+        epsilon = max(0.05, 0.25 - len(successful) * 0.01)  # Decays from 25% to 5%
+
+        if random.random() < epsilon:
+            params["exploration"] = True
+            exploration_type = random.choice(["temperature", "model"])
+
+            if exploration_type == "temperature":
+                # Try a temperature we haven't used much
+                temps = [0.2, 0.4, 0.6, 0.8, 1.0]
+                params["temperature"] = random.choice(temps)
+                params["exploration_reason"] = f"exploring temperature={params['temperature']}"
+            elif exploration_type == "model":
+                models = ["claude-sonnet-4-20250514", "claude-sonnet-4-20250514"]
+                params["model"] = random.choice(models)
+                params["exploration_reason"] = f"exploring model={params['model']}"
+
+            params["strategy"] = "epsilon_greedy_exploration"
+
+        return params
+
+    # =========================================================================
+    # RETRIEVAL-AUGMENTED LEARNING — Retrieve actual prior response excerpts
+    # =========================================================================
+
+    def retrieve_similar_responses(
+        self, domain: str, task_type: str = "", goal: str = "", top_k: int = 2
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve excerpts from the best prior responses in this domain.
+
+        Returns actual response content (not just metadata) so the LLM can
+        learn from concrete examples of what worked.
+        """
+        episodes = self._store.query_episodes(domain=domain, success_only=True, limit=50)
+        if not episodes:
+            # Try related domains
+            for alt_domain in ["general", "coding", "research"]:
+                if alt_domain != domain:
+                    episodes = self._store.query_episodes(
+                        domain=alt_domain, success_only=True, limit=20
+                    )
+                    if episodes:
+                        break
+
+        if not episodes:
+            return []
+
+        # Score episodes by quality and relevance to goal
+        scored = []
+        goal_words = set(goal.lower().split()) if goal else set()
+        for ep in episodes:
+            if ep.quality <= 0:
+                continue
+            relevance = 0.0
+            if goal_words:
+                ctx_text = str(ep.context.get("goal", ep.context.get("message", "")))
+                ctx_words = set(ctx_text.lower().split())
+                overlap = len(goal_words & ctx_words)
+                relevance = overlap / max(len(goal_words), 1)
+
+            # Combined score: 60% quality + 40% relevance
+            score = ep.quality * 0.6 + relevance * 0.4
+            scored.append((score, ep))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        results = []
+        for score, ep in scored[:top_k]:
+            outcome = ep.outcome or {}
+            excerpt = outcome.get("response_excerpt", "")
+            if not excerpt:
+                continue
+
+            results.append(
+                {
+                    "domain": ep.domain,
+                    "task_type": ep.task_type,
+                    "quality": ep.quality,
+                    "relevance_score": round(score, 3),
+                    "excerpt": excerpt,
+                    "structural_features": {
+                        k: outcome.get(k)
+                        for k in [
+                            "has_code",
+                            "has_headings",
+                            "has_citations",
+                            "has_math",
+                            "word_count",
+                            "goal_coverage",
+                        ]
+                        if outcome.get(k)
+                    },
+                    "goal_preview": str(ep.context.get("goal", ep.context.get("message", "")))[
+                        :100
+                    ],
+                }
+            )
+
+        return results
+
+    def build_retrieval_context(self, domain: str, task_type: str = "", goal: str = "") -> str:
+        """
+        Build a context string with actual prior response excerpts.
+        This is retrieval-augmented learning: not just metadata, but
+        actual examples of what worked.
+        """
+        similar = self.retrieve_similar_responses(domain, task_type, goal, top_k=2)
+        if not similar:
+            return ""
+
+        parts = ["[PRIOR SUCCESSFUL APPROACHES]"]
+        for i, resp in enumerate(similar, 1):
+            parts.append(f"\nExample {i} (quality={resp['quality']:.2f}, {resp['domain']}):")
+            features = resp.get("structural_features", {})
+            if features:
+                feat_strs = []
+                if features.get("has_code"):
+                    feat_strs.append("included code")
+                if features.get("has_headings"):
+                    feat_strs.append("used headings")
+                if features.get("has_citations"):
+                    feat_strs.append("cited sources")
+                if features.get("word_count"):
+                    feat_strs.append(f"~{features['word_count']} words")
+                if feat_strs:
+                    parts.append(f"  Features: {', '.join(feat_strs)}")
+            parts.append(f"  Excerpt: {resp['excerpt'][:500]}")
+
+        return "\n".join(parts)
+
+    # =========================================================================
+    # BACKGROUND LLM JUDGE — Fire-and-forget quality assessment
+    # =========================================================================
+
+    def schedule_background_judge(
+        self,
+        episode_id: str,
+        goal: str,
+        content: str,
+        domain: str,
+        heuristic_quality: float,
+    ) -> None:
+        """
+        Schedule an LLM quality judge as a background task.
+        Does NOT block the response. Updates the episode record asynchronously.
+        """
+        import asyncio
+
+        async def _judge_and_update() -> None:
+            try:
+                llm_score = await self.llm_judge_quality(
+                    goal=goal,
+                    content=content,
+                    domain=domain,
+                    heuristic_score=heuristic_quality,
+                )
+                blended = llm_score * 0.6 + heuristic_quality * 0.4
+
+                # Update the episode record with the LLM-judged quality
+                self._store.update_episode_quality(
+                    episode_id=episode_id,
+                    quality=blended,
+                    outcome_patch={
+                        "llm_judged": True,
+                        "llm_score": round(llm_score, 3),
+                        "heuristic_quality": round(heuristic_quality, 3),
+                    },
+                )
+
+                # Re-run value update with the better quality score
+                episodes = self._store.query_episodes(domain=domain, limit=1)
+                if episodes:
+                    ep = episodes[0]
+                    self._update_values(domain, ep.task_type, ep.action, ep.success, blended)
+
+                logger.debug(
+                    f"Background judge: {episode_id} quality updated "
+                    f"{heuristic_quality:.3f} → {blended:.3f} (LLM={llm_score:.3f})"
+                )
+            except Exception as e:
+                logger.debug(f"Background judge failed for {episode_id}: {e}")
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_judge_and_update())
+        except RuntimeError:
+            # No event loop — skip background judge
+            logger.debug("No event loop for background judge, skipping")
+
     def improvement_report(self, domain: str = "") -> Dict[str, Any]:
         """Get improvement report for monitoring."""
         return self._store.get_improvement_report(domain)
