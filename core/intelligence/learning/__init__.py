@@ -53,8 +53,6 @@ _LAZY_IMPORTS: dict[str, str] = {
     "LLMTrajectoryPredictor": ".predictive_marl",
     "PredictedAction": ".predictive_marl",
     "PredictedTrajectory": ".predictive_marl",
-    # q_learning
-    "LLMQPredictor": ".q_learning",
     # rl_components
     "RLComponents": ".rl_components",
     # shaped_rewards

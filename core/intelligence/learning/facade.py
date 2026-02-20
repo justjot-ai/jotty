@@ -12,18 +12,16 @@ Preferred entry point for new code:
     service.query(...)    # Get guidance
     service.reflect(...)  # Mid-execution reflection
 
-Legacy entry point (still works):
+Legacy entry point (still works, returns LearningService):
     from Jotty.core.intelligence.learning.facade import get_learning_system
-    manager = get_learning_system(config)
+    service = get_learning_system()
 """
 
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 if TYPE_CHECKING:
     from Jotty.core.infrastructure.foundation.configs import LearningConfig  # type: ignore[import]
-    from Jotty.core.intelligence.learning.learning_coordinator import (
-        LearningManager,  # type: ignore[import-not-found, import]
-    )
+    from Jotty.core.intelligence.learning.learning_service import LearningService
     from Jotty.core.intelligence.learning.reasoning_credit import (
         ReasoningCreditAssigner,  # type: ignore[import]
     )
@@ -61,20 +59,24 @@ def _resolve_learning_config(config: Any) -> "SwarmConfig":  # type: ignore[name
 
 def get_learning_system(
     config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
-) -> "LearningManager":
+) -> "LearningService":
     """
-    Return a configured LearningManager (unified learning coordinator).
+    Return the unified LearningService singleton.
+
+    Backward-compatible entry point — now returns LearningService instead
+    of the deleted LearningManager. The LearningService provides
+    record_outcome() and get_learned_context() methods for callers that
+    used the old LearningManager API.
 
     Args:
-        config: Optional LearningConfig or SwarmConfig. If None, uses defaults.
+        config: Ignored (LearningService is a singleton). Kept for backward compat.
 
     Returns:
-        LearningManager instance.
+        LearningService instance.
     """
-    from Jotty.core.intelligence.learning.learning_coordinator import LearningManager
+    from Jotty.core.intelligence.learning.learning_service import LearningService
 
-    resolved = _resolve_learning_config(config)
-    return LearningManager(resolved)
+    return LearningService.get_instance()
 
 
 def get_td_lambda(
@@ -177,7 +179,7 @@ def list_components() -> Dict[str, str]:
         Dict mapping component name to description.
     """
     return {
-        "LearningManager": "Unified coordinator for all learning (Q-learning, TD, per-agent)",
+        "LearningService": "Unified learning service (SQLite-backed, record/query/reflect/transfer)",
         "TDLambdaLearner": "Temporal-difference learning with eligibility traces",
         "ReasoningCreditAssigner": "Credit assignment for multi-step reasoning chains",
         "AdaptiveLearningRate": "Learning rate that adapts to convergence dynamics",

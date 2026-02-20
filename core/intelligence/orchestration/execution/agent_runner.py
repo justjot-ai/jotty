@@ -705,19 +705,23 @@ class AgentRunner:
             except Exception as e:
                 logger.warning(f"Memory retrieval unexpected error: {type(e).__name__}: {e}")
 
-        # 2. Q-learning context from swarm-level learner
-        #    Include task_type so Q-learner matches relevant lessons only
-        if self.learning_manager:
-            try:
-                _task_type = ""
-                if self.transfer_learning:
-                    _task_type = self.transfer_learning.extractor.extract_task_type(goal)
-                state = {"query": goal, "agent": self.agent_name, "task_type": _task_type}
-                q_context = self.learning_manager.get_learned_context(state)
-                if q_context:
-                    parts.append(f"Learned Insights:\n{q_context}")
-            except (LearningError, KeyError, AttributeError) as e:
-                logger.debug(f"Q-learning context injection skipped: {e}")
+        # 2. Learning context from LearningService (SQLite-backed)
+        try:
+            from Jotty.core.intelligence.learning.learning_service import LearningService
+
+            svc = LearningService.get_instance()
+            _domain = ""
+            if self.transfer_learning:
+                _domain = self.transfer_learning.extractor.extract_task_type(goal)
+            learned_ctx = svc.build_context_string(
+                domain=_domain or "general",
+                task_type="",
+                unit_name=self.agent_name,
+            )
+            if learned_ctx:
+                parts.append(f"Learned Insights:\n{learned_ctx}")
+        except (LearningError, KeyError, AttributeError) as e:
+            logger.debug(f"Learning context injection skipped: {e}")
 
         # 3. Transferable learning context (cross-swarm, cross-goal)
         if self.transfer_learning:

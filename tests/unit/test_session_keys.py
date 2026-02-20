@@ -262,10 +262,10 @@ class TestJottyMessageSessionKey:
         assert sk.thread_id == "default"
 
     def test_session_key_raw_matches_session_id(self):
-        session_id = "api:user789:sess42"
+        session_id = "sdk:user789:sess42"
         msg = JottyMessage(
             content="test",
-            interface=InterfaceType.API,
+            interface=InterfaceType.SDK,
             user_id="u1",
             session_id=session_id,
         )

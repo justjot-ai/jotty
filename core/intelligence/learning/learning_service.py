@@ -378,6 +378,17 @@ def analyze_response(content: str, goal: str) -> Dict[str, Any]:
     """
     Analyze LLM response to extract quality signals. Pure heuristics,
     no LLM calls. Returns a dict of features for learning records.
+
+    Scoring breakdown (max 1.0):
+      0.20 — Goal coverage (keyword overlap with goal)
+      0.15 — Structure (headings, lists, formatting)
+      0.15 — Depth (word count, paragraphs)
+      0.15 — Code quality (when code expected: blocks, classes, tests)
+      0.10 — Explanation quality (reasoning markers, examples)
+      0.10 — Completeness (intro + conclusion, multiple sections)
+      0.05 — Math/formulas
+      0.05 — Citations/references
+      0.05 — Tables/comparisons
     """
     if not content:
         return {"empty": True, "quality_score": 0.0}
@@ -385,21 +396,24 @@ def analyze_response(content: str, goal: str) -> Dict[str, Any]:
     content_lower = content.lower()
     goal_lower = goal.lower()
 
-    # Structure analysis
+    # ── Structure analysis ──
     structure_hits = len(_STRUCTURE_MARKERS.findall(content))
     has_headings = bool(re.search(r"(?:^|\n)#{1,4}\s", content))
+    heading_count = len(re.findall(r"(?:^|\n)#{1,4}\s", content))
     has_numbered_list = bool(re.search(r"(?:^|\n)\s*\d+\.\s", content))
+    has_bullet_list = bool(re.search(r"(?:^|\n)\s*[-*]\s", content))
     has_code_blocks = bool(_CODE_BLOCK_RE.search(content))
-    code_block_count = len(_CODE_BLOCK_RE.findall(content))
+    code_blocks = _CODE_BLOCK_RE.findall(content)
+    code_block_count = len(code_blocks)
     has_table = bool(re.search(r"\|.*\|.*\|", content))
 
-    # Depth signals
+    # ── Depth signals ──
     word_count = len(content.split())
     paragraph_count = len([p for p in content.split("\n\n") if p.strip()])
     has_citations = bool(_CITATION_RE.search(content))
-    has_math = bool(re.search(r"[=∑∫∂∇λαβγ]|\\frac|O\(n", content))
+    has_math = bool(re.search(r"[=∑∫∂∇λαβγ]|\\frac|O\(n|O\(log", content))
 
-    # Goal coverage: how many goal keywords appear in the response
+    # ── Goal coverage ──
     goal_keywords = set(re.findall(r"\b[a-z]{4,}\b", goal_lower))
     response_keywords = set(re.findall(r"\b[a-z]{4,}\b", content_lower))
     if goal_keywords:
@@ -407,44 +421,176 @@ def analyze_response(content: str, goal: str) -> Dict[str, Any]:
     else:
         coverage = 0.5
 
-    # Detect if task expects code output
-    _impl_keywords = {"implement", "code", "class", "function", "method", "test",
-                       "write a", "build a", "create a"}
+    # ── Code quality signals (deeper than just counting blocks) ──
+    _impl_keywords = {
+        "implement",
+        "code",
+        "class",
+        "function",
+        "method",
+        "test",
+        "write a",
+        "build a",
+        "create a",
+        "algorithm",
+        "program",
+        "develop",
+        "script",
+        "module",
+    }
     expects_code = any(kw in goal_lower for kw in _impl_keywords)
 
-    # Compute composite quality score
-    quality = 0.0
-    quality += min(0.20, structure_hits * 0.02)  # Structure: up to 0.20
-    quality += min(0.15, word_count / 5000 * 0.15)  # Length depth: up to 0.15
-    quality += min(0.15, paragraph_count / 10 * 0.15)  # Paragraphs: up to 0.15
-    quality += coverage * 0.25  # Goal coverage: up to 0.25
-    quality += 0.05 if has_citations else 0.0  # Citations: 0.05
-    quality += 0.05 if has_math else 0.0  # Math: 0.05
-    quality += 0.05 if has_table else 0.0  # Tables: 0.05
-    quality += 0.05 if has_headings else 0.0  # Headings: 0.05
+    # Analyze code block content for actual substance
+    code_lines_total = 0
+    has_class_def = False
+    has_function_def = False
+    has_assertions = False
+    has_test_func = False
+    assertion_count = 0
+    for block in code_blocks:
+        code_lines_total += block.count("\n")
+        if re.search(r"\bclass\s+\w+", block):
+            has_class_def = True
+        if re.search(r"\bdef\s+\w+", block):
+            has_function_def = True
+        if re.search(r"\bassert\b", block):
+            has_assertions = True
+            assertion_count += len(re.findall(r"\bassert\b", block))
+        if re.search(r"\bdef\s+test_", block):
+            has_test_func = True
 
+    # ── Explanation quality signals ──
+    _reasoning_markers = re.findall(
+        r"\b(?:because|therefore|since|however|although|"
+        r"this means|in other words|for example|specifically|"
+        r"the reason|note that|importantly|consequently|thus|"
+        r"consider|observe that|intuitively)\b",
+        content_lower,
+    )
+    reasoning_density = len(_reasoning_markers) / max(word_count / 100, 1)
+
+    # Examples and illustrations
+    example_count = len(
+        re.findall(
+            r"(?:for example|e\.g\.|for instance|such as|consider|"
+            r"suppose|let's say|imagine|here's an example)",
+            content_lower,
+        )
+    )
+
+    # ── Completeness signals ──
+    sections = re.split(r"\n#{1,4}\s", content)
+    has_intro = bool(sections and len(sections[0].strip()) > 50)
+    has_conclusion = bool(
+        re.search(
+            r"(?:in (?:summary|conclusion)|to summarize|overall|" r"in short|key takeaway|final)",
+            content_lower[-500:] if len(content) > 500 else content_lower,
+        )
+    )
+    multi_section = heading_count >= 3
+
+    # ── Error/incompleteness detection ──
+    has_todo = bool(re.search(r"\bTODO\b|\bFIXME\b|\bXXX\b|\.{3}\s*$", content))
+    has_error_msg = bool(
+        re.search(
+            r"(?:Error|Exception|Traceback|undefined|not implemented)",
+            content,
+        )
+    )
+    has_truncation = content.rstrip().endswith("...") or content.rstrip().endswith("…")
+
+    # ═══════════════════════════════════════════════════════════════
+    # SCORING — calibrated weights summing to 1.0
+    # ═══════════════════════════════════════════════════════════════
+    quality = 0.0
+
+    # 1. Goal coverage (0.20)
+    quality += coverage * 0.20
+
+    # 2. Structure (0.15)
+    struct_score = 0.0
+    struct_score += min(0.06, structure_hits * 0.01)
+    struct_score += 0.03 if has_headings else 0.0
+    struct_score += 0.03 if has_numbered_list or has_bullet_list else 0.0
+    struct_score += 0.03 if multi_section else 0.0
+    quality += min(0.15, struct_score)
+
+    # 3. Depth (0.15)
+    depth_score = 0.0
+    depth_score += min(0.08, word_count / 3000 * 0.08)  # 3000 words = max
+    depth_score += min(0.07, paragraph_count / 8 * 0.07)  # 8 paragraphs = max
+    quality += min(0.15, depth_score)
+
+    # 4. Code quality (0.15) — only when code expected
     if expects_code:
-        quality += min(0.15, code_block_count * 0.05)  # Code: up to 0.15
+        code_score = 0.0
+        code_score += min(0.04, code_block_count * 0.02)  # multiple blocks
+        code_score += min(0.03, code_lines_total / 50 * 0.03)  # substantial code
+        code_score += 0.02 if has_class_def else 0.0  # proper OOP
+        code_score += 0.02 if has_function_def else 0.0  # proper functions
+        code_score += 0.02 if has_test_func else 0.0  # test functions
+        code_score += min(0.02, assertion_count / 5 * 0.02)  # assertions
+        quality += min(0.15, code_score)
         if code_block_count == 0:
-            quality *= 0.5  # Halve quality when implementation is expected but absent
+            quality *= 0.5  # No code at all when expected = major penalty
     else:
         quality += 0.05 if has_code_blocks else 0.0
+        quality += 0.05 if word_count >= 400 else 0.0  # non-code needs depth
 
-    quality = min(1.0, quality)
+    # 5. Explanation quality (0.10)
+    explain_score = 0.0
+    explain_score += min(0.05, reasoning_density * 0.025)  # reasoning words
+    explain_score += min(0.05, example_count * 0.02)  # examples/illustrations
+    quality += min(0.10, explain_score)
+
+    # 6. Completeness (0.10)
+    complete_score = 0.0
+    complete_score += 0.03 if has_intro else 0.0
+    complete_score += 0.03 if has_conclusion else 0.0
+    complete_score += 0.04 if multi_section else 0.0
+    quality += min(0.10, complete_score)
+
+    # 7. Math/formulas (0.05)
+    quality += 0.05 if has_math else 0.0
+
+    # 8. Citations/references (0.05)
+    quality += 0.05 if has_citations else 0.0
+
+    # 9. Tables/comparisons (0.05)
+    quality += 0.05 if has_table else 0.0
+
+    # ── Penalties for errors/incompleteness ──
+    if has_todo:
+        quality *= 0.85
+    if has_error_msg and expects_code:
+        quality *= 0.90
+    if has_truncation:
+        quality *= 0.90
+
+    quality = round(min(1.0, max(0.0, quality)), 3)
 
     return {
-        "quality_score": round(quality, 3),
+        "quality_score": quality,
         "word_count": word_count,
         "paragraph_count": paragraph_count,
         "structure_score": min(1.0, structure_hits / 10),
         "goal_coverage": round(coverage, 3),
         "has_code": has_code_blocks,
         "code_block_count": code_block_count,
+        "code_lines": code_lines_total,
+        "has_class": has_class_def,
+        "has_functions": has_function_def,
+        "has_tests": has_test_func,
+        "assertion_count": assertion_count,
         "has_headings": has_headings,
+        "heading_count": heading_count,
         "has_numbered_list": has_numbered_list,
         "has_table": has_table,
         "has_citations": has_citations,
         "has_math": has_math,
+        "reasoning_density": round(reasoning_density, 2),
+        "example_count": example_count,
+        "has_conclusion": has_conclusion,
         "content_length": len(content),
     }
 
@@ -1110,15 +1256,21 @@ class LearningService:
             # No episodes for this exact domain — try cross-domain transfer
             for related in _get_related_domains(domain):
                 related_guidance = self.query(related, "")
-                if related_guidance.get("has_learning") and related_guidance.get("total_episodes", 0) >= 2:
+                if (
+                    related_guidance.get("has_learning")
+                    and related_guidance.get("total_episodes", 0) >= 2
+                ):
                     # Borrow patterns from related domain
                     related_patterns = related_guidance.get("patterns", [])
                     if related_patterns:
-                        hints = [p["recommendation"] for p in related_patterns[:2] if p.get("recommendation")]
+                        hints = [
+                            p["recommendation"]
+                            for p in related_patterns[:2]
+                            if p.get("recommendation")
+                        ]
                         if hints:
-                            return (
-                                f"[Cross-domain guidance from {related}]\n"
-                                + "\n".join(f"  - {h}" for h in hints)
+                            return f"[Cross-domain guidance from {related}]\n" + "\n".join(
+                                f"  - {h}" for h in hints
                             )
                     break
             return ""
@@ -1208,6 +1360,20 @@ class LearningService:
                     hints.append(f"Aim for ~{wc} chars")
                 if hints:
                     parts.append(f"Successful approach: {'; '.join(hints)}")
+
+        # Include per-(state,action) lessons from value estimates
+        try:
+            lessons = self._store.get_lessons(
+                domain=domain,
+                unit_name=unit_name if unit_name else None,
+                limit=5,
+            )
+            if lessons:
+                parts.append("Prior lessons:")
+                for lesson in lessons:
+                    parts.append(f"  {lesson}")
+        except Exception:
+            pass
 
         if not parts:
             return ""
@@ -1713,29 +1879,123 @@ class LearningService:
                     break
             # Final fallback: general
             if not episodes:
-                episodes = self._store.query_episodes(
-                    domain="general", success_only=True, limit=20
-                )
+                episodes = self._store.query_episodes(domain="general", success_only=True, limit=20)
 
         if not episodes:
             return []
 
-        # Score episodes by quality and relevance to goal
+        # Score episodes by quality and TF-IDF cosine relevance to goal
         scored = []
-        goal_words = set(goal.lower().split()) if goal else set()
-        for ep in episodes:
-            if ep.quality <= 0:
-                continue
-            relevance = 0.0
-            if goal_words:
-                ctx_text = str(ep.context.get("goal", ep.context.get("message", "")))
-                ctx_words = set(ctx_text.lower().split())
-                overlap = len(goal_words & ctx_words)
-                relevance = overlap / max(len(goal_words), 1)
+        if goal:
+            # Build TF-IDF vectors for better semantic matching
+            import math as _math
+            from collections import Counter as _Counter
 
-            # Combined score: 60% quality + 40% relevance
-            score = ep.quality * 0.6 + relevance * 0.4
-            scored.append((score, ep))
+            _stop = {
+                "the",
+                "a",
+                "an",
+                "is",
+                "are",
+                "was",
+                "were",
+                "be",
+                "been",
+                "and",
+                "or",
+                "not",
+                "in",
+                "on",
+                "at",
+                "to",
+                "for",
+                "of",
+                "with",
+                "it",
+                "this",
+                "that",
+                "do",
+                "does",
+                "did",
+                "have",
+                "has",
+                "had",
+                "will",
+                "would",
+                "could",
+                "should",
+                "may",
+                "can",
+                "must",
+                "shall",
+                "from",
+                "by",
+                "as",
+                "if",
+                "but",
+                "so",
+                "all",
+                "each",
+                "every",
+                "any",
+                "no",
+                "your",
+                "my",
+                "their",
+                "our",
+                "its",
+                "use",
+                "using",
+            }
+
+            def _tokenize(text: str) -> List[str]:
+                return [w for w in re.findall(r"\b[a-z]{3,}\b", text.lower()) if w not in _stop]
+
+            goal_tokens = _tokenize(goal)
+            goal_tf = _Counter(goal_tokens)
+
+            # Build document frequency across all episode goals
+            doc_tokens_list = []
+            for ep in episodes:
+                ctx_text = str(ep.context.get("goal", ep.context.get("message", "")))
+                doc_tokens_list.append(_tokenize(ctx_text))
+
+            # IDF: log(N / df) for each term
+            n_docs = len(doc_tokens_list) + 1  # +1 for goal
+            df: Dict[str, int] = defaultdict(int)
+            for dtoks in doc_tokens_list:
+                for w in set(dtoks):
+                    df[w] += 1
+            for w in set(goal_tokens):
+                df[w] += 1
+
+            def _tfidf_vec(tf: Dict[str, int]) -> Dict[str, float]:
+                return {w: c * _math.log(n_docs / max(df.get(w, 1), 1)) for w, c in tf.items()}
+
+            def _cosine(v1: Dict[str, float], v2: Dict[str, float]) -> float:
+                shared = set(v1) & set(v2)
+                if not shared:
+                    return 0.0
+                dot = sum(v1[w] * v2[w] for w in shared)
+                mag1 = _math.sqrt(sum(x * x for x in v1.values()))
+                mag2 = _math.sqrt(sum(x * x for x in v2.values()))
+                return dot / max(mag1 * mag2, 1e-10)
+
+            goal_vec = _tfidf_vec(goal_tf)
+
+            for i, ep in enumerate(episodes):
+                if ep.quality <= 0:
+                    continue
+                doc_tf = _Counter(doc_tokens_list[i])
+                doc_vec = _tfidf_vec(doc_tf)
+                relevance = _cosine(goal_vec, doc_vec)
+                score = ep.quality * 0.5 + relevance * 0.5
+                scored.append((score, ep))
+        else:
+            for ep in episodes:
+                if ep.quality <= 0:
+                    continue
+                scored.append((ep.quality, ep))
 
         scored.sort(key=lambda x: x[0], reverse=True)
 
@@ -1761,11 +2021,18 @@ class LearningService:
                         k: outcome.get(k)
                         for k in [
                             "has_code",
+                            "code_block_count",
+                            "has_class",
+                            "has_tests",
+                            "assertion_count",
                             "has_headings",
                             "has_citations",
                             "has_math",
+                            "has_conclusion",
                             "word_count",
                             "goal_coverage",
+                            "reasoning_density",
+                            "example_count",
                         ]
                         if outcome.get(k)
                     },
@@ -1779,36 +2046,74 @@ class LearningService:
 
     def build_retrieval_context(self, domain: str, task_type: str = "", goal: str = "") -> str:
         """
-        Build a context string with structural digests of prior successful responses.
-        Shows HOW the best responses were structured, not just feature checklists.
+        Build few-shot learning context from the best prior responses.
 
-        Stricter gate than build_context_string: only inject when there are real
-        failures to correct AND enough episodes for relevant examples.
-        Cold-start retrieval is harmful — too few examples from different tasks
-        mislead the model rather than help it.
+        Injects CONCRETE examples of successful responses so the model can
+        learn from the structure, depth, and approach — not just be told
+        "be comprehensive". This is the highest-impact learning signal.
+
+        Gate: fires when there are episodes to learn from (any success).
         """
-        guidance = self.query(domain, task_type)
-        total = guidance.get("total_episodes", 0)
-        rate = guidance.get("success_rate", 0.0)
-
-        has_failures = rate < 0.90 and total >= 2
-        if not has_failures:
-            return ""
-
         similar = self.retrieve_similar_responses(domain, task_type, goal, top_k=2)
         if not similar:
             return ""
 
-        parts = ["[PRIOR SUCCESSFUL APPROACHES]"]
-        for i, resp in enumerate(similar, 1):
-            parts.append(f"\nExample {i} (quality={resp['quality']:.2f}, {resp['domain']}):")
-            if resp.get("goal_preview"):
-                parts.append(f"  Task: {resp['goal_preview']}")
-            excerpt = resp.get("excerpt", "")
-            if excerpt:
-                parts.append(f"  {excerpt[:800]}")
+        # Only include high-quality examples (Q >= 0.5)
+        good = [r for r in similar if r["quality"] >= 0.5]
+        if not good:
+            return ""
 
-        return "\n".join(parts)
+        parts: List[str] = []
+        for i, resp in enumerate(good, 1):
+            excerpt = resp.get("excerpt", "")
+            if not excerpt or len(excerpt) < 50:
+                continue
+
+            # Build structural description from features
+            feats = resp.get("structural_features", {})
+            feat_list = []
+            if feats.get("has_code"):
+                n_blocks = feats.get("code_block_count", 0)
+                feat_list.append(f"{n_blocks} code blocks" if n_blocks else "code blocks")
+            if feats.get("has_class"):
+                feat_list.append("class definitions")
+            if feats.get("has_tests"):
+                n_asserts = feats.get("assertion_count", 0)
+                feat_list.append(
+                    f"test functions ({n_asserts} assertions)" if n_asserts else "test functions"
+                )
+            if feats.get("has_math"):
+                feat_list.append("math formulas")
+            if feats.get("has_headings"):
+                feat_list.append("section headings")
+            if feats.get("has_citations"):
+                feat_list.append("citations")
+            if feats.get("has_conclusion"):
+                feat_list.append("summary/conclusion")
+            if feats.get("reasoning_density", 0) >= 1.0:
+                feat_list.append("detailed reasoning")
+            if feats.get("example_count", 0) >= 2:
+                feat_list.append("concrete examples")
+            if feats.get("word_count"):
+                feat_list.append(f"~{feats['word_count']} words")
+
+            parts.append(f"[EXAMPLE OF A HIGH-QUALITY RESPONSE (Q={resp['quality']:.2f})]")
+            if resp.get("goal_preview"):
+                parts.append(f"Task: {resp['goal_preview']}")
+            if feat_list:
+                parts.append(f"Structure: {', '.join(feat_list)}")
+            # Inject actual excerpt as concrete few-shot example
+            parts.append(f"Response excerpt:\n{excerpt[:1200]}")
+            if len(excerpt) > 1200:
+                parts.append("(...)")
+            parts.append("")  # blank line between examples
+
+        if not parts:
+            return ""
+
+        # Add instruction to use the example as a template
+        header = "[LEARN FROM PRIOR SUCCESS — match or exceed this quality and structure]"
+        return header + "\n" + "\n".join(parts)
 
     # =========================================================================
     # ADAPTIVE JUDGE SCHEDULING
@@ -2402,10 +2707,78 @@ class LearningService:
     # INTERNAL: Value updates, caching, pattern extraction
     # =========================================================================
 
-    def _update_values(
-        self, domain: str, task_type: str, action: Dict[str, Any], success: bool, quality: float
+    def record_outcome(
+        self,
+        unit_name: str,
+        state: str,
+        action: str,
+        reward: float,
+        domain: str = "",
+        task_type: str = "",
     ) -> None:
-        """Update TD value estimates based on outcome."""
+        """
+        Convenience method for callers that just have state/action/reward.
+
+        Replaces LearningManager.record_outcome(). Records to SQLite and
+        updates value estimates with lesson extraction.
+        """
+        success = reward > 0.5
+        quality = max(0.0, min(1.0, reward))
+        action_dict = {"action": action}
+
+        self.record(
+            unit_name=unit_name,
+            unit_type="agent",
+            domain=domain or "general",
+            task_type=task_type or "general",
+            context={"state": state},
+            action=action_dict,
+            outcome={"reward": reward},
+            success=success,
+            quality=quality,
+        )
+
+    def get_learned_context(self, state: str, domain: str = "", unit_name: str = "") -> str:
+        """
+        Get learning context for a state — backward-compat wrapper around
+        build_context_string() + lessons from value estimates.
+
+        Replaces LearningManager.get_learned_context().
+        """
+        parts: List[str] = []
+
+        # Get lessons from value estimates for this domain/unit
+        lessons = self._store.get_lessons(
+            domain=domain or "general",
+            unit_name=unit_name if unit_name else None,
+            limit=10,
+        )
+        if lessons:
+            parts.append("Prior lessons:")
+            for lesson in lessons[:5]:
+                parts.append(f"  {lesson}")
+
+        # Also include pattern-based context
+        context_str = self.build_context_string(
+            domain=domain or "general",
+            task_type="",
+            unit_name=unit_name,
+        )
+        if context_str:
+            parts.append(context_str)
+
+        return "\n".join(parts) if parts else ""
+
+    def _update_values(
+        self,
+        domain: str,
+        task_type: str,
+        action: Dict[str, Any],
+        success: bool,
+        quality: float,
+        unit_name: str = "",
+    ) -> None:
+        """Update TD value estimates based on outcome, with lesson extraction."""
         state_key = self._make_state_key(domain, task_type)
         action_key = self._make_action_key(action)
         reward = quality if success else -0.1
@@ -2417,6 +2790,18 @@ class LearningService:
             alpha = max(0.01, 0.1 / (1 + existing.update_count * 0.01))
             new_value = existing.value + alpha * (reward - existing.value)
             td_error = reward - existing.value
+            count = existing.update_count + 1
+            # Running average reward
+            avg_reward = existing.avg_reward + (reward - existing.avg_reward) / count
+
+            # Extract lesson from this experience
+            lessons = list(existing.lessons)
+            lesson = self._extract_lesson(state_key, action_key, reward, td_error)
+            if lesson and lesson not in lessons:
+                lessons.append(lesson)
+                # Keep only the most recent 10 lessons
+                if len(lessons) > 10:
+                    lessons = lessons[-10:]
 
             updated = ValueEstimate(
                 state_key=state_key,
@@ -2424,9 +2809,15 @@ class LearningService:
                 domain=domain,
                 value=new_value,
                 td_error=td_error,
-                update_count=existing.update_count + 1,
+                update_count=count,
+                unit_name=unit_name or existing.unit_name,
+                lessons=lessons,
+                avg_reward=avg_reward,
             )
         else:
+            lesson = self._extract_lesson(state_key, action_key, reward, reward)
+            lessons = [lesson] if lesson else []
+
             updated = ValueEstimate(
                 state_key=state_key,
                 action_key=action_key,
@@ -2434,9 +2825,43 @@ class LearningService:
                 value=reward,
                 td_error=reward,
                 update_count=1,
+                unit_name=unit_name,
+                lessons=lessons,
+                avg_reward=reward,
             )
 
         self._store.save_value(updated)
+
+    @staticmethod
+    def _extract_lesson(
+        state_key: str, action_key: str, reward: float, td_error: float
+    ) -> Optional[str]:
+        """
+        Extract actionable natural language lesson from experience.
+
+        Only records lessons for significant outcomes (large TD error or
+        extreme rewards). Ported from q_learning.py, simplified.
+        """
+        if abs(td_error) < 0.1:
+            return None
+
+        # Build concise context from keys
+        context = f"{state_key} -> {action_key}"
+        if len(context) > 120:
+            context = context[:120] + "..."
+
+        if reward > 0.7:
+            return f"SUCCESS: {context} (reward={reward:.2f})"
+        elif reward < 0.3:
+            return f"AVOID: {context} (reward={reward:.2f})"
+        elif td_error > 0.2:
+            expected = reward - td_error
+            return f"DISCOVERY: {context} better than expected (actual={reward:.2f}, expected={expected:.2f})"
+        elif td_error < -0.2:
+            expected = reward - td_error
+            return f"CAUTION: {context} worse than expected (actual={reward:.2f}, expected={expected:.2f})"
+
+        return None
 
     def _extract_patterns(self, domain: str) -> None:
         """
@@ -2462,18 +2887,75 @@ class LearningService:
         high_quality = [e for e in episodes if e.quality >= 0.70]
         low_quality = [e for e in episodes if e.success and e.quality < 0.55]
 
-        # 1. Action-based success strategies (original logic, improved)
+        # 1. Success strategy patterns — extract WHAT made responses successful,
+        #    not infrastructure choices (model/provider) which are useless guidance.
         if len(successes) >= 2:
-            action_counts: Dict[str, int] = defaultdict(int)
+            # Skip infrastructure keys — these don't help the model produce better output
+            _INFRA_KEYS = {
+                "model",
+                "provider",
+                "mode",
+                "domain",
+                "task_type",
+                "exploration",
+                "exploration_reason",
+                "streamed",
+                "retries",
+                "strategy",
+                "temperature",
+                "paradigm",
+            }
+
+            # Extract structural success patterns from outcomes
+            struct_counts: Dict[str, int] = defaultdict(int)
+            total_words = 0
+            total_code_blocks = 0
+            total_assertions = 0
+            for e in successes:
+                out = e.outcome or {}
+                if out.get("has_code"):
+                    struct_counts["include code implementations"] += 1
+                    total_code_blocks += out.get("code_block_count", 1)
+                if out.get("has_class"):
+                    struct_counts["define proper classes with methods"] += 1
+                if out.get("has_tests"):
+                    struct_counts["include test functions (def test_*)"] += 1
+                if out.get("assertion_count", 0) >= 3:
+                    struct_counts["include 3+ assertions for verification"] += 1
+                    total_assertions += out.get("assertion_count", 0)
+                if out.get("has_headings"):
+                    struct_counts["use section headings to organize"] += 1
+                if out.get("has_math"):
+                    struct_counts["include mathematical formulations"] += 1
+                if out.get("has_citations"):
+                    struct_counts["cite sources and references"] += 1
+                if out.get("has_table"):
+                    struct_counts["use tables for comparisons"] += 1
+                if out.get("has_conclusion"):
+                    struct_counts["include summary/conclusion"] += 1
+                if out.get("reasoning_density", 0) >= 1.0:
+                    struct_counts["explain reasoning (because/therefore/since)"] += 1
+                if out.get("example_count", 0) >= 2:
+                    struct_counts["provide concrete examples"] += 1
+                wc = out.get("word_count", 0)
+                if wc > 0:
+                    total_words += wc
+                gc = out.get("goal_coverage", 0)
+                if gc > 0.7:
+                    struct_counts["address all key aspects of the task"] += 1
+
+            # Extract approach patterns from non-infra action keys
             for e in successes:
                 for key, val in e.action.items():
+                    if key in _INFRA_KEYS:
+                        continue
                     if isinstance(val, (str, int, float, bool)):
-                        action_counts[f"{key}={val}"] += 1
+                        struct_counts[f"use {key}={val} approach"] += 1
 
-            for action_str, count in action_counts.items():
+            for strategy, count in struct_counts.items():
                 if count >= 2:
                     confidence = count / len(successes)
-                    pattern_id = hashlib.md5(f"success_{domain}_{action_str}".encode()).hexdigest()[
+                    pattern_id = hashlib.md5(f"success_{domain}_{strategy}".encode()).hexdigest()[
                         :12
                     ]
 
@@ -2483,16 +2965,44 @@ class LearningService:
                             source_domain=domain,
                             pattern_type="success_strategy",
                             description=(
-                                f"In {domain}, {action_str} correlates with success "
+                                f"Successful {domain} responses: {strategy} "
                                 f"({count}/{len(successes)} episodes)"
                             ),
                             conditions={"domain": domain},
-                            recommendation=f"When working on {domain} tasks, prefer {action_str}",
+                            recommendation=f"For {domain} tasks: {strategy}",
                             confidence=confidence,
                             evidence_count=count,
                             applicable_domains=[domain],
                         )
                     )
+
+            # Add aggregate depth pattern
+            if total_words > 0 and len(successes) >= 2:
+                avg_words = total_words // len(successes)
+                avg_code = total_code_blocks // max(len(successes), 1)
+                avg_asserts = total_assertions // max(len(successes), 1)
+                depth_id = hashlib.md5(f"depth_{domain}".encode()).hexdigest()[:12]
+                depth_desc = f"aim for ~{avg_words} words"
+                if avg_code > 0:
+                    depth_desc += f" with {avg_code}+ code blocks"
+                if avg_asserts > 0:
+                    depth_desc += f" and {avg_asserts}+ assertions"
+                self._store.save_pattern(
+                    PatternRecord(
+                        pattern_id=depth_id,
+                        source_domain=domain,
+                        pattern_type="success_strategy",
+                        description=(
+                            f"Successful {domain} responses average {avg_words} words"
+                            + (f" and {avg_code} code blocks" if avg_code > 0 else "")
+                        ),
+                        conditions={"domain": domain},
+                        recommendation=f"For {domain} tasks: {depth_desc}",
+                        confidence=0.7,
+                        evidence_count=len(successes),
+                        applicable_domains=[domain],
+                    )
+                )
 
         # 2. Quality driver patterns — only from LLM-judged episodes to avoid
         #    Goodhart's Law (heuristic rewards has_code → pattern says "use code" → circular).

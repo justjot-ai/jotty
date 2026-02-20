@@ -114,6 +114,9 @@ class ValueEstimate:
     td_error: float
     update_count: int
     last_updated: float = 0.0
+    unit_name: str = ""
+    lessons: List[str] = field(default_factory=list)
+    avg_reward: float = 0.0
 
     def __post_init__(self) -> None:
         if self.last_updated == 0.0:
@@ -173,14 +176,15 @@ class LearningStore:
         return self._local.conn
 
     def _init_schema(self) -> None:
-        """Create tables if they don't exist."""
+        """Create tables if they don't exist, then migrate and index."""
         conn = self._get_conn()
+
+        # Step 1: Create tables (no indexes on columns that may not exist yet)
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS episodes (
                 episode_id TEXT PRIMARY KEY,
                 unit_type TEXT NOT NULL,
-                unit_name TEXT NOT NULL,
                 domain TEXT NOT NULL DEFAULT '',
                 task_type TEXT NOT NULL DEFAULT '',
                 context TEXT NOT NULL DEFAULT '{}',
@@ -190,18 +194,12 @@ class LearningStore:
                 quality REAL NOT NULL DEFAULT 0.0,
                 execution_time REAL NOT NULL DEFAULT 0.0,
                 cost REAL NOT NULL DEFAULT 0.0,
-                error_type TEXT,
-                error_message TEXT,
-                parent_episode_id TEXT,
-                timestamp REAL NOT NULL,
-                metadata TEXT NOT NULL DEFAULT '{}'
+                timestamp REAL NOT NULL
             );
 
             CREATE INDEX IF NOT EXISTS idx_episodes_domain ON episodes(domain);
-            CREATE INDEX IF NOT EXISTS idx_episodes_unit ON episodes(unit_type, unit_name);
             CREATE INDEX IF NOT EXISTS idx_episodes_task ON episodes(task_type);
             CREATE INDEX IF NOT EXISTS idx_episodes_time ON episodes(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_episodes_parent ON episodes(parent_episode_id);
 
             CREATE TABLE IF NOT EXISTS patterns (
                 pattern_id TEXT PRIMARY KEY,
@@ -224,7 +222,6 @@ class LearningStore:
                 reflection_id TEXT PRIMARY KEY,
                 episode_id TEXT NOT NULL,
                 step INTEGER NOT NULL,
-                unit_name TEXT NOT NULL,
                 observation TEXT NOT NULL,
                 analysis TEXT NOT NULL,
                 adjustment TEXT NOT NULL,
@@ -250,6 +247,51 @@ class LearningStore:
             CREATE INDEX IF NOT EXISTS idx_values_domain ON value_estimates(domain);
         """
         )
+        conn.commit()
+
+        # Step 2: Migrate — add columns that may be missing from old DBs
+        self._migrate_schema(conn)
+
+        # Step 3: Create indexes on migrated columns (now guaranteed to exist)
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS idx_episodes_unit ON episodes(unit_type, unit_name)",
+            "CREATE INDEX IF NOT EXISTS idx_episodes_parent ON episodes(parent_episode_id)",
+            "CREATE INDEX IF NOT EXISTS idx_values_unit ON value_estimates(unit_name)",
+        ]:
+            try:
+                conn.execute(idx_sql)
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+
+    def _migrate_schema(self, conn: sqlite3.Connection) -> None:
+        """Add new columns to existing tables that predate schema changes."""
+        _table_migrations = {
+            "episodes": [
+                ("unit_name", "TEXT NOT NULL DEFAULT ''"),
+                ("error_type", "TEXT"),
+                ("error_message", "TEXT"),
+                ("parent_episode_id", "TEXT"),
+                ("metadata", "TEXT NOT NULL DEFAULT '{}'"),
+            ],
+            "reflections": [
+                ("unit_name", "TEXT NOT NULL DEFAULT ''"),
+            ],
+            "value_estimates": [
+                ("unit_name", "TEXT NOT NULL DEFAULT ''"),
+                ("lessons", "TEXT NOT NULL DEFAULT '[]'"),
+                ("avg_reward", "REAL NOT NULL DEFAULT 0.0"),
+            ],
+        }
+        for table, migrations in _table_migrations.items():
+            existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            for col_name, col_type in migrations:
+                if col_name not in existing:
+                    try:
+                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
+                        logger.info(f"Migrated {table}: added {col_name}")
+                    except sqlite3.OperationalError:
+                        pass
         conn.commit()
 
     # =========================================================================
@@ -580,8 +622,8 @@ class LearningStore:
         conn.execute(
             """INSERT OR REPLACE INTO value_estimates
                (state_key, action_key, domain, value, td_error,
-                update_count, last_updated)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                update_count, last_updated, unit_name, lessons, avg_reward)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 estimate.state_key,
                 estimate.action_key,
@@ -590,6 +632,9 @@ class LearningStore:
                 estimate.td_error,
                 estimate.update_count,
                 estimate.last_updated,
+                estimate.unit_name,
+                json.dumps(estimate.lessons),
+                estimate.avg_reward,
             ),
         )
         conn.commit()
@@ -605,6 +650,15 @@ class LearningStore:
         ).fetchone()
         if not row:
             return None
+        return self._row_to_value(row)
+
+    def _row_to_value(self, row: sqlite3.Row) -> ValueEstimate:
+        """Convert a database row to a ValueEstimate."""
+        lessons_raw = row["lessons"] if "lessons" in row.keys() else "[]"
+        try:
+            lessons = json.loads(lessons_raw) if lessons_raw else []
+        except (json.JSONDecodeError, TypeError):
+            lessons = []
         return ValueEstimate(
             state_key=row["state_key"],
             action_key=row["action_key"],
@@ -613,7 +667,73 @@ class LearningStore:
             td_error=row["td_error"],
             update_count=row["update_count"],
             last_updated=row["last_updated"],
+            unit_name=row["unit_name"] if "unit_name" in row.keys() else "",
+            lessons=lessons,
+            avg_reward=row["avg_reward"] if "avg_reward" in row.keys() else 0.0,
         )
+
+    def get_values_for_domain(
+        self, domain: str, unit_name: Optional[str] = None, limit: int = 50
+    ) -> List[ValueEstimate]:
+        """Get all value estimates for a domain, optionally filtered by unit_name."""
+        conn = self._get_conn()
+        if unit_name:
+            rows = conn.execute(
+                """SELECT * FROM value_estimates
+                   WHERE domain = ? AND unit_name = ?
+                   ORDER BY value DESC LIMIT ?""",
+                (domain, unit_name, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT * FROM value_estimates
+                   WHERE domain = ?
+                   ORDER BY value DESC LIMIT ?""",
+                (domain, limit),
+            ).fetchall()
+        return [self._row_to_value(row) for row in rows]
+
+    def get_lessons(
+        self,
+        domain: str,
+        state_key: Optional[str] = None,
+        unit_name: Optional[str] = None,
+        limit: int = 20,
+    ) -> List[str]:
+        """Get accumulated lessons for a domain, optionally filtered."""
+        conn = self._get_conn()
+        conditions = ["domain = ?"]
+        params: list = [domain]
+
+        if state_key:
+            conditions.append("state_key = ?")
+            params.append(state_key)
+        if unit_name:
+            conditions.append("unit_name = ?")
+            params.append(unit_name)
+
+        where = f"WHERE {' AND '.join(conditions)}"
+        rows = conn.execute(
+            f"""SELECT lessons FROM value_estimates {where}
+                ORDER BY update_count DESC LIMIT ?""",
+            params + [limit],
+        ).fetchall()
+
+        all_lessons: List[str] = []
+        for row in rows:
+            try:
+                parsed = json.loads(row["lessons"]) if row["lessons"] else []
+                all_lessons.extend(parsed)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        # Deduplicate while preserving order
+        seen: set = set()
+        unique: List[str] = []
+        for lesson in all_lessons:
+            if lesson not in seen:
+                seen.add(lesson)
+                unique.append(lesson)
+        return unique
 
     # =========================================================================
     # ANALYTICS
@@ -687,9 +807,7 @@ class LearningStore:
         results = []
         for row in rows:
             quality = row["quality"] if row["quality"] is not None else 1.0
-            error_type = row["error_type"] or (
-                "low_quality" if quality < 0.6 else ""
-            )
+            error_type = row["error_type"] or ("low_quality" if quality < 0.6 else "")
             outcome = json.loads(row["outcome"])
 
             # Build specific failure description from structural analysis
@@ -699,7 +817,9 @@ class LearningStore:
                 if not outcome.get("has_code"):
                     missing.append("no code blocks")
                 elif outcome.get("code_block_count", 0) < 3:
-                    missing.append(f"only {outcome.get('code_block_count', 0)} code blocks (need 3+)")
+                    missing.append(
+                        f"only {outcome.get('code_block_count', 0)} code blocks (need 3+)"
+                    )
                 if not outcome.get("has_math"):
                     missing.append("no math/formulas")
                 if not outcome.get("has_headings"):
@@ -713,17 +833,19 @@ class LearningStore:
                 else:
                     error_message = f"Quality was {quality:.2f} — below threshold"
 
-            results.append({
-                "episode_id": row["episode_id"],
-                "unit_name": row["unit_name"],
-                "task_type": row["task_type"],
-                "error_type": error_type,
-                "error_message": error_message,
-                "context": json.loads(row["context"]),
-                "action": json.loads(row["action"]),
-                "outcome": outcome,
-                "timestamp": row["timestamp"],
-            })
+            results.append(
+                {
+                    "episode_id": row["episode_id"],
+                    "unit_name": row["unit_name"],
+                    "task_type": row["task_type"],
+                    "error_type": error_type,
+                    "error_message": error_message,
+                    "context": json.loads(row["context"]),
+                    "action": json.loads(row["action"]),
+                    "outcome": outcome,
+                    "timestamp": row["timestamp"],
+                }
+            )
         return results
 
     def close(self) -> None:

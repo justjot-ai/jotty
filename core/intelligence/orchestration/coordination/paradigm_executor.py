@@ -584,9 +584,16 @@ class ParadigmExecutor:
             )
 
             try:
-                state = {"query": goal, "agent": agent_name, "cooperative": True}
-                action = {"actor": agent_name, "task": goal[:100]}
-                sm.learning_manager.record_outcome(state, action, cooperative_reward, done=True)
+                from Jotty.core.intelligence.learning.learning_service import LearningService
+
+                svc = LearningService.get_instance()
+                svc.record_outcome(
+                    unit_name=agent_name,
+                    state=f"cooperative:{goal[:100]}",
+                    action=f"actor:{agent_name}",
+                    reward=cooperative_reward,
+                    domain="cooperative",
+                )
             except Exception as e:
                 logger.debug(f"Cooperative credit recording skipped for {agent_name}: {e}")
 

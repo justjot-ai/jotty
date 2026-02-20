@@ -177,9 +177,6 @@ class SwarmLearningPipeline:
 
     def _init_components(self) -> Any:
         """Initialize all learning components."""
-        from Jotty.core.intelligence.learning.learning_coordinator import (  # type: ignore[import-not-found, import]
-            LearningManager as LearningManager,
-        )
         from Jotty.core.intelligence.learning.predictive_marl import (  # type: ignore[import]
             DivergenceMemory,
             LLMTrajectoryPredictor,
@@ -201,9 +198,6 @@ class SwarmLearningPipeline:
         )
 
         from ..intelligence.swarm_intelligence import SwarmIntelligence
-
-        # Core learning manager (wraps Q-learner)
-        self.learning_manager = LearningManager(self.config)
 
         # Trajectory prediction (MARL)
         self.trajectory_predictor = None
@@ -508,15 +502,7 @@ class SwarmLearningPipeline:
 
     def auto_load(self) -> None:
         """Load previous learnings at startup."""
-        # Q-learner state
-        learning_path = self._get_learning_path()
-        if learning_path.exists():
-            try:
-                self.learning_manager.q_learner.load_state(str(learning_path))
-                q_summary = self.learning_manager.get_q_table_summary()
-                logger.info(f"Auto-loaded {q_summary['size']} Q-entries from {learning_path}")
-            except Exception as e:
-                logger.debug(f"Could not auto-load Q-learnings: {e}")
+        # Q-learning state now persisted in SQLite via LearningService (auto-loaded)
 
         # Transferable learnings
         transfer_path = self._get_transfer_learning_path()
@@ -593,13 +579,7 @@ class SwarmLearningPipeline:
         self, mas_learning: Any = None, swarm_terminal: Any = None, provider_registry: Any = None
     ) -> None:
         """Save learnings after execution."""
-        # Q-learner state
-        learning_path = self._get_learning_path()
-        try:
-            learning_path.parent.mkdir(parents=True, exist_ok=True)
-            self.learning_manager.q_learner.save_state(str(learning_path))
-        except Exception as e:
-            logger.debug(f"Could not auto-save Q-learnings: {e}")
+        # Q-learning state now auto-persisted in SQLite via LearningService
 
         # Transferable learnings
         transfer_path = self._get_transfer_learning_path()
@@ -1060,7 +1040,9 @@ class SwarmLearningPipeline:
                 "has_error": bool(getattr(result, "error", None)),
             }
             if output_str:
-                excerpt = output_str[:600].rsplit("\n", 1)[0] if len(output_str) > 600 else output_str
+                excerpt = (
+                    output_str[:600].rsplit("\n", 1)[0] if len(output_str) > 600 else output_str
+                )
                 pipeline_outcome["response_excerpt"] = excerpt
             ls.record(
                 unit_name=ctx["agent_name"],
@@ -1174,9 +1156,8 @@ class SwarmLearningPipeline:
             pass  # No running loop — skip async consolidation
 
     def _step_neurochunk_tiering(self, ctx: Any) -> Any:
-        """NeuroChunk tiering: promote/demote/prune memories."""
-        self.learning_manager.promote_demote_memories(ctx["episode_reward"])
-        self.learning_manager.prune_tier3()
+        """NeuroChunk tiering: no-op (removed with Q-table migration to SQLite)."""
+        pass
 
     def _step_agent_abstractor(self, ctx: Any) -> Any:
         """Agent abstractor: update agent role profiles."""
