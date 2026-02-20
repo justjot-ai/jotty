@@ -1054,6 +1054,14 @@ class SwarmLearningPipeline:
                     if isinstance(step, dict) and step.get("tool"):
                         tools_used.append(step["tool"])
 
+            output_str = str(result.output) if result.output else ""
+            pipeline_outcome: dict = {
+                "output_length": len(output_str),
+                "has_error": bool(getattr(result, "error", None)),
+            }
+            if output_str:
+                excerpt = output_str[:600].rsplit("\n", 1)[0] if len(output_str) > 600 else output_str
+                pipeline_outcome["response_excerpt"] = excerpt
             ls.record(
                 unit_name=ctx["agent_name"],
                 unit_type="swarm_pipeline",
@@ -1069,10 +1077,7 @@ class SwarmLearningPipeline:
                     "approach": ctx["task_type"],
                     "agent": ctx["agent_name"],
                 },
-                outcome={
-                    "output_length": len(str(result.output)) if result.output else 0,
-                    "has_error": bool(getattr(result, "error", None)),
-                },
+                outcome=pipeline_outcome,
                 success=result.success,
                 quality=ctx["episode_reward"],
                 execution_time=execution_time,

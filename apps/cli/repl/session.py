@@ -21,12 +21,31 @@ logger = logging.getLogger(__name__)
 
 
 class InterfaceType:
-    """Interface type constants for message tracking."""
+    """Interface type constants for message tracking.
+
+    Matches ChannelType values from core/infrastructure/foundation/types/sdk_types.py.
+    """
 
     CLI = "cli"
-    TELEGRAM = "telegram"
     WEB = "web"
-    API = "api"
+    SDK = "sdk"
+    TELEGRAM = "telegram"
+    WHATSAPP = "whatsapp"
+    SLACK = "slack"
+    DISCORD = "discord"
+    SIGNAL = "signal"
+    IMESSAGE = "imessage"
+    TEAMS = "teams"
+    GOOGLE_CHAT = "google_chat"
+    MATRIX = "matrix"
+    X = "x"
+    LINKEDIN = "linkedin"
+    MASTODON = "mastodon"
+    BLUESKY = "bluesky"
+    REDDIT = "reddit"
+    HTTP = "http"
+    WEBSOCKET = "websocket"
+    API = "sdk"  # backward compat alias
 
 
 class Message:

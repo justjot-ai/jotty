@@ -91,13 +91,29 @@ class SessionKey:
         return hash(self.raw)
 
 
-class InterfaceType(Enum):
-    """Source interface for a message."""
+def _make_interface_type() -> type:
+    """
+    InterfaceType is an alias for ChannelType (single source of truth).
 
-    CLI = "cli"
-    TELEGRAM = "telegram"
-    WEB = "web"
-    API = "api"  # Direct API calls
+    Backward compatible: InterfaceType.CLI, .TELEGRAM, .WEB all work.
+    New code should use ChannelType directly.
+    """
+    try:
+        from Jotty.core.infrastructure.foundation.types.sdk_types import ChannelType
+        return ChannelType
+    except ImportError:
+        from enum import Enum as _Enum
+
+        class _Fallback(_Enum):
+            CLI = "cli"
+            TELEGRAM = "telegram"
+            WEB = "web"
+            API = "api"
+
+        return _Fallback
+
+
+InterfaceType = _make_interface_type()
 
 
 @dataclass
@@ -184,7 +200,7 @@ class JottyMessage:
         return cls(
             message_id=data.get("message_id", str(uuid.uuid4())[:12]),
             content=data.get("content", ""),
-            interface=InterfaceType(data.get("interface", "cli")),
+            interface=InterfaceType.from_string(data.get("interface", "cli")),
             user_id=data.get("user_id", "unknown"),
             session_id=data.get("session_id", ""),
             role=data.get("role", "user"),
@@ -409,45 +425,91 @@ class MessageAdapter:
     """
     DRY adapter for converting external messages to JottyMessage.
 
-    Eliminates duplication across from_telegram, from_web, from_cli methods.
-    Uses strategy pattern for clean separation of concerns.
+    All channels funnel through from_channel() which builds a JottyMessage
+    from a simple dict. Only Telegram has special handling (SDK-specific
+    Update objects). Every other channel (Slack, Discord, WhatsApp, Signal,
+    X, LinkedIn, Mastodon, Bluesky, Matrix, Teams, etc.) uses the same
+    generic dict->JottyMessage path.
 
     Usage:
-        # Single entry point
-        msg = MessageAdapter.from_source(InterfaceType.TELEGRAM, telegram_update)
+        # Generic (works for ALL channels):
+        msg = MessageAdapter.from_channel("telegram", {
+            "content": "hello", "user_id": "123", "channel_id": "456"
+        })
 
-        # Or use existing methods (backwards compatible)
+        # Backward compatible:
         msg = JottyMessage.from_telegram(telegram_update)
+        msg = MessageAdapter.from_source(InterfaceType.TELEGRAM, update)
     """
 
+    # Channel ID prefixes for session_id generation
+    _CHANNEL_PREFIX = {
+        "telegram": "tg", "whatsapp": "wa", "slack": "sl", "discord": "dc",
+        "signal": "sg", "imessage": "im", "teams": "ms", "google_chat": "gc",
+        "matrix": "mx", "x": "x", "linkedin": "li", "mastodon": "md",
+        "bluesky": "bs", "reddit": "rd", "web": "web", "cli": "cli",
+    }
+
     @staticmethod
-    def from_source(source_type: InterfaceType, data: Any, **kwargs: Any) -> JottyMessage:
+    def from_channel(
+        channel: str,
+        data: Dict[str, Any],
+        session_id: Optional[str] = None,
+    ) -> JottyMessage:
         """
-        Single entry point for message conversion.
+        Universal entry point: convert any channel's message dict to JottyMessage.
 
-        Args:
-            source_type: InterfaceType enum
-            data: Source-specific data (Update, dict, str)
-            **kwargs: Additional arguments passed to converter
+        This is the ONLY conversion path new channels need. The dict must contain:
+          - content (str): message text
+          - user_id (str): sender identifier
+          - channel_id (str): chat/room/thread identifier
 
-        Returns:
-            JottyMessage instance
+        Optional fields: user_name, message_id, attachments, metadata, reply_to.
         """
-        converters = {
-            InterfaceType.TELEGRAM: MessageAdapter._from_telegram,
-            InterfaceType.WEB: MessageAdapter._from_web,
-            InterfaceType.CLI: MessageAdapter._from_cli,
-        }
+        channel_type = InterfaceType.from_string(channel)
+        prefix = MessageAdapter._CHANNEL_PREFIX.get(channel, channel[:3])
+        cid = data.get("channel_id", "default")
 
-        converter = converters.get(source_type)
-        if not converter:
-            raise ValueError(f"Unsupported interface type: {source_type}")
+        return JottyMessage(
+            content=data.get("content", ""),
+            interface=channel_type,
+            user_id=data.get("user_id", "unknown"),
+            session_id=session_id or f"{prefix}_{cid}",
+            metadata={
+                "channel_id": cid,
+                "message_id": data.get("message_id"),
+                "user_name": data.get("user_name"),
+                **data.get("metadata", {}),
+            },
+            attachments=[
+                Attachment.from_dict(a) for a in data.get("attachments", [])
+            ],
+            reply_to=data.get("reply_to"),
+        )
 
-        return converter(data, **kwargs)  # type: ignore[no-any-return, operator]
+    @staticmethod
+    def from_source(source_type: "InterfaceType", data: Any, **kwargs: Any) -> JottyMessage:
+        """
+        Backward-compatible entry point.
+
+        Routes Telegram updates to the SDK-specific converter;
+        everything else goes through from_channel().
+        """
+        if hasattr(source_type, "value") and source_type.value == "telegram" and not isinstance(data, dict):
+            return MessageAdapter._from_telegram(data, **kwargs)
+        if isinstance(data, str):
+            return MessageAdapter._from_cli(data, **kwargs)
+        if isinstance(data, dict):
+            return MessageAdapter.from_channel(
+                source_type.value if hasattr(source_type, "value") else str(source_type),
+                data,
+                session_id=kwargs.get("session_id"),
+            )
+        raise ValueError(f"Unsupported data type for {source_type}: {type(data)}")
 
     @staticmethod
     def _from_telegram(update: Any, session_id: Optional[str] = None) -> JottyMessage:
-        """Internal: Convert Telegram update. Called by from_source."""
+        """Convert Telegram SDK Update object (python-telegram-bot specific)."""
         message = update.message or update.edited_message
         if not message:
             raise ValueError("No message in update")
@@ -455,7 +517,6 @@ class MessageAdapter:
         chat_id = str(message.chat.id)
         user_id = str(message.from_user.id) if message.from_user else chat_id
 
-        # Build attachments
         attachments = []
         if message.document:
             attachments.append(
@@ -496,21 +557,20 @@ class MessageAdapter:
     def _from_web(
         request_data: Dict[str, Any], user_id: str = "web_user", session_id: Optional[str] = None
     ) -> JottyMessage:
-        """Internal: Convert web request. Called by from_source."""
-        return JottyMessage(
-            content=request_data.get("message", ""),
-            interface=InterfaceType.WEB,
-            user_id=user_id,
-            session_id=session_id or request_data.get("session_id", str(uuid.uuid4())[:8]),
-            metadata={
+        """Convert web request dict."""
+        return MessageAdapter.from_channel("web", {
+            "content": request_data.get("message", ""),
+            "user_id": user_id,
+            "channel_id": request_data.get("session_id", str(uuid.uuid4())[:8]),
+            "metadata": {
                 "user_agent": request_data.get("user_agent"),
                 "ip": request_data.get("ip"),
             },
-        )
+        }, session_id=session_id)
 
     @staticmethod
-    def _from_cli(text: str, session_id: str, user_id: str = "cli_user") -> JottyMessage:
-        """Internal: Convert CLI input. Called by from_source."""
+    def _from_cli(text: str, session_id: str = "", user_id: str = "cli_user") -> JottyMessage:
+        """Convert CLI text input."""
         return JottyMessage(
             content=text,
             interface=InterfaceType.CLI,

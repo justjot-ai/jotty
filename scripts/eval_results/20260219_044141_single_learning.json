@@ -1,0 +1,91 @@
+{
+  "timestamp": "2026-02-19T04:41:41.769880",
+  "model": "claude-3-haiku-20240307",
+  "mode": "single",
+  "results": [
+    {
+      "task_id": "S1_raft",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.6241333333333333,
+      "content_length": 3559,
+      "checks_passed": 11,
+      "checks_total": 15,
+      "elapsed_seconds": 9.70770812034607,
+      "episodes_before": 0,
+      "episodes_after": 0,
+      "error": null
+    },
+    {
+      "task_id": "S2_crdt",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.7934857142857143,
+      "content_length": 6798,
+      "checks_passed": 11,
+      "checks_total": 14,
+      "elapsed_seconds": 16.951841592788696,
+      "episodes_before": 0,
+      "episodes_after": 0,
+      "error": null
+    },
+    {
+      "task_id": "S3_dist_lock",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.6719999999999999,
+      "content_length": 5948,
+      "checks_passed": 9,
+      "checks_total": 15,
+      "elapsed_seconds": 12.84156346321106,
+      "episodes_before": 2,
+      "episodes_after": 2,
+      "error": null
+    },
+    {
+      "task_id": "S4_event_source",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8896,
+      "content_length": 9947,
+      "checks_passed": 14,
+      "checks_total": 14,
+      "elapsed_seconds": 21.891037940979004,
+      "episodes_before": 2,
+      "episodes_after": 2,
+      "error": null
+    },
+    {
+      "task_id": "AB_no_learn",
+      "domain": "system_design",
+      "learn": false,
+      "success": true,
+      "quality_score": 0.5677333333333333,
+      "content_length": 3747,
+      "checks_passed": 7,
+      "checks_total": 12,
+      "elapsed_seconds": 6.417544603347778,
+      "episodes_before": 4,
+      "episodes_after": 4,
+      "error": null
+    },
+    {
+      "task_id": "AB_with_learn",
+      "domain": "system_design",
+      "learn": true,
+      "success": true,
+      "quality_score": 0.8628,
+      "content_length": 8295,
+      "checks_passed": 12,
+      "checks_total": 12,
+      "elapsed_seconds": 25.65279722213745,
+      "episodes_before": 4,
+      "episodes_after": 4,
+      "error": null
+    }
+  ]
+}

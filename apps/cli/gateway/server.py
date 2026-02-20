@@ -83,60 +83,34 @@ class UnifiedGateway:
         # Get the responder registry (uses registry-based skill discovery)
         responder_registry = get_responder_registry()
 
-        # WebSocket responder needs access to _websocket_clients, so we keep it custom
         async def websocket_responder(response: ResponseEvent) -> Any:
             message = json.dumps(
                 {"type": "response", "channel_id": response.channel_id, "content": response.content}
             )
-            # Broadcast to all connected clients
             for ws in list(self._websocket_clients):
                 try:
                     await ws.send_text(message)
                 except Exception:
                     self._websocket_clients.discard(ws)
 
-        # Create wrapper responders that use the registry
-        async def telegram_responder(response: ResponseEvent) -> Any:
-            resp_event = ResponderResponseEvent(
-                channel=ChannelType.TELEGRAM,
-                channel_id=response.channel_id,
-                content=response.content,
-                reply_to=response.reply_to,
-            )
-            await responder_registry.send(resp_event)
+        def _make_channel_responder(channel: ChannelType) -> Any:
+            """DRY: single factory for all channel responders."""
+            async def _responder(response: ResponseEvent) -> Any:
+                resp_event = ResponderResponseEvent(
+                    channel=channel,
+                    channel_id=response.channel_id,
+                    content=response.content,
+                    reply_to=response.reply_to,
+                )
+                await responder_registry.send(resp_event)
+            return _responder
 
-        async def slack_responder(response: ResponseEvent) -> Any:
-            resp_event = ResponderResponseEvent(
-                channel=ChannelType.SLACK,
-                channel_id=response.channel_id,
-                content=response.content,
-                reply_to=response.reply_to,
-            )
-            await responder_registry.send(resp_event)
-
-        async def discord_responder(response: ResponseEvent) -> Any:
-            resp_event = ResponderResponseEvent(
-                channel=ChannelType.DISCORD,
-                channel_id=response.channel_id,
-                content=response.content,
-                reply_to=response.reply_to,
-            )
-            await responder_registry.send(resp_event)
-
-        async def whatsapp_responder(response: ResponseEvent) -> Any:
-            resp_event = ResponderResponseEvent(
-                channel=ChannelType.WHATSAPP,
-                channel_id=response.channel_id,
-                content=response.content,
-                reply_to=response.reply_to,
-            )
-            await responder_registry.send(resp_event)
-
-        self.router.register_responder(ChannelType.TELEGRAM, telegram_responder)
-        self.router.register_responder(ChannelType.SLACK, slack_responder)
-        self.router.register_responder(ChannelType.DISCORD, discord_responder)
-        self.router.register_responder(ChannelType.WEBSOCKET, websocket_responder)
-        self.router.register_responder(ChannelType.WHATSAPP, whatsapp_responder)
+        # Register responders for all channels (DRY — one factory, no duplication)
+        for ch in ChannelType:
+            if ch == ChannelType.WEBSOCKET:
+                self.router.register_responder(ch, websocket_responder)
+            elif ch not in (ChannelType.CLI, ChannelType.SDK, ChannelType.CUSTOM):
+                self.router.register_responder(ch, _make_channel_responder(ch))
 
     def create_app(self) -> "FastAPI":
         """Create FastAPI application with all endpoints."""
@@ -212,6 +186,20 @@ class UnifiedGateway:
         @app.get("/stats")
         async def stats() -> Any:
             return {**self.router.stats, "websocket_clients": len(self._websocket_clients)}
+
+        @app.get("/channels")
+        async def list_channels() -> Any:
+            """List all supported channels and their webhook URLs."""
+            base = os.getenv("PUBLIC_URL", f"http://localhost:{self.port}")
+            channels = {}
+            for ch in ChannelType:
+                if ch in (ChannelType.CLI, ChannelType.SDK, ChannelType.CUSTOM):
+                    continue
+                channels[ch.value] = {
+                    "webhook": f"{base}/webhook/{ch.value}",
+                    "active": ch in self.router._responders,
+                }
+            return {"channels": channels, "count": len(channels)}
 
         # ============ REST API (for SDKs) ============
 
@@ -637,6 +625,48 @@ class UnifiedGateway:
             except Exception as e:
                 logger.error(f"WebSocket error: {e}", exc_info=True)
                 self._websocket_clients.discard(websocket)
+
+        # ============ GENERIC CHANNEL WEBHOOK (DRY) ============
+        # Handles ALL social channels: Signal, X, LinkedIn, Mastodon,
+        # Bluesky, Reddit, Matrix, Teams, Google Chat, iMessage, etc.
+        # Compatible with OpenClaw gateway webhook format.
+        @app.post("/webhook/{channel_name}")
+        async def generic_channel_webhook(channel_name: str, request: Request) -> Any:
+            """
+            Universal webhook for any social media channel.
+
+            Accepts OpenClaw-compatible format:
+            {"content": "...", "user_id": "...", "channel_id": "...", "user_name": "..."}
+
+            Or platform-native formats (Telegram, Slack, Discord, WhatsApp
+            are handled by their specific routes above; this catches everything else).
+            """
+            # Skip channels that have dedicated handlers
+            dedicated = {"telegram", "slack", "discord", "whatsapp"}
+            if channel_name in dedicated:
+                return {"ok": False, "error": f"Use /webhook/{channel_name} (dedicated)"}
+
+            try:
+                data = await request.json()
+                channel_type = ChannelType.from_string(channel_name)
+
+                event = MessageEvent(
+                    channel=channel_type,
+                    channel_id=data.get("channel_id", "default"),
+                    user_id=data.get("user_id", f"{channel_name}_user"),
+                    user_name=data.get("user_name", data.get("user_id", "Unknown")),
+                    content=data.get("content", data.get("text", data.get("message", ""))),
+                    message_id=data.get("message_id"),
+                    reply_to=data.get("reply_to"),
+                    raw_data=data,
+                )
+
+                asyncio.create_task(self.router.handle_message(event))
+                return {"ok": True, "channel": channel_name}
+
+            except Exception as e:
+                logger.error(f"Webhook error [{channel_name}]: {e}", exc_info=True)
+                return {"ok": False, "error": str(e)}
 
         # ============ GENERIC HTTP ============
         @app.post("/message")

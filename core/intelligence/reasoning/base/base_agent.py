@@ -671,6 +671,13 @@ class BaseAgent(ABC):
             service = LearningService.get_instance()
             task_str = str(kwargs.get("task", kwargs.get("query", kwargs.get("input", ""))))[:200]
 
+            output_str = str(output) if output else ""
+            agent_outcome: Dict[str, Any] = {
+                "output_length": len(output_str),
+            }
+            if output_str:
+                excerpt = output_str[:600].rsplit("\n", 1)[0] if len(output_str) > 600 else output_str
+                agent_outcome["response_excerpt"] = excerpt
             service.record(
                 unit_name=self.config.name,
                 unit_type="agent",
@@ -678,7 +685,7 @@ class BaseAgent(ABC):
                 task_type=self.__class__.__name__,
                 context={"task": task_str},
                 action={"model": self.config.model, "retries": retries},
-                outcome={"output_length": len(str(output)) if output else 0},
+                outcome=agent_outcome,
                 success=success,
                 quality=0.8 if success else 0.0,
                 execution_time=execution_time,

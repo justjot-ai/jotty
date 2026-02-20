@@ -271,6 +271,8 @@ class ChatExecutor:
         output_format: str = "auto",
         max_steps: int = 10,
         tool_timeout: float = 30.0,
+        learning_context: Optional[str] = None,
+        temperature: Optional[float] = None,
     ) -> None:
         """
         Initialize unified executor.
@@ -287,6 +289,8 @@ class ChatExecutor:
                           Default 'auto' lets LLM decide based on user request
             max_steps: Maximum tool use iterations
             tool_timeout: Timeout for each tool execution (seconds)
+            learning_context: Learning guidance to inject into system prompt
+            temperature: LLM temperature (None = provider default)
         """
         self.status_callback = status_callback
         self.stream_callback = stream_callback
@@ -294,6 +298,8 @@ class ChatExecutor:
         self.output_format = output_format.lower() if output_format else "auto"
         self.max_steps = max_steps
         self.tool_timeout = tool_timeout
+        self.learning_context = learning_context
+        self.temperature = temperature
 
         # Initialize provider
         if provider:
@@ -308,10 +314,12 @@ class ChatExecutor:
         self.tool_generator = UnifiedToolGenerator()
 
     def _build_system_prompt(self) -> str:
-        """Build system prompt with output format instructions if specified."""
+        """Build system prompt with output format + learning context if available."""
         base_prompt = UNIFIED_SYSTEM_PROMPT
 
-        # If output format is auto, use base prompt
+        if self.learning_context:
+            base_prompt = base_prompt + "\n\n" + self.learning_context
+
         if self.output_format == "auto":
             return base_prompt
 
@@ -773,9 +781,14 @@ The user has requested {section_name} visualization format. You MUST:
                     )
                     full_content += content_chunk
                 else:
-                    response = await self.llm_provider.call(
-                        messages=messages, tools=tools, system=self._build_system_prompt()
-                    )
+                    call_kwargs: dict = {
+                        "messages": messages,
+                        "tools": tools,
+                        "system": self._build_system_prompt(),
+                    }
+                    if self.temperature is not None:
+                        call_kwargs["temperature"] = self.temperature
+                    response = await self.llm_provider.call(**call_kwargs)
                     # Extract text content
                     for block in response.content:
                         if isinstance(block, TextBlock):

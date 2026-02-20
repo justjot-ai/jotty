@@ -684,26 +684,29 @@ class LearningStore:
             params + [limit],
         ).fetchall()
 
-        return [
-            {
+        results = []
+        for row in rows:
+            quality = row["quality"] if row["quality"] is not None else 1.0
+            error_type = row["error_type"] or (
+                "low_quality" if quality < 0.6 else ""
+            )
+            error_message = row["error_message"] or (
+                f"Quality was {quality:.2f} — below threshold"
+                if quality < 0.6
+                else ""
+            )
+            results.append({
                 "episode_id": row["episode_id"],
                 "unit_name": row["unit_name"],
                 "task_type": row["task_type"],
-                "error_type": row["error_type"]
-                or ("low_quality" if row.get("quality", 1) < 0.6 else ""),
-                "error_message": row["error_message"]
-                or (
-                    f"Quality was {row.get('quality', 0):.2f} — below threshold"
-                    if row.get("quality", 1) < 0.6
-                    else ""
-                ),
+                "error_type": error_type,
+                "error_message": error_message,
                 "context": json.loads(row["context"]),
                 "action": json.loads(row["action"]),
                 "outcome": json.loads(row["outcome"]),
                 "timestamp": row["timestamp"],
-            }
-            for row in rows
-        ]
+            })
+        return results
 
     def close(self) -> None:
         """Close the database connection."""

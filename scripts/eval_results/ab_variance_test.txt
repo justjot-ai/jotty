@@ -1,0 +1,14 @@
+A/B VARIANCE TEST — 3 trials of gossip task
+Model: claude-3-haiku-20240307
+
+--- Trial 1 ---
+  Trial 1 WITHOUT:  3615 chars, 7/12 checks, 7.5s
+  Trial 1 WITH   :  3882 chars, 6/12 checks, 11.5s
+
+--- Trial 2 ---
+  Trial 2 WITHOUT:  3280 chars, 7/12 checks, 6.2s
+  Trial 2 WITH   :  2684 chars, 6/12 checks, 8.3s
+
+--- Trial 3 ---
+  Trial 3 WITHOUT:  3679 chars, 7/12 checks, 7.8s
+  Trial 3 WITH   :  9666 chars, 12/12 checks, 23.0s

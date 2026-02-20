@@ -540,13 +540,20 @@ class SwarmTemplate(SwarmLearning):
         # Inject LearningService context
         if self._learning_service:
             domain = getattr(self.config, "domain", "") or ""
+            task_type = self.TASK_TYPE or self.__class__.__name__
             learning_ctx = self._learning_service.build_context_string(
                 domain=domain,
-                task_type=self.TASK_TYPE or self.__class__.__name__,
+                task_type=task_type,
                 unit_name=self.config.name or "",
             )
-            if learning_ctx:
-                context["learning_context"] = learning_ctx
+            retrieval_ctx = self._learning_service.build_retrieval_context(
+                domain=domain,
+                task_type=task_type,
+                goal=str(task)[:500] if task else "",
+            )
+            ctx_parts = [p for p in [learning_ctx, retrieval_ctx] if p]
+            if ctx_parts:
+                context["learning_context"] = "\n".join(ctx_parts)
 
         # Build context with swarm's shared context
         if self._context:

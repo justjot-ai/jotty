@@ -61,14 +61,18 @@ class AnthropicProvider(LLMProvider):
         tools: List[Dict],
         system: str,
         max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
+        temperature: Optional[float] = None,
     ) -> LLMResponse:
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=self._cap_max_tokens(max_tokens),
-            system=system,
-            messages=messages,
-            tools=self.convert_tools(tools),
-        )
+        kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": self._cap_max_tokens(max_tokens),
+            "system": system,
+            "messages": messages,
+            "tools": self.convert_tools(tools),
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        response = self.client.messages.create(**kwargs)
         return self._parse_response(response)
 
     async def call_streaming(

@@ -1,0 +1,237 @@
+
+======================================================================
+  JOTTY HARD LEARNING EVALUATION
+======================================================================
+
+  Date: 2026-02-19T06:50:46.562194
+  Model: claude-3-haiku-20240307 (weakest Anthropic, 4096 max output)
+  Tasks: 4 genuinely hard distributed systems problems
+  Checks: structural regex (not keyword matching)
+  Pass threshold: 70% checks AND 3000+ chars
+  Initial episodes: 0
+
+======================================================================
+  ROUND 1/4 — H1_multi_paxos (cold start)
+======================================================================
+
+
+  --- H1_multi_paxos ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 0 | Rate: 0%
+  Context: 0 chars | Retrieval: 0 chars
+
+  [PASS] Q=0.73 | Checks=15/20 (75%) | Len=7542 | Code=2 blocks | 25s
+  Episodes: 0→0
+    [+] Prepare-Promise flow
+    [+] Accept-Accepted flow
+    [+] Proposal numbers globally unique
+    [+] Quorum intersection proof
+    [+] Proposer dueling/livelock scenario
+    [+] Multi-Paxos leader eliminates Phase 1
+    [+] Slot-based log structure
+    [+] PaxosNode.propose method
+    [+] handle_prepare with proposal comparison
+    [-] handle_promise collects responses
+    [+] ProposalNumber comparison
+    [+] Log with gap handling
+    [+] Highest accepted value used
+    [-] Substantial code (3+ blocks, 8+ lines each)
+    [-] test_no_split_decision with assertion
+    [+] test_accepted_value_preserved
+    [+] test_leader_change_recovery
+    [+] test_proposer_dueling
+    [-] 5+ test assertions total
+    [-] Complexity analysis
+  Waiting for background learning...
+
+======================================================================
+  ROUND 2/4 — H2_lock_free_queue (0 episodes)
+======================================================================
+
+
+  --- H2_lock_free_queue ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 0 | Rate: 0%
+  Context: 0 chars | Retrieval: 0 chars
+
+  [PASS] Q=0.96 | Checks=17/19 (89%) | Len=7955 | Code=6 blocks | 19s
+  Episodes: 0→1
+    [+] Linearizability formal definition
+    [+] ABA scenario with specific steps
+    [+] Tagged pointer bit layout
+    [+] Hazard pointer explanation
+    [+] Epoch-based reclamation
+    [+] Michael-Scott linearization points
+    [+] Memory overhead comparison
+    [-] CAS operation implementation
+    [+] enqueue with CAS loop
+    [+] dequeue with CAS loop
+    [+] Tail advancement helping
+    [+] Tagged/stamped pointer for ABA
+    [-] Sentinel/dummy head node
+    [+] Substantial code
+    [+] test_concurrent with 4 threads
+    [+] test_aba_prevention
+    [+] Sum verification (enqueued == dequeued)
+    [+] 5+ assertions
+    [+] Complexity analysis
+  Waiting for background learning...
+
+======================================================================
+  ROUND 3/4 — H3_byzantine_bft (1 episodes)
+======================================================================
+
+
+  --- H3_byzantine_bft ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 1 | Rate: 100%
+  Context: 123 chars | Retrieval: 0 chars
+
+  [PASS] Q=0.70 | Checks=16/20 (80%) | Len=13741 | Code=1 blocks | 31s
+  Episodes: 1→1
+    [-] 3f+1 minimum with proof
+    [+] 3-node impossibility scenario
+    [+] PRE-PREPARE message format
+    [+] 2f prepare threshold
+    [+] 2f+1 commit threshold
+    [+] View change trigger mechanism
+    [+] O(n²) message complexity
+    [+] HotStuff O(n) comparison
+    [+] PBFT state machine implementation
+    [+] MessageLog per (view, sequence)
+    [+] HMAC or crypto signing
+    [+] View change manager
+    [+] Checkpoint with 2f+1 proofs
+    [+] Duplicate message handling
+    [-] Substantial code
+    [+] test_normal_case with 4 nodes
+    [+] test_byzantine with conflicting messages
+    [+] test_view_change
+    [-] 5+ assertions
+    [-] Math reasoning
+  Waiting for background learning...
+
+======================================================================
+  ROUND 4/4 — H4_saga_2pc (2 episodes)
+======================================================================
+
+
+  --- H4_saga_2pc ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 2 | Rate: 100%
+  Context: 123 chars | Retrieval: 0 chars
+
+  [FAIL] Q=0.40 | Checks=9/19 (47%) | Len=5672 | Code=0 blocks | 12s
+  Episodes: 2→2
+    [+] ACID definition
+    [+] 2PC blocking impossibility proof
+    [+] Saga = ACD not Isolation
+    [+] Dirty read scenario for Saga
+    [-] Orchestration vs choreography
+    [+] Specific use case mapping
+    [-] Coordinator prepare/commit/abort
+    [+] Write-ahead log
+    [+] Coordinator crash recovery
+    [+] SagaOrchestrator with compensation
+    [+] Idempotency key implementation
+    [-] Exponential backoff for retry
+    [-] Substantial code
+    [-] test_2pc_happy_path
+    [-] test_saga_compensation reverse order
+    [-] test_saga_idempotency
+    [-] test_saga_dirty_read
+    [-] 5+ assertions
+    [-] Math reasoning
+  Waiting for background learning...
+
+======================================================================
+  A/B TEST — Vector Clocks
+======================================================================
+
+  Episodes: 2
+
+  --- AB_no_learn [NO LEARNING] ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 2 | Rate: 100%
+  Context: 123 chars | Retrieval: 0 chars
+
+  [PASS] Q=0.63 | Checks=12/15 (80%) | Len=6382 | Code=1 blocks | 14s
+  Episodes: 2→2
+    [+] Happens-before formal definition
+    [+] Vector clock update rules
+    [+] Proof: a→b IFF V(a) < V(b)
+    [-] 3-process concrete example
+    [-] Causal delivery condition
+    [+] VectorClock class with methods
+    [+] happens_before comparison
+    [+] concurrent detection
+    [+] CausalBroadcast with buffer
+    [+] Delivery condition implementation
+    [-] Substantial code
+    [+] test_causal_delivery_order
+    [+] test_concurrent_detection
+    [+] 5+ assertions
+    [+] Math reasoning
+
+  --- AB_with_learn ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 2 | Rate: 100%
+  Context: 123 chars | Retrieval: 0 chars
+
+  [PASS] Q=0.79 | Checks=11/15 (73%) | Len=5205 | Code=5 blocks | 15s
+  Episodes: 2→4
+    [+] Happens-before formal definition
+    [-] Vector clock update rules
+    [+] Proof: a→b IFF V(a) < V(b)
+    [-] 3-process concrete example
+    [-] Causal delivery condition
+    [+] VectorClock class with methods
+    [+] happens_before comparison
+    [+] concurrent detection
+    [+] CausalBroadcast with buffer
+    [-] Delivery condition implementation
+    [+] Substantial code
+    [+] test_causal_delivery_order
+    [+] test_concurrent_detection
+    [+] 5+ assertions
+    [+] Math reasoning
+
+======================================================================
+  FINAL RESULTS
+======================================================================
+
+  [PASS] H1_multi_paxos       Q=0.73 Chk=15/20 (75%) Len= 7542 Ep=0→0
+  [PASS] H2_lock_free_queue   Q=0.96 Chk=17/19 (90%) Len= 7955 Ep=0→1
+  [PASS] H3_byzantine_bft     Q=0.69 Chk=16/20 (80%) Len=13741 Ep=1→1 ctx=123
+  [FAIL] H4_saga_2pc          Q=0.40 Chk=9/19 (47%) Len= 5672 Ep=2→2 ctx=123
+  [PASS] AB_no_learn          Q=0.63 Chk=12/15 (80%) Len= 6382 Ep=2→2 [BASELINE] ctx=123
+  [PASS] AB_with_learn        Q=0.79 Chk=11/15 (73%) Len= 5205 Ep=2→4 ctx=123
+
+  --- LEARNING CURVE ---
+
+  H1_multi_paxos  ██████████████████████████████░░░░░░░░░░ 75% (15/20) Ep=0
+  H2_lock_free_queue ███████████████████████████████████░░░░░ 90% (17/19) Ep=0
+  H3_byzantine_bft ████████████████████████████████░░░░░░░░ 80% (16/20) Ep=1
+  H4_saga_2pc     ██████████████████░░░░░░░░░░░░░░░░░░░░░░ 47% (9/19) Ep=2
+
+  Check trend: 75% → 47% (-28%)
+
+  --- A/B TEST ---
+
+  Baseline:  80% (12/15) Len=6382
+  Learning:  73% (11/15) Len=5205
+  Delta: -7% → BASELINE WINS
+
+  --- SUMMARY ---
+
+  Avg check pass rate: 73%
+  Task pass rate (≥70% checks + ≥3000 chars): 80%
+  Total episodes recorded: 4
+
+  Saved: /var/www/sites/personal/stock_market/Jotty/scripts/eval_results/20260219_065420_hard_learning.json

@@ -3153,6 +3153,8 @@ class Orchestrator:
             elif result:
                 result_text = str(result)
 
+            from Jotty.core.intelligence.learning.learning_service import analyze_response
+
             response_analysis = analyze_response(result_text, goal) if result_text else {}
             heuristic_quality = response_analysis.get(
                 "quality_score",
@@ -3165,7 +3167,9 @@ class Orchestrator:
                 **{k: v for k, v in response_analysis.items() if k != "empty"},
             }
             if result_text:
-                outcome["response_excerpt"] = _build_response_digest(result_text)
+                # Build a structural digest: first ~600 chars preserving headings/structure
+                excerpt = result_text[:600].rsplit("\n", 1)[0] if len(result_text) > 600 else result_text
+                outcome["response_excerpt"] = excerpt
 
             # 1. Record with rich metadata
             import uuid as _uuid
@@ -3442,6 +3446,8 @@ class Orchestrator:
             enabled_tools=enabled_tools,
             output_format=output_format,
             max_steps=max_steps,
+            learning_context=kwargs.get("learning_context"),
+            temperature=kwargs.get("temperature"),
         )
 
         if stream:
@@ -3472,11 +3478,17 @@ class Orchestrator:
             # ── POST-EXECUTION: record with heuristic quality immediately ──
             if learn and episode_id:
                 chat_time = _time.time() - chat_start
-                success = getattr(result, "success", False) if result else False
                 content = getattr(result, "content", "") if result else ""
 
                 response_analysis = analyze_response(content, message) if content else {}
-                heuristic_quality = response_analysis.get("quality_score", 0.8 if success else 0.0)
+                heuristic_quality = response_analysis.get("quality_score", 0.0)
+
+                # Success = LLM didn't error AND quality is above threshold.
+                # Without quality-based failure detection, the learning system
+                # records 100% success rate even for poor responses, keeping
+                # the adaptive gate permanently closed.
+                llm_ok = getattr(result, "success", False) if result else False
+                success = llm_ok and heuristic_quality >= 0.5
 
                 outcome: Dict[str, Any] = {
                     "content_length": len(content),
@@ -3653,6 +3665,13 @@ class Orchestrator:
 
                 # Domain-specific record for streaming too
                 try:
+                    stream_outcome: Dict[str, Any] = {
+                        "content_length": len(full_content),
+                        **analysis,
+                    }
+                    if full_content:
+                        excerpt = full_content[:600].rsplit("\n", 1)[0] if len(full_content) > 600 else full_content
+                        stream_outcome["response_excerpt"] = excerpt
                     learning.record(
                         unit_name="Orchestrator",
                         unit_type="chat",
@@ -3660,7 +3679,7 @@ class Orchestrator:
                         task_type=_task_type,
                         context={"goal": message[:500]},
                         action={"domain": _domain, "task_type": _task_type, "streamed": True},
-                        outcome={"content_length": len(full_content), **analysis},
+                        outcome=stream_outcome,
                         success=True,
                         quality=quality,
                         execution_time=chat_time,

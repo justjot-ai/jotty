@@ -33,18 +33,52 @@ class ExecutionMode(Enum):
 
 
 class ChannelType(Enum):
-    """Source channel for requests."""
+    """
+    Source channel for requests.
 
-    CLI = "cli"  # Command-line interface
-    WEB = "web"  # Web UI
-    SDK = "sdk"  # SDK client (programmatic)
-    TELEGRAM = "telegram"  # Telegram bot
-    SLACK = "slack"  # Slack integration
-    DISCORD = "discord"  # Discord bot
-    WHATSAPP = "whatsapp"  # WhatsApp Business
-    WEBSOCKET = "websocket"  # WebSocket connection
-    HTTP = "http"  # Generic HTTP
-    CUSTOM = "custom"  # Custom channel
+    Covers all platforms supported by Jotty's unified gateway.
+    Aligned with OpenClaw gateway channel naming for interoperability.
+    """
+
+    # Core interfaces
+    CLI = "cli"
+    WEB = "web"
+    SDK = "sdk"
+    WEBSOCKET = "websocket"
+    HTTP = "http"
+
+    # Messaging platforms
+    TELEGRAM = "telegram"
+    WHATSAPP = "whatsapp"
+    SIGNAL = "signal"
+    IMESSAGE = "imessage"
+
+    # Team/workspace platforms
+    SLACK = "slack"
+    DISCORD = "discord"
+    TEAMS = "teams"
+    GOOGLE_CHAT = "google_chat"
+    MATRIX = "matrix"
+
+    # Social media platforms
+    X = "x"
+    LINKEDIN = "linkedin"
+    MASTODON = "mastodon"
+    BLUESKY = "bluesky"
+    REDDIT = "reddit"
+
+    # Extensibility
+    CUSTOM = "custom"
+
+    @classmethod
+    def from_string(cls, value: str) -> "ChannelType":
+        """Parse channel name loosely (handles aliases like 'twitter' -> X)."""
+        aliases = {"twitter": "x", "msteams": "teams", "gchat": "google_chat"}
+        normalized = aliases.get(value.lower(), value.lower())
+        try:
+            return cls(normalized)
+        except ValueError:
+            return cls.CUSTOM
 
 
 class SDKEventType(Enum):

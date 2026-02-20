@@ -162,6 +162,24 @@ _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
         "failure detect",
         "cluster member",
         "service discover",
+        "byzantine",
+        "fault toleran",
+        "lock-free",
+        "lock free",
+        "linearizab",
+        "two-phase commit",
+        "two phase commit",
+        "2pc",
+        "saga pattern",
+        "quorum",
+        "leader election",
+        "state machine replicat",
+        "causal broadcast",
+        "happens-before",
+        "snapshot isolation",
+        "serializab",
+        "compare-and-swap",
+        "compare and swap",
         "load shed",
         "circuit break",
         "bulkhead",
@@ -364,17 +382,29 @@ def analyze_response(content: str, goal: str) -> Dict[str, Any]:
     else:
         coverage = 0.5
 
+    # Detect if task expects code output
+    _impl_keywords = {"implement", "code", "class", "function", "method", "test",
+                       "write a", "build a", "create a"}
+    expects_code = any(kw in goal_lower for kw in _impl_keywords)
+
     # Compute composite quality score
     quality = 0.0
     quality += min(0.20, structure_hits * 0.02)  # Structure: up to 0.20
     quality += min(0.15, word_count / 5000 * 0.15)  # Length depth: up to 0.15
     quality += min(0.15, paragraph_count / 10 * 0.15)  # Paragraphs: up to 0.15
     quality += coverage * 0.25  # Goal coverage: up to 0.25
-    quality += 0.05 if has_code_blocks else 0.0  # Code: 0.05
     quality += 0.05 if has_citations else 0.0  # Citations: 0.05
     quality += 0.05 if has_math else 0.0  # Math: 0.05
     quality += 0.05 if has_table else 0.0  # Tables: 0.05
     quality += 0.05 if has_headings else 0.0  # Headings: 0.05
+
+    if expects_code:
+        quality += min(0.15, code_block_count * 0.05)  # Code: up to 0.15
+        if code_block_count == 0:
+            quality *= 0.5  # Halve quality when implementation is expected but absent
+    else:
+        quality += 0.05 if has_code_blocks else 0.0
+
     quality = min(1.0, quality)
 
     return {
@@ -490,7 +520,7 @@ class LearningService:
 
         # Pattern extraction thresholds
         self._min_episodes_for_pattern = 2
-        self._pattern_extraction_interval = 2  # Extract patterns every N records
+        self._pattern_extraction_interval = 1  # Extract patterns on every record
         self._record_count = 0
 
         logger.info("LearningService initialized")
@@ -580,7 +610,8 @@ class LearningService:
             self._store.save_episode(episode)
         except Exception as e:
             logger.warning(f"Failed to save episode: {e}")
-            return episode_id
+            # Continue with TD updates and pattern extraction even if DB save failed —
+            # in-memory learning still benefits from this data point.
 
         # Update value estimates via TD learning
         self._update_values(domain, task_type, action, success, quality)
@@ -1056,33 +1087,88 @@ class LearningService:
         # ADAPTIVE GATE: if the model is already performing well in this domain,
         # don't inject anything. Context injection hurts more than it helps
         # when baseline quality is high.
-        has_failures = rate < 0.90 and total >= 5
-        is_cold_start = total < 5
+        has_failures = rate < 0.90 and total >= 3
+        is_cold_start = total < 3
+        has_early_failures = is_cold_start and total > 0 and rate < 0.90
         if not has_failures and not is_cold_start:
             return ""
 
         parts: List[str] = []
 
-        if is_cold_start:
-            # Cold start: show structure from best prior response (if any)
-            best = self.get_best_approach_for_domain(domain, task_type)
-            if best and best.get("outline"):
-                parts.append(
-                    f"[Prior {domain} response structure (Q={best['quality']:.2f}): "
-                    f"{best['outline'][:300]}]"
-                )
-
-        if has_failures:
-            # Real failures exist — give corrective guidance
-            parts.append(f"[{domain}: {rate:.0%} success across {total} tasks]")
-
+        if has_early_failures:
+            # We have failures during cold start — provide corrective guidance
+            # from the failures themselves, not just from successes.
             failures = guidance.get("failure_analysis", [])
             if failures:
-                parts.append("Prior failures:")
+                parts.append(
+                    f"[IMPORTANT — Prior attempts at similar {domain} tasks "
+                    f"scored poorly ({rate:.0%} success across {total} attempts). "
+                    f"Common issues:]"
+                )
                 for f in failures[:3]:
                     desc = f.get("description", f.get("error_type", ""))
                     if desc:
                         parts.append(f"  - {desc}")
+                parts.append(
+                    "Ensure your response is comprehensive with detailed "
+                    "implementations, formal proofs, and thorough test cases."
+                )
+
+            # Also include best approach if any successes exist
+            best = self.get_best_approach_for_domain(domain, task_type)
+            if best:
+                feats = best.get("structural_features", [])
+                wc = (best.get("action") or {}).get("output_length", 0)
+                if feats or wc:
+                    hint_parts = []
+                    if feats:
+                        hint_parts.append(f"Include: {', '.join(feats[:5])}")
+                    if wc:
+                        hint_parts.append(f"Target ~{wc} chars")
+                    parts.append(f"[Successful approach: {'; '.join(hint_parts)}]")
+
+        elif is_cold_start:
+            best = self.get_best_approach_for_domain(domain, task_type)
+            if best:
+                hints = []
+                if best.get("outline"):
+                    hints.append(best["outline"][:300])
+                feats = best.get("structural_features", [])
+                if feats:
+                    hints.append(f"Include: {', '.join(feats[:5])}")
+                q = best.get("quality", 0)
+                wc = (best.get("action") or {}).get("output_length", 0)
+                if wc:
+                    hints.append(f"Target ~{wc} chars (prior best was Q={q:.2f})")
+                elif q > 0:
+                    hints.append(f"Prior best quality: {q:.2f}")
+                if hints:
+                    parts.append(f"[{domain} guidance: {'; '.join(hints)}]")
+
+        if has_failures:
+            parts.append(f"[{domain}: {rate:.0%} success across {total} tasks]")
+
+            # Corrective: what failed
+            failures = guidance.get("failure_analysis", [])
+            if failures:
+                parts.append("Common failure modes:")
+                for f in failures[:3]:
+                    desc = f.get("description", f.get("error_type", ""))
+                    if desc:
+                        parts.append(f"  - {desc}")
+
+            # Positive: what worked (concrete template from best episode)
+            best = self.get_best_approach_for_domain(domain, task_type)
+            if best and best.get("quality", 0) >= 0.5:
+                hints = []
+                feats = best.get("structural_features", [])
+                if feats:
+                    hints.append(f"Use: {', '.join(feats[:6])}")
+                wc = (best.get("action") or {}).get("output_length", 0)
+                if wc:
+                    hints.append(f"Aim for ~{wc} chars")
+                if hints:
+                    parts.append(f"Successful approach: {'; '.join(hints)}")
 
         if not parts:
             return ""
@@ -1615,7 +1701,11 @@ class LearningService:
             outcome = ep.outcome or {}
             excerpt = outcome.get("response_excerpt", "")
             if not excerpt:
-                continue
+                # Fall back: build excerpt from context goal if no response stored
+                goal_text = str(ep.context.get("goal", ep.context.get("message", "")))
+                if not goal_text:
+                    continue
+                excerpt = f"[Task: {goal_text[:200]}] Quality={ep.quality:.2f}"
 
             results.append(
                 {
@@ -1649,16 +1739,17 @@ class LearningService:
         Build a context string with structural digests of prior successful responses.
         Shows HOW the best responses were structured, not just feature checklists.
 
-        Uses the same adaptive gate as build_context_string — only inject when
-        the model is struggling or cold-starting, never when already succeeding.
+        Stricter gate than build_context_string: only inject when there are real
+        failures to correct AND enough episodes for relevant examples.
+        Cold-start retrieval is harmful — too few examples from different tasks
+        mislead the model rather than help it.
         """
         guidance = self.query(domain, task_type)
         total = guidance.get("total_episodes", 0)
         rate = guidance.get("success_rate", 0.0)
 
-        has_failures = rate < 0.90 and total >= 5
-        is_cold_start = total < 5
-        if not has_failures and not is_cold_start:
+        has_failures = rate < 0.90 and total >= 2
+        if not has_failures:
             return ""
 
         similar = self.retrieve_similar_responses(domain, task_type, goal, top_k=2)

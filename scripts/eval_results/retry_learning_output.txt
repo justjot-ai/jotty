@@ -1,0 +1,221 @@
+
+======================================================================
+  JOTTY RETRY LEARNING EVALUATION
+======================================================================
+
+  Date: 2026-02-19T12:19:37.873320
+  Model: claude-3-haiku-20240307
+  Strategy: Run hard task → fail → retry with learning context
+  Initial state: 0 episodes, 0% rate
+
+======================================================================
+  PHASE 1: WARM-UP (should pass)
+======================================================================
+
+
+  --- W1_vector_clock (warmup) ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 0 | Rate: 0% | Failures: 0
+  Context injected: 0 chars
+  Retrieval: 0 chars
+
+  [PASS] Checks=11/13 (85%) | Len=4412 | Code=4 | 15s
+  Episodes: 0→0 | Rate: 0%→0%
+    [-] Happens-before definition
+    [+] Vector clock update rules
+    [-] 3-process example
+    [+] VectorClock class
+    [+] increment method
+    [+] merge method
+    [+] happens_before method
+    [+] CausalBroadcast
+    [+] Delivery condition
+    [+] Buffer/pending mechanism
+    [+] Code blocks
+    [+] Test functions
+    [+] Assertions
+
+  Waiting for learning to process...
+
+======================================================================
+  PHASE 2: HARD TASK — 1st ATTEMPT (expecting failure)
+======================================================================
+
+
+  --- PBFT (attempt_1) ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 0 | Rate: 0% | Failures: 0
+  Context injected: 0 chars
+  Retrieval: 0 chars
+
+  [FAIL] Checks=12/20 (60%) | Len=4070 | Code=0 | 12s
+  Episodes: 0→0 | Rate: 0%→0%
+    [+] 3f+1 minimum proof
+    [-] 3-node impossibility
+    [+] PRE-PREPARE format
+    [+] 2f prepare threshold
+    [+] 2f+1 commit threshold
+    [+] View change mechanism
+    [+] O(n²) complexity
+    [+] HotStuff comparison
+    [-] PBFTNode class
+    [+] MessageLog tracking
+    [+] HMAC/crypto signing
+    [-] ViewChange class/logic
+    [+] Checkpoint management
+    [+] Duplicate handling
+    [-] Code blocks (3+)
+    [-] test_normal_case
+    [-] test_byzantine
+    [-] test_view_change
+    [-] 5+ assertions
+    [+] Math reasoning
+
+  Waiting for failure to be recorded and learned from...
+
+======================================================================
+  PHASE 3: LEARNING STATE CHECK
+======================================================================
+
+  Episodes: 2
+  Success rate: 100%
+  Failures recorded: 0
+  Context length: 105 chars
+  Context content:
+    > [system_design guidance: Include: 4 code blocks, math formulations, ~545 words; Prior best quality: 0.54]
+  Retrieval length: 0 chars
+
+======================================================================
+  PHASE 4: A/B TEST — SAME HARD TASK
+======================================================================
+
+  Running BASELINE (no learning context)...
+
+  --- PBFT_baseline (A/B baseline) [BASELINE] ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 2 | Rate: 100% | Failures: 0
+  Context injected: 105 chars
+    > [system_design guidance: Include: 4 code blocks, math formulations, ~545 words; Prior best quality: 0.54]
+  Retrieval: 0 chars
+
+  [FAIL] Checks=12/20 (60%) | Len=4127 | Code=0 | 8s
+  Episodes: 2→2 | Rate: 100%→100%
+    [+] 3f+1 minimum proof
+    [-] 3-node impossibility
+    [+] PRE-PREPARE format
+    [+] 2f prepare threshold
+    [+] 2f+1 commit threshold
+    [+] View change mechanism
+    [+] O(n²) complexity
+    [+] HotStuff comparison
+    [-] PBFTNode class
+    [+] MessageLog tracking
+    [+] HMAC/crypto signing
+    [-] ViewChange class/logic
+    [+] Checkpoint management
+    [+] Duplicate handling
+    [-] Code blocks (3+)
+    [-] test_normal_case
+    [-] test_byzantine
+    [-] test_view_change
+    [-] 5+ assertions
+    [+] Math reasoning
+
+  Running WITH LEARNING (corrective context from failure)...
+
+  --- PBFT_learning (A/B learning) ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 2 | Rate: 100% | Failures: 0
+  Context injected: 105 chars
+    > [system_design guidance: Include: 4 code blocks, math formulations, ~545 words; Prior best quality: 0.54]
+  Retrieval: 0 chars
+
+  [PASS] Checks=14/20 (70%) | Len=4122 | Code=0 | 20s
+  Episodes: 2→2 | Rate: 100%→100%
+    [+] 3f+1 minimum proof
+    [+] 3-node impossibility
+    [+] PRE-PREPARE format
+    [+] 2f prepare threshold
+    [+] 2f+1 commit threshold
+    [+] View change mechanism
+    [+] O(n²) complexity
+    [+] HotStuff comparison
+    [-] PBFTNode class
+    [+] MessageLog tracking
+    [+] HMAC/crypto signing
+    [+] ViewChange class/logic
+    [+] Checkpoint management
+    [+] Duplicate handling
+    [-] Code blocks (3+)
+    [-] test_normal_case
+    [-] test_byzantine
+    [-] test_view_change
+    [-] 5+ assertions
+    [+] Math reasoning
+
+======================================================================
+  PHASE 5: RETRY — 3rd attempt with accumulated learning
+======================================================================
+
+
+  --- PBFT (attempt_3) ---
+
+  Model: claude-3-haiku-20240307
+  Episodes: 2 | Rate: 100% | Failures: 0
+  Context injected: 105 chars
+    > [system_design guidance: Include: 4 code blocks, math formulations, ~545 words; Prior best quality: 0.54]
+  Retrieval: 0 chars
+
+  [PASS] Checks=14/20 (70%) | Len=3802 | Code=0 | 11s
+  Episodes: 2→4 | Rate: 100%→100%
+    [+] 3f+1 minimum proof
+    [+] 3-node impossibility
+    [+] PRE-PREPARE format
+    [+] 2f prepare threshold
+    [+] 2f+1 commit threshold
+    [+] View change mechanism
+    [+] O(n²) complexity
+    [+] HotStuff comparison
+    [-] PBFTNode class
+    [+] MessageLog tracking
+    [+] HMAC/crypto signing
+    [+] ViewChange class/logic
+    [+] Checkpoint management
+    [+] Duplicate handling
+    [-] Code blocks (3+)
+    [-] test_normal_case
+    [-] test_byzantine
+    [-] test_view_change
+    [-] 5+ assertions
+    [+] Math reasoning
+
+======================================================================
+  FINAL RESULTS
+======================================================================
+
+  [PASS] W1_vector_clock      (warmup         ) Chk=11/13 (85%) Len= 4412 Ep=0→0 Rate=0%→0%
+  [FAIL] PBFT                 (attempt_1      ) Chk=12/20 (60%) Len= 4070 Ep=0→0 Rate=0%→0%
+  [FAIL] PBFT_baseline        (A/B baseline   ) Chk=12/20 (60%) Len= 4127 Ep=2→2 Rate=100%→100% [BASELINE] ctx=105
+  [PASS] PBFT_learning        (A/B learning   ) Chk=14/20 (70%) Len= 4122 Ep=2→2 Rate=100%→100% ctx=105
+  [PASS] PBFT                 (attempt_3      ) Chk=14/20 (70%) Len= 3802 Ep=2→4 Rate=100%→100% ctx=105
+
+  --- RETRY IMPROVEMENT (same task across attempts) ---
+
+  Attempt 1: ████████████████████████░░░░░░░░░░░░░░░░ 60% (12/20) ctx=0ch
+  Attempt 2: ████████████████████████████░░░░░░░░░░░░ 70% (14/20) ctx=105ch
+
+  Improvement: 60% → 70% (+10%)
+  ✓ LEARNING HELPED — +10% improvement on retry
+
+  --- A/B TEST (same task, with vs without learning) ---
+
+  Baseline:  60% (12/20) ctx=0
+  Learning:  70% (14/20) ctx=105
+  Delta: +10%
+  ✓ LEARNING WINS
+
+  Saved: /var/www/sites/personal/stock_market/Jotty/scripts/eval_results/20260219_122201_retry_learning.json
