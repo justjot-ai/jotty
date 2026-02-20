@@ -358,23 +358,19 @@ class TestMASLearningInit:
     def test_init_delegates_stored(self, tmp_path):
         """Should store delegate references."""
         si = MagicMock(name="swarm_intelligence")
-        lm = MagicMock(name="learning_manager")
         tl = MagicMock(name="transfer_learning")
         ml = _create_mas_learning(
             tmp_path,
             swarm_intelligence=si,
-            learning_manager=lm,
             transfer_learning=tl,
         )
         assert ml.swarm_intelligence is si
-        assert ml.learning_manager is lm
         assert ml.transfer_learning is tl
 
     def test_init_no_delegates(self, tmp_path):
         """Delegates should be None when not provided."""
         ml = _create_mas_learning(tmp_path)
         assert ml.swarm_intelligence is None
-        assert ml.learning_manager is None
         assert ml.transfer_learning is None
 
     def test_init_workspace_path_default(self, tmp_path):
@@ -1477,7 +1473,6 @@ class TestGetStatistics:
         stats = ml.get_statistics()
 
         assert stats["delegates_to"]["swarm_intelligence"] is True
-        assert stats["delegates_to"]["learning_manager"] is False
         assert stats["delegates_to"]["transfer_learning"] is False
 
     def test_delegates_all_present(self, tmp_path):
@@ -1485,7 +1480,6 @@ class TestGetStatistics:
         ml = _create_mas_learning(
             tmp_path,
             swarm_intelligence=MagicMock(),
-            learning_manager=MagicMock(),
             transfer_learning=MagicMock(),
         )
         stats = ml.get_statistics()

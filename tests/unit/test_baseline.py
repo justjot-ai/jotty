@@ -103,11 +103,11 @@ class TestLearningImports:
 
         assert TDLambdaLearner is not None
 
-    def test_can_import_llm_q_predictor(self):
-        """Test LLMQPredictor import."""
-        from core.learning.q_learning import LLMQPredictor
+    def test_can_import_learning_service(self):
+        """Test LearningService import."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
 
-        assert LLMQPredictor is not None
+        assert LearningService is not None
 
 
 @pytest.mark.unit

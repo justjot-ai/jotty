@@ -126,8 +126,8 @@ class MASLearning:
         workspace_path: Optional[Path] = None,
         learning_dir: Optional[Path] = None,
         swarm_intelligence: Any = None,
-        learning_manager: Any = None,
         transfer_learning: Any = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialize MAS Learning.
@@ -137,7 +137,6 @@ class MASLearning:
             workspace_path: Current workspace/project path
             learning_dir: Directory for learning files
             swarm_intelligence: SwarmIntelligence for agent tracking (DELEGATE)
-            learning_manager: LearningManager for Q-learning (DELEGATE)
             transfer_learning: TransferableLearningStore for patterns (DELEGATE)
         """
         self.config = config
@@ -145,7 +144,6 @@ class MASLearning:
 
         # Delegate to existing components (DRY)
         self.swarm_intelligence = swarm_intelligence
-        self.learning_manager = learning_manager
         self.transfer_learning = transfer_learning
 
         # Learning directory
@@ -672,7 +670,6 @@ class MASLearning:
             },
             "delegates_to": {
                 "swarm_intelligence": self.swarm_intelligence is not None,
-                "learning_manager": self.learning_manager is not None,
                 "transfer_learning": self.transfer_learning is not None,
             },
         }

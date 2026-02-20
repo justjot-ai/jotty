@@ -7,7 +7,7 @@ SwarmML Comprehensive - Learning-Enhanced Machine Learning Template
 The ultimate AutoML swarm template combining:
 - World-class ML pipeline (from SwarmML)
 - Cross-session learning (TransferableLearningStore)
-- Online learning during execution (LearningManager)
+- Online learning during execution (LearningService)
 - Adaptive exploration/exploitation (AdaptiveController)
 - Pattern discovery and reuse (PatternLearner)
 - Self-improving feedback loops
@@ -199,7 +199,7 @@ class SwarmMLComprehensive(MLflowMixin, ReportMixin, WorldClassReportMixin, Tele
 
     Extends SwarmML with:
     - TransferableLearningStore for cross-session learning
-    - LearningManager for online learning
+    - LearningService for online learning
     - Adaptive exploration strategies
     - Pattern discovery and reuse
 
@@ -499,9 +499,7 @@ JSON only:""",
             return
 
         try:
-            from Jotty.core.intelligence.learning.learning_coordinator import (
-                LearningManager,  # type: ignore[import-not-found, import]
-            )
+            from Jotty.core.intelligence.learning.learning_service import LearningService
             from Jotty.core.intelligence.learning.transfer_learning import (
                 TransferableLearningStore,  # type: ignore[import]
             )
@@ -511,15 +509,8 @@ JSON only:""",
             if os.path.exists(store_path):
                 self._transfer_store.load(store_path)  # type: ignore[attr-defined]
 
-            class _LCConfig:
-                output_base_dir = os.path.join("Jotty", "outputs")
-                enable_rl = False
-
-            self._learning_coordinator = LearningManager(
-                config=_LCConfig(),
-                base_dir=os.path.join("Jotty", "outputs"),
-            )
-            self._learning_coordinator.initialize(auto_load=True)  # type: ignore[attr-defined]
+            # Use LearningService singleton (SQLite-backed, auto-persisted)
+            self._learning_coordinator = LearningService.get_instance()
 
             self._initialized_learning = True
             logger.info("Learning components initialized")
@@ -822,11 +813,14 @@ JSON only:""",
                 store_path = os.path.join("Jotty", "outputs", "transfer_store.json")
                 os.makedirs(os.path.dirname(store_path), exist_ok=True)
                 self._transfer_store.save(store_path)
-            if self._learning_coordinator:
-                self._learning_coordinator.save_all(
-                    episode_count=self._learning_state.iteration,
-                    avg_reward=self._learning_state.best_score,
-                    domains=["ml_pipeline"],
+            # LearningService auto-persists to SQLite — no explicit save needed
+            if self._learning_coordinator and self._learning_state.iteration > 0:
+                self._learning_coordinator.record_outcome(
+                    unit_name="ml_pipeline",
+                    state=f"iteration:{self._learning_state.iteration}",
+                    action="ml_pipeline_complete",
+                    reward=self._learning_state.best_score,
+                    domain="ml_pipeline",
                 )
         except Exception as e:
             logger.debug(f"Save learning failed: {e}")

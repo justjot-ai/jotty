@@ -64,3 +64,6 @@ expert_data/
 .mypy_cache/
 .backup/
 tests/e2e/results/
+
+# Test artifacts (MagicMock leaked paths)
+MagicMock/

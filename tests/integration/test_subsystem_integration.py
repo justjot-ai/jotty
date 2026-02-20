@@ -166,8 +166,8 @@ class TestLearningPipelineIntegration:
 
         ls = get_learning_system()
         assert ls is not None
-        assert hasattr(ls, "q_learner")
-        assert hasattr(ls, "record_experience")
+        assert hasattr(ls, "record")
+        assert hasattr(ls, "query")
 
 
 # =============================================================================

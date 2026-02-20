@@ -70,9 +70,6 @@ def _make_mock_manager(agent_names=None):
     credit_weights.update_from_feedback = Mock()
     sm.credit_weights = credit_weights
 
-    sm.learning_manager = Mock()
-    sm.learning_manager.record_outcome = Mock()
-
     return sm, runners
 
 
@@ -504,6 +501,8 @@ class TestAggregateAndCredit:
         assert combined.success
 
     async def test_cooperative_credit_assignment(self):
+        from unittest.mock import patch
+
         from Jotty.core.intelligence.orchestration.coordination.paradigm_executor import (
             ParadigmExecutor,
         )
@@ -514,19 +513,30 @@ class TestAggregateAndCredit:
             "a": _make_episode("A ok", agent_name="a"),
             "b": _make_episode("B ok", agent_name="b"),
         }
-        # Should not raise
-        pe.assign_cooperative_credit(results, "goal")
-        assert sm.learning_manager.record_outcome.call_count == 2
+        mock_svc = Mock()
+        with patch(
+            "Jotty.core.intelligence.learning.learning_service.LearningService.get_instance",
+            return_value=mock_svc,
+        ):
+            pe.assign_cooperative_credit(results, "goal")
+            assert mock_svc.record_outcome.call_count == 2
 
     async def test_cooperative_credit_skips_single_agent(self):
+        from unittest.mock import patch
+
         from Jotty.core.intelligence.orchestration.coordination.paradigm_executor import (
             ParadigmExecutor,
         )
 
         sm, _ = _make_mock_manager()
         pe = ParadigmExecutor(sm)
-        pe.assign_cooperative_credit({"solo": _make_episode("x")}, "goal")
-        sm.learning_manager.record_outcome.assert_not_called()
+        mock_svc = Mock()
+        with patch(
+            "Jotty.core.intelligence.learning.learning_service.LearningService.get_instance",
+            return_value=mock_svc,
+        ):
+            pe.assign_cooperative_credit({"solo": _make_episode("x")}, "goal")
+            mock_svc.record_outcome.assert_not_called()
 
 
 # ──────────────────────────────────────────────────────────────────────

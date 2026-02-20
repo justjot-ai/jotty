@@ -12,29 +12,27 @@ import pytest
 class TestLearningFacade:
     """Tests for learning facade accessor functions."""
 
-    def test_get_learning_system_returns_learning_manager(self):
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+    def test_get_learning_system_returns_learning_service(self):
         from Jotty.core.intelligence.learning.facade import get_learning_system
 
-        config = SwarmConfig()
-        manager = get_learning_system(config)
-        from Jotty.core.intelligence.learning.learning_coordinator import LearningManager
+        service = get_learning_system()
+        from Jotty.core.intelligence.learning.learning_service import LearningService
 
-        assert isinstance(manager, LearningManager)
+        assert isinstance(service, LearningService)
 
     def test_get_learning_system_default_config(self):
         from Jotty.core.intelligence.learning.facade import get_learning_system
 
-        manager = get_learning_system()
-        from Jotty.core.intelligence.learning.learning_coordinator import LearningManager
+        service = get_learning_system()
+        from Jotty.core.intelligence.learning.learning_service import LearningService
 
-        assert isinstance(manager, LearningManager)
+        assert isinstance(service, LearningService)
 
     def test_get_td_lambda_returns_learner(self):
         from Jotty.core.intelligence.learning.facade import get_td_lambda
 
         learner = get_td_lambda()
-        from Jotty.core.intelligence.learning.learning import TDLambdaLearner
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
 
         assert isinstance(learner, TDLambdaLearner)
 
@@ -42,7 +40,7 @@ class TestLearningFacade:
         from Jotty.core.intelligence.learning.facade import get_credit_assigner
 
         assigner = get_credit_assigner()
-        from Jotty.core.intelligence.learning.learning import ReasoningCreditAssigner
+        from Jotty.core.intelligence.learning.reasoning_credit import ReasoningCreditAssigner
 
         assert isinstance(assigner, ReasoningCreditAssigner)
 
@@ -98,7 +96,7 @@ class TestLearningFacade:
 
         components = list_components()
         expected = [
-            "LearningManager",
+            "LearningService",
             "TDLambdaLearner",
             "ReasoningCreditAssigner",
             "OfflineLearner",

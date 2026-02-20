@@ -2,15 +2,13 @@
 Comprehensive unit tests for the Jotty learning layer.
 
 Covers:
-- core/learning/learning_coordinator.py (LearningManager, singletons, dataclasses, fallbacks)
 - core/learning/td_lambda.py (TDLambdaLearner, GroupedValueBaseline, SkillQTable, COMACredit)
 - core/learning/adaptive_components.py (AdaptiveLearningRate, IntermediateRewardCalculator, AdaptiveExploration)
 - core/learning/rl_components.py (RLComponents)
 """
 
-import json
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -25,15 +23,6 @@ try:
         AdaptiveExploration,
         AdaptiveLearningRate,
         IntermediateRewardCalculator,
-    )
-    from core.intelligence.learning.learning_coordinator import (
-        LearningManager,
-        LearningSession,
-        LearningUpdate,
-        _NoOpLearner,
-        _NoOpMemory,
-        get_learning_coordinator,
-        reset_learning_coordinator,
     )
     from core.intelligence.learning.rl_components import RLComponents
     from core.intelligence.learning.td_lambda import (
@@ -82,678 +71,7 @@ def _make_memory_entry(
 
 
 # ============================================================================
-# 1. LearningSession and LearningUpdate dataclasses
-# ============================================================================
-
-
-class TestLearningSessionDataclass:
-    """Tests for the LearningSession dataclass."""
-
-    @pytest.mark.unit
-    def test_creation_with_all_fields(self):
-        session = LearningSession(
-            session_id="s1",
-            created_at=100.0,
-            updated_at=200.0,
-            episode_count=5,
-            total_experiences=42,
-            domains=["ml", "data"],
-            agents=["Planner", "Coder"],
-            avg_reward=0.82,
-            path="/tmp/s1",
-        )
-        assert session.session_id == "s1"
-        assert session.avg_reward == 0.82
-        assert "ml" in session.domains
-
-    @pytest.mark.unit
-    def test_equality(self):
-        kwargs = dict(
-            session_id="s2",
-            created_at=0,
-            updated_at=0,
-            episode_count=0,
-            total_experiences=0,
-            domains=[],
-            agents=[],
-            avg_reward=0.0,
-            path="",
-        )
-        assert LearningSession(**kwargs) == LearningSession(**kwargs)
-
-
-class TestLearningUpdateDataclass:
-    """Tests for the LearningUpdate dataclass."""
-
-    @pytest.mark.unit
-    def test_defaults(self):
-        upd = LearningUpdate(actor="Planner", reward=0.9)
-        assert upd.q_value is None
-        assert upd.td_error is None
-
-    @pytest.mark.unit
-    def test_full_creation(self):
-        upd = LearningUpdate(actor="Agent", reward=0.5, q_value=0.6, td_error=0.1)
-        assert upd.q_value == 0.6
-        assert upd.td_error == 0.1
-
-
-# ============================================================================
-# 2. _NoOpLearner and _NoOpMemory fallbacks
-# ============================================================================
-
-
-class TestNoOpLearner:
-    """Tests for _NoOpLearner fallback class."""
-
-    @pytest.mark.unit
-    def test_add_experience_noop(self):
-        _NoOpLearner().add_experience({}, {}, 0.5)
-
-    @pytest.mark.unit
-    def test_record_outcome_noop(self):
-        _NoOpLearner().record_outcome({}, {}, 0.5)
-
-    @pytest.mark.unit
-    def test_predict_q_value_returns_defaults(self):
-        q, conf, alt = _NoOpLearner().predict_q_value({}, {})
-        assert q == 0.5
-        assert conf == 0.1
-        assert alt is None
-
-    @pytest.mark.unit
-    def test_get_learned_context_empty(self):
-        assert _NoOpLearner().get_learned_context({}) == ""
-
-    @pytest.mark.unit
-    def test_get_q_table_stats(self):
-        stats = _NoOpLearner().get_q_table_stats()
-        assert stats["size"] == 0
-
-    @pytest.mark.unit
-    def test_save_load_state_noop(self):
-        learner = _NoOpLearner()
-        learner.save_state("/tmp/dummy")
-        learner.load_state("/tmp/dummy")
-
-
-class TestNoOpMemory:
-    """Tests for _NoOpMemory fallback class."""
-
-    @pytest.mark.unit
-    def test_store_noop(self):
-        _NoOpMemory().store("key", "value")
-
-    @pytest.mark.unit
-    def test_retrieve_empty(self):
-        assert _NoOpMemory().retrieve("query") == []
-
-    @pytest.mark.unit
-    def test_get_statistics(self):
-        assert _NoOpMemory().get_statistics()["total_entries"] == 0
-
-    @pytest.mark.unit
-    def test_save_load_noop(self):
-        mem = _NoOpMemory()
-        mem.save("/tmp/dummy")
-        mem.load("/tmp/dummy")
-
-
-# ============================================================================
-# 3. LearningManager
-# ============================================================================
-
-
-class TestLearningManagerInit:
-    """LearningManager initialization and directory setup."""
-
-    @pytest.mark.unit
-    def test_init_creates_learning_dir(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            mgr = LearningManager(cfg, base_dir=str(tmp_path))
-        assert mgr.learning_dir.exists()
-
-    @pytest.mark.unit
-    def test_session_id_format(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            mgr = LearningManager(cfg, base_dir=str(tmp_path))
-        assert mgr.session_id.startswith("session_")
-
-    @pytest.mark.unit
-    def test_empty_registry_on_fresh_start(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            mgr = LearningManager(cfg, base_dir=str(tmp_path))
-        assert len(mgr.registry) == 0
-
-
-class TestLearningManagerCoreLearnersInit:
-    """Tests for _init_core_learners with mocked imports."""
-
-    @pytest.mark.unit
-    def test_init_with_q_learning_unavailable(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path), enable_rl=False)
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            mgr = LearningManager(cfg, base_dir=str(tmp_path))
-        assert mgr._shared_q_learner is None
-
-    @pytest.mark.unit
-    def test_init_with_rl_disabled_no_td_lambda(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path), enable_rl=False)
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            mgr = LearningManager(cfg, base_dir=str(tmp_path))
-        assert mgr._td_lambda_learner is None
-
-
-class TestLearningManagerInitializeAndLoad:
-    """Tests for initialize(), load_latest(), load_session()."""
-
-    def _make_manager(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            return LearningManager(cfg, base_dir=str(tmp_path))
-
-    @pytest.mark.unit
-    def test_initialize_auto_load_false(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        result = mgr.initialize(auto_load=False)
-        assert result is False
-        assert mgr.session_dir.exists()
-
-    @pytest.mark.unit
-    def test_initialize_auto_load_no_registry(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        result = mgr.initialize(auto_load=True)
-        assert result is False
-
-    @pytest.mark.unit
-    def test_load_latest_empty_registry(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        assert mgr.load_latest() is False
-
-    @pytest.mark.unit
-    def test_load_latest_picks_most_recent(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        for sid, updated in [("old", 1), ("new", 10)]:
-            p = tmp_path / sid
-            p.mkdir()
-            mgr.registry[sid] = LearningSession(
-                session_id=sid,
-                created_at=1,
-                updated_at=updated,
-                episode_count=0,
-                total_experiences=0,
-                domains=[],
-                agents=[],
-                avg_reward=0,
-                path=str(p),
-            )
-        result = mgr.load_latest()
-        # No actual data to load, but code path is exercised
-        assert result is False
-
-    @pytest.mark.unit
-    def test_load_session_unknown_id(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        assert mgr.load_session("nonexistent") is False
-
-    @pytest.mark.unit
-    def test_load_session_missing_path(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr.registry["s1"] = LearningSession(
-            session_id="s1",
-            created_at=0,
-            updated_at=0,
-            episode_count=0,
-            total_experiences=0,
-            domains=[],
-            agents=[],
-            avg_reward=0,
-            path="/nonexistent/path",
-        )
-        assert mgr.load_session("s1") is False
-
-    @pytest.mark.unit
-    def test_load_session_with_shared_q_learner(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        session_path = tmp_path / "session_test"
-        session_path.mkdir()
-        q_path = session_path / "shared_q_learning.json"
-        q_path.write_text("{}")
-        mock_q = Mock()
-        mgr._shared_q_learner = mock_q
-        mgr.registry["test"] = LearningSession(
-            session_id="test",
-            created_at=0,
-            updated_at=0,
-            episode_count=0,
-            total_experiences=0,
-            domains=[],
-            agents=[],
-            avg_reward=0,
-            path=str(session_path),
-        )
-        result = mgr.load_session("test")
-        mock_q.load_state.assert_called_once()
-        assert result is True
-
-
-class TestLearningManagerAgentAccess:
-    """Tests for get_agent_learner, get_agent_memory, get_shared_learner."""
-
-    def _make_manager(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            return LearningManager(cfg, base_dir=str(tmp_path))
-
-    @pytest.mark.unit
-    def test_get_agent_learner_returns_noop_when_import_fails(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        with patch.dict("sys.modules", {"core.learning.q_learning": None}):
-            learner = mgr.get_agent_learner("TestAgent")
-        assert isinstance(learner, _NoOpLearner)
-
-    @pytest.mark.unit
-    def test_get_agent_learner_caches(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        l1 = mgr.get_agent_learner("X")
-        l2 = mgr.get_agent_learner("X")
-        assert l1 is l2
-
-    @pytest.mark.unit
-    def test_get_agent_memory_returns_noop_on_import_fail(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        with patch.dict("sys.modules", {"core.memory.fallback_memory": None}):
-            mem = mgr.get_agent_memory("TestAgent")
-        assert isinstance(mem, _NoOpMemory)
-
-    @pytest.mark.unit
-    def test_get_agent_memory_caches(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        m1 = mgr.get_agent_memory("Y")
-        m2 = mgr.get_agent_memory("Y")
-        assert m1 is m2
-
-    @pytest.mark.unit
-    def test_get_shared_learner_creates_noop_if_unavailable(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        with patch.dict("sys.modules", {"core.learning.q_learning": None}):
-            shared = mgr.get_shared_learner()
-        assert isinstance(shared, _NoOpLearner)
-
-    @pytest.mark.unit
-    def test_q_learner_property_delegates(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = Mock()
-        assert mgr.q_learner is mgr._shared_q_learner
-
-
-class TestLearningManagerQValueAndExperience:
-    """Tests for predict_q_value, record_experience, record_outcome."""
-
-    def _make_manager(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            return LearningManager(cfg, base_dir=str(tmp_path))
-
-    @pytest.mark.unit
-    def test_predict_q_value_no_learner(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        q, conf, alt = mgr.predict_q_value({}, {})
-        assert q == 0.5 and conf == 0.1 and alt is None
-
-    @pytest.mark.unit
-    def test_predict_q_value_delegates(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock()
-        mock_q.predict_q_value.return_value = (0.8, 0.9, "use_plan_b")
-        mgr._shared_q_learner = mock_q
-        q, conf, alt = mgr.predict_q_value({"s": 1}, {"a": 2}, goal="g")
-        assert q == 0.8 and alt == "use_plan_b"
-        mock_q.predict_q_value.assert_called_once_with({"s": 1}, {"a": 2}, "g")
-
-    @pytest.mark.unit
-    def test_predict_q_value_exception_fallback(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock()
-        mock_q.predict_q_value.side_effect = RuntimeError("boom")
-        mgr._shared_q_learner = mock_q
-        q, conf, alt = mgr.predict_q_value({}, {})
-        assert q == 0.5
-
-    @pytest.mark.unit
-    def test_record_experience_returns_update(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        update = mgr.record_experience("AgentA", {"s": 1}, {"a": 1}, 0.7)
-        assert isinstance(update, LearningUpdate)
-        assert update.actor == "AgentA" and update.reward == 0.7
-
-    @pytest.mark.unit
-    def test_record_experience_tracks_domain(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr.record_experience("A", {}, {}, 0.5, domain="ml")
-        assert "ml" in mgr._current_domains
-
-    @pytest.mark.unit
-    def test_record_experience_does_not_duplicate_domain(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr.record_experience("A", {}, {}, 0.5, domain="ml")
-        mgr.record_experience("A", {}, {}, 0.5, domain="ml")
-        assert mgr._current_domains.count("ml") == 1
-
-    @pytest.mark.unit
-    def test_record_experience_calls_shared_learner(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_shared = Mock()
-        mock_shared.predict_q_value.return_value = (0.6, 0.5, None)
-        mgr._shared_q_learner = mock_shared
-        update = mgr.record_experience("A", {"x": 1}, {"y": 2}, 0.9)
-        mock_shared.record_outcome.assert_called_once()
-        assert update.q_value == 0.6
-
-    @pytest.mark.unit
-    def test_record_outcome_extracts_actor(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        update = mgr.record_outcome({}, {"actor": "Bot"}, 0.3)
-        assert update.actor == "Bot"
-
-    @pytest.mark.unit
-    def test_record_outcome_default_actor(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        update = mgr.record_outcome({}, {}, 0.3)
-        assert update.actor == "unknown"
-
-
-class TestLearningManagerTDLambda:
-    """Tests for update_td_lambda."""
-
-    @pytest.mark.unit
-    def test_update_td_lambda_no_learner(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            mgr = LearningManager(cfg, base_dir=str(tmp_path))
-        mgr._td_lambda_learner = None
-        mgr.update_td_lambda([], 1.0)  # should not raise
-
-    @pytest.mark.unit
-    def test_update_td_lambda_delegates(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            mgr = LearningManager(cfg, base_dir=str(tmp_path))
-        mock_td = Mock()
-        mgr._td_lambda_learner = mock_td
-        traj = [({}, {}, 0.5)]
-        mgr.update_td_lambda(traj, 1.0, gamma=0.9, lambda_trace=0.8)
-        mock_td.update.assert_called_once_with(traj, 1.0, 0.9, 0.8)
-
-    @pytest.mark.unit
-    def test_update_td_lambda_handles_exception(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            mgr = LearningManager(cfg, base_dir=str(tmp_path))
-        mock_td = Mock()
-        mock_td.update.side_effect = RuntimeError("td fail")
-        mgr._td_lambda_learner = mock_td
-        mgr.update_td_lambda([], 1.0)  # should log error, not raise
-
-
-class TestLearningManagerContextAndSummaries:
-    """Tests for get_learned_context, get_q_table_summary, get_learning_summary, list_sessions."""
-
-    def _make_manager(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            return LearningManager(cfg, base_dir=str(tmp_path))
-
-    @pytest.mark.unit
-    def test_get_learned_context_no_learner(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        assert mgr.get_learned_context({}) == ""
-
-    @pytest.mark.unit
-    def test_get_learned_context_delegates(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock()
-        mock_q.get_learned_context.return_value = "Use skill X"
-        mgr._shared_q_learner = mock_q
-        assert mgr.get_learned_context({"s": 1}, {"a": 2}) == "Use skill X"
-
-    @pytest.mark.unit
-    def test_get_learned_context_exception_fallback(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock()
-        mock_q.get_learned_context.side_effect = RuntimeError("fail")
-        mgr._shared_q_learner = mock_q
-        assert mgr.get_learned_context({}) == ""
-
-    @pytest.mark.unit
-    def test_get_q_table_summary_no_learner(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        assert "not available" in mgr.get_q_table_summary()
-
-    @pytest.mark.unit
-    def test_get_q_table_summary_with_method(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock()
-        mock_q.get_q_table_summary.return_value = "Q-table: 10 entries"
-        mgr._shared_q_learner = mock_q
-        assert mgr.get_q_table_summary() == "Q-table: 10 entries"
-
-    @pytest.mark.unit
-    def test_get_q_table_summary_fallback_experience_buffer(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock(spec=[])
-        mock_q.experience_buffer = [1, 2, 3]
-        mgr._shared_q_learner = mock_q
-        assert "3 experiences" in mgr.get_q_table_summary()
-
-    @pytest.mark.unit
-    def test_get_learning_summary_structure(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        summary = mgr.get_learning_summary()
-        assert "session_id" in summary
-        assert "total_sessions" in summary
-        assert isinstance(summary["per_agent_stats"], dict)
-
-    @pytest.mark.unit
-    def test_list_sessions_empty(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        assert mgr.list_sessions() == []
-
-    @pytest.mark.unit
-    def test_list_sessions_sorted_by_updated_at(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr.registry["a"] = LearningSession(
-            session_id="a",
-            created_at=1,
-            updated_at=5,
-            episode_count=2,
-            total_experiences=10,
-            domains=["d1"],
-            agents=["A"],
-            avg_reward=0.5,
-            path="/a",
-        )
-        mgr.registry["b"] = LearningSession(
-            session_id="b",
-            created_at=2,
-            updated_at=10,
-            episode_count=3,
-            total_experiences=20,
-            domains=["d2"],
-            agents=["B"],
-            avg_reward=0.8,
-            path="/b",
-        )
-        sessions = mgr.list_sessions()
-        assert len(sessions) == 2
-        assert sessions[0]["session_id"] == "b"
-
-
-class TestLearningManagerMemoryOps:
-    """Tests for promote_demote_memories and prune_tier3."""
-
-    def _make_manager(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            return LearningManager(cfg, base_dir=str(tmp_path))
-
-    @pytest.mark.unit
-    def test_promote_demote_no_learner(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        mgr.promote_demote_memories(0.8)
-
-    @pytest.mark.unit
-    def test_promote_demote_delegates(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock()
-        mgr._shared_q_learner = mock_q
-        mgr.promote_demote_memories(0.9)
-        mock_q._promote_demote_memories.assert_called_once_with(episode_reward=0.9)
-
-    @pytest.mark.unit
-    def test_prune_tier3_no_learner(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._shared_q_learner = None
-        mgr.prune_tier3(0.2)
-
-    @pytest.mark.unit
-    def test_prune_tier3_delegates(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock()
-        mgr._shared_q_learner = mock_q
-        mgr.prune_tier3(0.15)
-        mock_q.prune_tier3_by_causal_impact.assert_called_once_with(sample_rate=0.15)
-
-    @pytest.mark.unit
-    def test_promote_demote_handles_missing_method(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_q = Mock(spec=[])  # no _promote_demote_memories
-        mgr._shared_q_learner = mock_q
-        mgr.promote_demote_memories(0.5)  # should not raise
-
-
-class TestLearningManagerPersistence:
-    """Tests for save_all and registry persistence."""
-
-    def _make_manager(self, tmp_path):
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            return LearningManager(cfg, base_dir=str(tmp_path))
-
-    @pytest.mark.unit
-    def test_save_all_creates_session_dir(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr.save_all(episode_count=5, avg_reward=0.7, domains=["ml"])
-        assert mgr.session_dir.exists()
-
-    @pytest.mark.unit
-    def test_save_all_writes_registry(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr.save_all(episode_count=3, avg_reward=0.6)
-        assert mgr.registry_path.exists()
-        with open(mgr.registry_path) as f:
-            data = json.load(f)
-        assert mgr.session_id in data["sessions"]
-
-    @pytest.mark.unit
-    def test_save_all_merges_domains(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr._current_domains = ["data"]
-        mgr.save_all(domains=["ml"])
-        session = mgr.registry[mgr.session_id]
-        assert "ml" in session.domains and "data" in session.domains
-
-    @pytest.mark.unit
-    def test_save_all_saves_agent_learners(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_learner = Mock()
-        mock_learner.experience_buffer = []
-        mgr._agent_q_learners["TestAgent"] = mock_learner
-        mgr.save_all()
-        mock_learner.save_state.assert_called_once()
-
-    @pytest.mark.unit
-    def test_save_all_saves_agent_memories(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mock_mem = Mock()
-        mgr._agent_memories["TestAgent"] = mock_mem
-        mgr.save_all()
-        mock_mem.save.assert_called_once()
-
-    @pytest.mark.unit
-    def test_save_all_updates_domain_index(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr.save_all(domains=["finance"])
-        assert "finance" in mgr._domain_index
-        assert mgr.session_id in mgr._domain_index["finance"]
-
-    @pytest.mark.unit
-    def test_save_all_no_duplicate_domain_index(self, tmp_path):
-        mgr = self._make_manager(tmp_path)
-        mgr.save_all(domains=["finance"])
-        mgr.save_all(domains=["finance"])
-        assert mgr._domain_index["finance"].count(mgr.session_id) == 1
-
-
-class TestLearningManagerSingleton:
-    """Tests for get_learning_coordinator / reset_learning_coordinator."""
-
-    @pytest.mark.unit
-    def test_get_creates_singleton(self, tmp_path):
-        reset_learning_coordinator()
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            coord = get_learning_coordinator(
-                config=_make_config(output_base_dir=str(tmp_path)),
-                base_dir=str(tmp_path),
-            )
-        assert isinstance(coord, LearningManager)
-        reset_learning_coordinator()
-
-    @pytest.mark.unit
-    def test_get_returns_same_instance(self, tmp_path):
-        reset_learning_coordinator()
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            c1 = get_learning_coordinator(cfg, str(tmp_path))
-            c2 = get_learning_coordinator()
-        assert c1 is c2
-        reset_learning_coordinator()
-
-    @pytest.mark.unit
-    def test_reset_clears_singleton(self, tmp_path):
-        reset_learning_coordinator()
-        cfg = _make_config(output_base_dir=str(tmp_path))
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            c1 = get_learning_coordinator(cfg, str(tmp_path))
-        reset_learning_coordinator()
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            c2 = get_learning_coordinator(cfg, str(tmp_path))
-        assert c1 is not c2
-        reset_learning_coordinator()
-
-    @pytest.mark.unit
-    def test_get_with_no_config_uses_minimal(self):
-        reset_learning_coordinator()
-        with patch("core.learning.learning_coordinator.LearningManager._init_core_learners"):
-            coord = get_learning_coordinator()
-        assert coord is not None
-        reset_learning_coordinator()
-
-
-# ============================================================================
-# 4. GroupedValueBaseline
+# 1. GroupedValueBaseline
 # ============================================================================
 
 
@@ -852,7 +170,7 @@ class TestGroupedValueBaseline:
 
 
 # ============================================================================
-# 5. TDLambdaLearner
+# 2. TDLambdaLearner
 # ============================================================================
 
 
@@ -1071,7 +389,7 @@ class TestTDLambdaLearner:
 
 
 # ============================================================================
-# 6. SkillQTable
+# 3. SkillQTable
 # ============================================================================
 
 
@@ -1169,7 +487,7 @@ class TestSkillQTable:
 
 
 # ============================================================================
-# 7. COMACredit
+# 4. COMACredit
 # ============================================================================
 
 
@@ -1243,7 +561,7 @@ class TestCOMACredit:
 
 
 # ============================================================================
-# 8. get_learned_context (module-level function)
+# 5. get_learned_context (module-level function)
 # ============================================================================
 
 
@@ -1311,7 +629,7 @@ class TestGetLearnedContext:
 
 
 # ============================================================================
-# 9. AdaptiveLearningRate
+# 6. AdaptiveLearningRate
 # ============================================================================
 
 
@@ -1406,7 +724,7 @@ class TestAdaptiveLearningRate:
 
 
 # ============================================================================
-# 10. IntermediateRewardCalculator
+# 7. IntermediateRewardCalculator
 # ============================================================================
 
 
@@ -1496,7 +814,7 @@ class TestIntermediateRewardCalculator:
 
 
 # ============================================================================
-# 11. AdaptiveExploration
+# 8. AdaptiveExploration
 # ============================================================================
 
 
@@ -1576,7 +894,7 @@ class TestAdaptiveExploration:
 
 
 # ============================================================================
-# 12. RLComponents
+# 9. RLComponents
 # ============================================================================
 
 
@@ -1798,7 +1116,7 @@ class TestRLComponentsTheoryOfMind:
 
 
 # ============================================================================
-# 13. RLComponents async methods
+# 10. RLComponents async methods
 # ============================================================================
 
 

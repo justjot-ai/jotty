@@ -108,7 +108,7 @@ class TestLazyInitialization:
         """No lazy components should be created during init."""
         status = swarm_manager.status()
         assert status["components"]["created"] == 0
-        assert status["components"]["pending"] == 23
+        assert status["components"]["pending"] == 20
 
     def test_runners_not_built_on_init(self, swarm_manager):
         """Runners should not be built during init."""
@@ -328,7 +328,6 @@ class TestLearningPipeline:
 
         # Learning pipeline should be created
         assert sm.learning is not None
-        assert sm.learning_manager is not None
         assert sm.transfer_learning is not None
         assert sm.swarm_intelligence is not None
 

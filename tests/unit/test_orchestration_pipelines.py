@@ -113,7 +113,6 @@ def _make_mock_manager(**overrides):
         }.get(k, 0.0)
     )
     m.credit_weights.update_from_feedback = MagicMock()
-    m.learning_manager = MagicMock()
     m.learning = MagicMock()
     m.learning.adaptive_learning = MagicMock()
     m.learning.adaptive_learning.should_stop_early = MagicMock(return_value=False)
@@ -1322,31 +1321,52 @@ class TestParadigmExecutorCredit:
         not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
     )
     def test_credit_skipped_empty(self):
+        from unittest.mock import patch
+
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
-        pe.assign_cooperative_credit({}, "goal")
-        mgr.learning_manager.record_outcome.assert_not_called()
+        mock_svc = MagicMock()
+        with patch(
+            "Jotty.core.intelligence.learning.learning_service.LearningService.get_instance",
+            return_value=mock_svc,
+        ):
+            pe.assign_cooperative_credit({}, "goal")
+            mock_svc.record_outcome.assert_not_called()
 
     @pytest.mark.skipif(
         not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
     )
     def test_credit_skipped_single(self):
+        from unittest.mock import patch
+
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
         r1 = _make_episode_result()
-        pe.assign_cooperative_credit({"a1": r1}, "goal")
-        mgr.learning_manager.record_outcome.assert_not_called()
+        mock_svc = MagicMock()
+        with patch(
+            "Jotty.core.intelligence.learning.learning_service.LearningService.get_instance",
+            return_value=mock_svc,
+        ):
+            pe.assign_cooperative_credit({"a1": r1}, "goal")
+            mock_svc.record_outcome.assert_not_called()
 
     @pytest.mark.skipif(
         not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
     )
     def test_credit_recorded_for_multiple(self):
+        from unittest.mock import patch
+
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
         r1 = _make_episode_result(success=True)
         r2 = _make_episode_result(success=True)
-        pe.assign_cooperative_credit({"a1": r1, "a2": r2}, "goal")
-        assert mgr.learning_manager.record_outcome.call_count == 2
+        mock_svc = MagicMock()
+        with patch(
+            "Jotty.core.intelligence.learning.learning_service.LearningService.get_instance",
+            return_value=mock_svc,
+        ):
+            pe.assign_cooperative_credit({"a1": r1, "a2": r2}, "goal")
+            assert mock_svc.record_outcome.call_count == 2
 
     @pytest.mark.skipif(
         not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"

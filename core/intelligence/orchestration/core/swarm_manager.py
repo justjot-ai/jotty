@@ -19,7 +19,7 @@ Architecture:
     └── Autonomous: swarm_researcher, swarm_installer, swarm_terminal, etc.
 
     Learning sub-components (accessed via sm.learning.xxx or sm.xxx):
-        learning_manager, transfer_learning, swarm_intelligence,
+        transfer_learning, swarm_intelligence,
         trajectory_predictor, divergence_memory, cooperative_credit,
         brain_state, agent_abstractor, swarm_learner,
         agent_slack, feedback_channel, credit_weights
@@ -393,7 +393,6 @@ def _create_mas_learning(sm: "Orchestrator") -> "MASLearning":
         config=sm.config,
         workspace_path=workspace_path,
         swarm_intelligence=sm.swarm_intelligence,
-        learning_manager=sm.learning_manager,
         transfer_learning=sm.transfer_learning,
     )
 
@@ -436,7 +435,7 @@ class AgentFactory:
                 task_board=sm.swarm_task_board,
                 swarm_memory=sm.swarm_memory,
                 swarm_state_manager=sm.swarm_state_manager,
-                learning_manager=sm.learning_manager,
+                learning_manager=sm.learning,
                 transfer_learning=sm.transfer_learning,
                 swarm_terminal=sm.swarm_terminal,
                 swarm_intelligence=sm.swarm_intelligence,
@@ -922,7 +921,7 @@ class ExecutionEngine:
                             task_board=sm.swarm_task_board,
                             swarm_memory=sm.swarm_memory,
                             swarm_state_manager=sm.swarm_state_manager,
-                            learning_manager=sm.learning_manager,
+                            learning_manager=sm.learning,
                             transfer_learning=sm.transfer_learning,
                             swarm_terminal=sm.swarm_terminal,  # Shared intelligent terminal
                         )
@@ -1170,7 +1169,9 @@ class ExecutionEngine:
 
                 # MAS Learning: get execution strategy from history
                 if mas and hasattr(mas, "get_execution_strategy"):
-                    strategy = mas.get_execution_strategy(goal, [a.name for a in sm.agents])
+                    strategy = mas.get_execution_strategy(
+                        goal, [a.name if hasattr(a, "name") else str(a) for a in sm.agents]
+                    )
                     if (
                         strategy
                         and hasattr(strategy, "recommended_agents")
@@ -1718,7 +1719,18 @@ class ExecutionEngine:
                         adjusted_reward = reward * divergence_penalty
                         state = {"query": goal, "agent": task.actor}
                         action = {"actor": task.actor, "task": task.description[:100]}
-                        sm.learning_manager.record_outcome(state, action, adjusted_reward)
+                        from Jotty.core.intelligence.learning.learning_service import (
+                            LearningService,
+                        )
+
+                        svc = LearningService.get_instance()
+                        svc.record_outcome(
+                            unit_name=task.actor,
+                            state=f"divergence:{goal[:80]}",
+                            action=f"actor:{task.actor}|task:{task.description[:60]}",
+                            reward=adjusted_reward,
+                            domain=getattr(sm.config, "domain", "general"),
+                        )
                     except LearningError as e:
                         logger.debug(
                             f"Divergence learning skipped for {task.actor} (learning): {e}"
@@ -2232,7 +2244,7 @@ class Orchestrator:
     # DELEGATION: Single __getattr__ replaces 15+ @property boilerplate
     # =========================================================================
     #
-    # Learning sub-components (sm.learning_manager, sm.swarm_intelligence, etc.)
+    # Learning sub-components (sm.swarm_intelligence, etc.)
     # are forwarded to self.learning.xxx automatically.
     # Composed manager methods (_execute_ensemble, etc.) are forwarded to the
     # appropriate composed manager.
@@ -2243,7 +2255,6 @@ class Orchestrator:
     # Attributes forwarded to self.learning
     _LEARNING_ATTRS = frozenset(
         {
-            "learning_manager",
             "transfer_learning",
             "swarm_intelligence",
             "credit_weights",
@@ -2789,26 +2800,29 @@ class Orchestrator:
     ) -> None:
         """Record report section outcome for cross-run learning."""
         try:
-            if self.learning_manager and hasattr(self.learning_manager, "record_experience"):
-                self.learning_manager.record_experience(
-                    agent_name="report_generator",
-                    state={"section": section_name, "error": (error or "")[:200]},
-                    action={"type": "generate_section", "section": section_name},
-                    reward=1.0 if success else -1.0,
-                    domain="report_sections",
-                )
+            from Jotty.core.intelligence.learning.learning_service import LearningService
+
+            svc = LearningService.get_instance()
+            svc.record_outcome(
+                unit_name="report_generator",
+                state=f"section:{section_name}|error:{(error or '')[:200]}",
+                action=f"generate_section:{section_name}",
+                reward=1.0 if success else 0.0,
+                domain="report_sections",
+            )
         except Exception as e:
             logger.debug(f"Record section outcome failed: {e}")
 
     def should_skip_report_section(self, section_name: str) -> bool:
         """Check if a report section should be skipped based on learned failures."""
         try:
-            if self.learning_manager and hasattr(self.learning_manager, "get_learned_context"):
-                context = self.learning_manager.get_learned_context(
-                    state={"section": section_name, "task": "report_generation"},
-                    action={"type": "generate_section", "section": section_name},
-                )
-                if context and "negative reward" in context.lower():
+            from Jotty.core.intelligence.learning.learning_service import LearningService
+
+            svc = LearningService.get_instance()
+            guidance = svc.query("report_sections", context={"section": section_name})
+            failures = guidance.get("failure_analysis", [])
+            for f in failures:
+                if section_name in f.get("description", ""):
                     return True
         except Exception as e:
             logger.debug(f"Section skip check failed for '{section_name}': {e}")
@@ -3168,7 +3182,9 @@ class Orchestrator:
             }
             if result_text:
                 # Build a structural digest: first ~600 chars preserving headings/structure
-                excerpt = result_text[:600].rsplit("\n", 1)[0] if len(result_text) > 600 else result_text
+                excerpt = (
+                    result_text[:600].rsplit("\n", 1)[0] if len(result_text) > 600 else result_text
+                )
                 outcome["response_excerpt"] = excerpt
 
             # 1. Record with rich metadata
@@ -3670,7 +3686,11 @@ class Orchestrator:
                         **analysis,
                     }
                     if full_content:
-                        excerpt = full_content[:600].rsplit("\n", 1)[0] if len(full_content) > 600 else full_content
+                        excerpt = (
+                            full_content[:600].rsplit("\n", 1)[0]
+                            if len(full_content) > 600
+                            else full_content
+                        )
                         stream_outcome["response_excerpt"] = excerpt
                     learning.record(
                         unit_name="Orchestrator",
