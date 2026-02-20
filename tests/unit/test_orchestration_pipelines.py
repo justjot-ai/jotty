@@ -317,7 +317,7 @@ class TestSandboxManagerInit:
     """Tests for SandboxManager initialization."""
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_basic_init_no_backends(self, mock_run):
         """Init with no docker / no e2b available."""
         mock_run.side_effect = FileNotFoundError
@@ -327,7 +327,7 @@ class TestSandboxManagerInit:
         assert mgr.default_timeout == 120
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_custom_config(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager(config={"timeout": 60, "docker_image": "node:18"})
@@ -335,28 +335,28 @@ class TestSandboxManagerInit:
         assert mgr.docker_image == "node:18"
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_docker_detected(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         mgr = SandboxManager()
         assert mgr.docker_available is True
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_docker_not_running(self, mock_run):
         mock_run.return_value = MagicMock(returncode=1)
         mgr = SandboxManager()
         assert mgr.docker_available is False
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_default_docker_image(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
         assert mgr.docker_image == "python:3.11-slim"
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_e2b_api_key_from_config(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         with patch.dict("os.environ", {}, clear=False):
@@ -377,7 +377,7 @@ class TestSandboxManagerConfig:
     """Tests for SandboxManager.get_sandbox_config()."""
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_trusted_config(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -386,7 +386,7 @@ class TestSandboxManagerConfig:
         assert cfg.network_enabled is True
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_sandboxed_no_docker(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -396,7 +396,7 @@ class TestSandboxManagerConfig:
         assert cfg.timeout <= 60
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_sandboxed_with_docker(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         mgr = SandboxManager()
@@ -405,7 +405,7 @@ class TestSandboxManagerConfig:
         assert cfg.network_enabled is False
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_dangerous_no_backends(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -415,7 +415,7 @@ class TestSandboxManagerConfig:
         assert cfg.network_enabled is False
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_dangerous_with_docker(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         mgr = SandboxManager()
@@ -426,7 +426,7 @@ class TestSandboxManagerConfig:
         assert cfg.cpu_limit == 0.5
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_sandboxed_docker_memory_limit(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         mgr = SandboxManager()
@@ -434,7 +434,7 @@ class TestSandboxManagerConfig:
         assert cfg.memory_limit == "512m"
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_trusted_uses_default_timeout(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager(config={"timeout": 90})
@@ -442,7 +442,7 @@ class TestSandboxManagerConfig:
         assert cfg.timeout == 90
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_sandboxed_no_docker_caps_timeout(self, mock_run):
         """Without docker, SANDBOXED timeout is capped at 60."""
         mock_run.side_effect = FileNotFoundError
@@ -451,7 +451,7 @@ class TestSandboxManagerConfig:
         assert cfg.timeout == 60
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_dangerous_e2b_simulated(self, mock_run):
         """Simulate e2b available by patching attributes after init."""
         mock_run.side_effect = FileNotFoundError
@@ -463,7 +463,7 @@ class TestSandboxManagerConfig:
         assert cfg.cpu_limit == 0.5
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_trusted_cpu_limit(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -482,7 +482,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execute_trusted_direct(self, mock_run):
         """TRUSTED code runs via exec() directly."""
         mock_run.side_effect = FileNotFoundError
@@ -497,7 +497,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execute_trusted_with_context(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -511,7 +511,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execute_trusted_error(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -524,7 +524,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execute_trusted_non_python(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -538,7 +538,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execute_subprocess_simple(self, mock_run):
         """Subprocess execution for SANDBOXED code."""
         mock_run.side_effect = FileNotFoundError
@@ -552,7 +552,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execute_subprocess_with_context(self, mock_run):
         """Subprocess with context injection."""
         mock_run.side_effect = FileNotFoundError
@@ -567,7 +567,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execute_subprocess_error(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -580,7 +580,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execute_subprocess_non_python(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -594,7 +594,7 @@ class TestSandboxManagerExecute:
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
     @pytest.mark.asyncio
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     async def test_execution_time_tracked(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -645,7 +645,7 @@ class TestSandboxManagerStatus:
     """Tests for SandboxManager.get_available_backends() and get_status()."""
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_available_backends_subprocess_always(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -653,7 +653,7 @@ class TestSandboxManagerStatus:
         assert "subprocess" in backends
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_available_backends_with_docker(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0)
         mgr = SandboxManager()
@@ -662,7 +662,7 @@ class TestSandboxManagerStatus:
         assert "subprocess" in backends
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_status_keys(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager()
@@ -674,7 +674,7 @@ class TestSandboxManagerStatus:
         assert "docker_image" in status
 
     @pytest.mark.skipif(not HAS_SANDBOX, reason="sandbox_manager not importable")
-    @patch("Jotty.core.orchestration.sandbox_manager.subprocess.run")
+    @patch("Jotty.core.intelligence.orchestration.execution.sandbox_manager.subprocess.run")
     def test_status_values(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         mgr = SandboxManager(config={"timeout": 90})

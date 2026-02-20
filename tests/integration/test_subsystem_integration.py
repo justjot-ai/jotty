@@ -198,7 +198,8 @@ class TestObservabilityPipelineIntegration:
             with ctx.span("validation") as val:
                 val.set_status(
                     __import__(
-                        "Jotty.core.observability.tracing", fromlist=["SpanStatus"]
+                        "Jotty.core.infrastructure.monitoring.observability.tracing",
+                        fromlist=["SpanStatus"],
                     ).SpanStatus.OK,
                     "passed",
                 )
