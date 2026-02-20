@@ -324,6 +324,7 @@ class AutonomousAgent(BaseAgent):
         start_time = time.time()
         status_callback = kwargs.pop("status_callback", None)
         learning_context = kwargs.pop("learning_context", None)
+        self._learning_context = learning_context  # Store for fallback paths
         workspace_dir = kwargs.pop("workspace_dir", None)
         direct_llm = kwargs.pop("direct_llm", False)
 
@@ -1039,10 +1040,13 @@ class AutonomousAgent(BaseAgent):
         Returns:
             LLM response string or None if generation fails
         """
-        # Inject system_prompt if configured (essential for multi-agent roles)
+        # Inject system_prompt and learning context if available
         prompt = task
         if self.config.system_prompt:
             prompt = f"[System: {self.config.system_prompt}]\n\n{task}"
+        learning_ctx = getattr(self, "_learning_context", None)
+        if learning_ctx:
+            prompt = f"{learning_ctx}\n\n{prompt}"
 
         # 1. Try DSPy API first (fastest — direct HTTP to Anthropic/OpenAI)
         # Run in executor so sync HTTP doesn't block the event loop
