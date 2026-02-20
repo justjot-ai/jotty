@@ -773,7 +773,7 @@ class LearningStore:
             "recent_quality": round(recent_quality, 3),
             "historical_quality": round(hist_quality, 3),
             "quality_trend": round(recent_quality - hist_quality, 3),
-            "improving": recent_rate > hist_rate and len(historical) >= 5,
+            "improving": recent_rate > hist_rate and len(historical) >= 2,
         }
 
     def get_failure_analysis(

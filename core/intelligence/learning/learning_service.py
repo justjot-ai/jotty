@@ -754,7 +754,9 @@ class LearningService:
         self._active_episodes: Dict[str, ActiveEpisode] = {}
 
         # In-memory caches for hot-path queries (avoid DB hits)
-        self._success_rate_cache: Dict[str, Tuple[float, float]] = {}  # key -> (rate, timestamp)
+        self._success_rate_cache: Dict[str, Tuple[float, int, float]] = (
+            {}
+        )  # key -> (rate, total, ts)
         self._pattern_cache: Dict[str, Tuple[List[PatternRecord], float]] = {}
         self._cache_ttl = 60.0  # Cache TTL in seconds
 
@@ -826,6 +828,33 @@ class LearningService:
             episode_id = f"ep_{unit_name}_{int(time.time())}_{uuid.uuid4().hex[:6]}"
         else:
             episode_id = metadata.pop("original_episode_id")
+
+        # Auto-enrich outcome with structural analysis when text content is
+        # available.  This enables all pattern extraction strategies (structural,
+        # causal, quality-contrast, cross-domain transfer) to work regardless
+        # of whether the caller ran analyze_response() themselves.
+        if "quality_score" not in outcome:  # not already enriched
+            content_text = ""
+            for _key in ("content", "response", "response_excerpt", "result"):
+                _val = outcome.get(_key, "")
+                if isinstance(_val, str) and len(_val) > 100:
+                    content_text = _val
+                    break
+            if content_text:
+                goal_text = ""
+                if isinstance(context, dict):
+                    goal_text = str(context.get("goal", context.get("message", "")))
+                try:
+                    analysis = analyze_response(content_text, goal_text)
+                    # Merge analysis into outcome — don't override caller's keys
+                    for _ak, _av in analysis.items():
+                        if _ak not in outcome:
+                            outcome[_ak] = _av
+                    # Use analysis quality if caller didn't provide one
+                    if quality == 0.0 and analysis.get("quality_score", 0) > 0:
+                        quality = analysis["quality_score"]
+                except Exception:
+                    pass  # analysis failure must never block recording
 
         episode = EpisodeRecord(
             episode_id=episode_id,
@@ -1166,14 +1195,21 @@ class LearningService:
         Returns:
             List of transferable patterns with recommendations
         """
-        patterns = self._store.get_patterns(domain=source_domain, min_confidence=0.6)
+        # Get patterns from source domain with moderate confidence threshold
+        patterns = self._store.get_patterns(domain=source_domain, min_confidence=0.4)
+
+        # Pattern types that are meaningful for cross-domain transfer
+        _TRANSFERABLE_TYPES = {
+            "success_strategy",
+            "tool_preference",
+            "failure_avoidance",
+            "speed_optimization",
+            "cross_domain_transfer",
+        }
 
         transferable = []
         for p in patterns:
-            if target_domain in p.applicable_domains or p.pattern_type in (
-                "success_strategy",
-                "tool_preference",
-            ):
+            if target_domain in p.applicable_domains or p.pattern_type in _TRANSFERABLE_TYPES:
                 transferable.append(
                     {
                         "pattern": p.description,
@@ -2137,7 +2173,16 @@ class LearningService:
         results = []
         for score, ep in scored[:top_k]:
             outcome = ep.outcome or {}
-            excerpt = outcome.get("response_excerpt", "")
+            # Try multiple keys where callers store response content
+            excerpt = (
+                outcome.get("response_excerpt", "")
+                or outcome.get("content", "")
+                or outcome.get("response", "")
+                or outcome.get("result", "")
+            )
+            # Truncate long content to a useful excerpt
+            if isinstance(excerpt, str) and len(excerpt) > 500:
+                excerpt = excerpt[:500] + "..."
             if not excerpt:
                 # Fall back: build excerpt from context goal if no response stored
                 goal_text = str(ep.context.get("goal", ep.context.get("message", "")))
@@ -2388,7 +2433,7 @@ class LearningService:
                 max_tokens=len(uncached) * 10,
                 messages=[{"role": "user", "content": prompt}],
             )
-            answer_text = resp.content[0].text.strip().lower()
+            answer_text = getattr(resp.content[0], "text", "").strip().lower()
 
             for i, (pid, domain, rec) in enumerate(uncached, 1):
                 is_taut = f"{i}. yes" in answer_text or f"{i}.yes" in answer_text
@@ -2466,8 +2511,11 @@ class LearningService:
         if len(episodes) < 3:
             return None
 
-        explore_eps = [e for e in episodes if e.action.get("exploration") and e.quality > 0]
-        baseline_eps = [e for e in episodes if not e.action.get("exploration") and e.quality > 0]
+        def _is_exploration(ep: EpisodeRecord) -> bool:
+            return bool(ep.action.get("exploration") or ep.metadata.get("exploration"))
+
+        explore_eps = [e for e in episodes if _is_exploration(e) and e.quality > 0]
+        baseline_eps = [e for e in episodes if not _is_exploration(e) and e.quality > 0]
 
         if not explore_eps or not baseline_eps:
             return None
@@ -3022,8 +3070,9 @@ class LearningService:
         high_quality = [e for e in episodes if e.quality >= 0.70]
         low_quality = [e for e in episodes if e.success and e.quality < 0.55]
 
-        # 1. Success strategy patterns — extract WHAT made responses successful,
-        #    not infrastructure choices (model/provider) which are useless guidance.
+        # 1. Success strategy patterns — extract WHAT made responses successful.
+        #    Two sources: (a) structural analysis keys if present, (b) tool/action
+        #    patterns from raw data that any caller can provide.
         if len(successes) >= 2:
             # Skip infrastructure keys — these don't help the model produce better output
             _INFRA_KEYS = {
@@ -3039,9 +3088,11 @@ class LearningService:
                 "strategy",
                 "temperature",
                 "paradigm",
+                "key",
+                "action",
             }
 
-            # Extract structural success patterns from outcomes
+            # Extract structural success patterns from outcomes (if present)
             struct_counts: Dict[str, int] = defaultdict(int)
             total_words = 0
             total_code_blocks = 0
@@ -3078,6 +3129,32 @@ class LearningService:
                 gc = out.get("goal_coverage", 0)
                 if gc > 0.7:
                     struct_counts["address all key aspects of the task"] += 1
+
+            # Extract tool usage patterns (works with raw action data)
+            tool_success: Dict[str, int] = defaultdict(int)
+            for e in successes:
+                tools = e.action.get("tools", [])
+                if isinstance(tools, list):
+                    for tool in tools:
+                        tool_success[str(tool)] += 1
+                    # Tool combination patterns (pairs)
+                    if len(tools) >= 2:
+                        combo = "+".join(sorted(str(t) for t in tools[:3]))
+                        struct_counts[f"use tool combination [{combo}]"] += 1
+
+            # Find tools that appear in successes but rarely in failures
+            tool_failure: Dict[str, int] = defaultdict(int)
+            for e in failures:
+                tools = e.action.get("tools", [])
+                if isinstance(tools, list):
+                    for tool in tools:
+                        tool_failure[str(tool)] += 1
+
+            for tool, succ_count in tool_success.items():
+                fail_count = tool_failure.get(tool, 0)
+                total = succ_count + fail_count
+                if total >= 3 and succ_count / total >= 0.7:
+                    struct_counts[f"use {tool} tool (succeeds {succ_count}/{total} times)"] += 1
 
             # Extract approach patterns from non-infra action keys
             for e in successes:
@@ -3203,7 +3280,7 @@ class LearningService:
                 avg_time = sum(times) / len(times)
                 fast = [e for e in successes if 0 < e.execution_time < avg_time * 0.7]
                 if len(fast) >= 2:
-                    fast_actions = defaultdict(int)
+                    fast_actions: Dict[str, int] = defaultdict(int)
                     for e in fast:
                         for k, v in e.action.items():
                             if isinstance(v, (str, int, float, bool)):
@@ -3485,7 +3562,7 @@ class LearningService:
     def _get_cached_success_rate(self, domain: str, task_type: str) -> Tuple[float, int]:
         """Get success rate with caching."""
         key = f"{domain}:{task_type}"
-        cached = self._success_rate_cache.get(key)
+        cached: Any = self._success_rate_cache.get(key)
         if cached and (time.time() - cached[2]) < self._cache_ttl:
             return cached[0], cached[1]
 
@@ -3528,8 +3605,8 @@ class LearningService:
     @staticmethod
     def _truncate_dict(d: Dict[str, Any], max_str_len: int = 500) -> Dict[str, Any]:
         """Truncate string values in a dict to avoid DB bloat."""
-        result = {}
-        for k, v in list(d.items())[:20]:
+        result: Dict[str, Any] = {}
+        for k, v in list(d.items())[:40]:
             if isinstance(v, str) and len(v) > max_str_len:
                 result[k] = v[:max_str_len] + "..."
             elif isinstance(v, dict):
