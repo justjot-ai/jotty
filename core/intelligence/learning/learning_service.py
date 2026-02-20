@@ -276,6 +276,31 @@ _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     ],
 }
 
+# Domain affinity map: for cross-domain transfer, related domains share patterns.
+# Key = source domain, value = list of related domains ordered by affinity.
+_DOMAIN_AFFINITY: Dict[str, List[str]] = {
+    "coding": ["system_design", "data_science", "devops"],
+    "system_design": ["coding", "devops", "data_science"],
+    "data_science": ["coding", "math", "research"],
+    "math": ["data_science", "economics", "research"],
+    "economics": ["math", "data_science", "research"],
+    "research": ["data_science", "economics", "writing"],
+    "devops": ["coding", "system_design"],
+    "writing": ["research", "economics"],
+    "algorithms": ["coding", "math", "system_design"],
+    "compiler_design": ["coding", "algorithms"],
+}
+
+
+def _get_related_domains(domain: str) -> List[str]:
+    """Get related domains for cross-domain transfer, ordered by affinity."""
+    related = _DOMAIN_AFFINITY.get(domain, [])
+    if not related:
+        # Fall back to domains that list this domain as related
+        related = [d for d, affinities in _DOMAIN_AFFINITY.items() if domain in affinities]
+    return related
+
+
 # Response quality signal detectors
 _STRUCTURE_MARKERS = re.compile(
     r"(?:^|\n)\s*(?:"
@@ -1082,6 +1107,20 @@ class LearningService:
         rate = guidance.get("success_rate", 0.0)
 
         if not guidance.get("has_learning"):
+            # No episodes for this exact domain — try cross-domain transfer
+            for related in _get_related_domains(domain):
+                related_guidance = self.query(related, "")
+                if related_guidance.get("has_learning") and related_guidance.get("total_episodes", 0) >= 2:
+                    # Borrow patterns from related domain
+                    related_patterns = related_guidance.get("patterns", [])
+                    if related_patterns:
+                        hints = [p["recommendation"] for p in related_patterns[:2] if p.get("recommendation")]
+                        if hints:
+                            return (
+                                f"[Cross-domain guidance from {related}]\n"
+                                + "\n".join(f"  - {h}" for h in hints)
+                            )
+                    break
             return ""
 
         # ADAPTIVE GATE: if the model is already performing well in this domain,
@@ -1665,14 +1704,18 @@ class LearningService:
         """
         episodes = self._store.query_episodes(domain=domain, success_only=True, limit=50)
         if not episodes:
-            # Try related domains
-            for alt_domain in ["general", "coding", "research"]:
-                if alt_domain != domain:
-                    episodes = self._store.query_episodes(
-                        domain=alt_domain, success_only=True, limit=20
-                    )
-                    if episodes:
-                        break
+            # Try related domains via affinity map (cross-domain transfer)
+            for alt_domain in _get_related_domains(domain):
+                episodes = self._store.query_episodes(
+                    domain=alt_domain, success_only=True, limit=20
+                )
+                if episodes:
+                    break
+            # Final fallback: general
+            if not episodes:
+                episodes = self._store.query_episodes(
+                    domain="general", success_only=True, limit=20
+                )
 
         if not episodes:
             return []
@@ -2816,10 +2859,15 @@ class LearningService:
         return patterns
 
     def _invalidate_cache(self, domain: str, task_type: str) -> None:
-        """Invalidate relevant caches."""
+        """Invalidate relevant caches including related domains."""
         key = f"{domain}:{task_type}"
         self._success_rate_cache.pop(key, None)
+        self._success_rate_cache.pop(f"{domain}:", None)
         self._pattern_cache.pop(domain, None)
+        # Also invalidate "general" cache since aggregate stats change
+        self._success_rate_cache.pop("general:", None)
+        self._success_rate_cache.pop("general:general", None)
+        self._pattern_cache.pop("general", None)
 
     @staticmethod
     def _make_state_key(domain: str, task_type: str) -> str:

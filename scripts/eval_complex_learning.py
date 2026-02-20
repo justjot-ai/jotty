@@ -378,11 +378,20 @@ class ComplexEval:
 
     def _snapshot(self, domain: str = "") -> Dict[str, Any]:
         ls = self._get_learning()
-        guidance = ls.query(domain or "general", "")
-        ctx = ls.build_context_string(domain or "general", "")
-        ret = ls.build_retrieval_context(domain or "general", "")
+        query_domain = domain or "general"
+        guidance = ls.query(query_domain, "")
+        ctx = ls.build_context_string(query_domain, "")
+        ret = ls.build_retrieval_context(query_domain, "")
+        # Also get global episode count across all domains
+        try:
+            conn = ls._store._get_conn()
+            row = conn.execute("SELECT COUNT(*) as cnt FROM episodes").fetchone()
+            global_episodes = row["cnt"] if row else 0
+        except Exception:
+            global_episodes = guidance.get("total_episodes", 0)
         return {
             "episodes": guidance.get("total_episodes", 0),
+            "global_episodes": global_episodes,
             "rate": guidance.get("success_rate", 0.0),
             "ctx_len": len(ctx),
             "ret_len": len(ret),
@@ -401,7 +410,7 @@ class ComplexEval:
         snap_before = self._snapshot(domain)
 
         print(f"  Model: {EVAL_MODEL}")
-        print(f"  Episodes: {snap_before['episodes']} | Rate: {snap_before['rate']:.0%}")
+        print(f"  Episodes: {snap_before['episodes']} (domain) / {snap_before['global_episodes']} (global) | Rate: {snap_before['rate']:.0%}")
         print(f"  Context injected: {snap_before['ctx_len']} chars")
         if snap_before['ctx']:
             for line in snap_before['ctx'].split('\n')[:3]:

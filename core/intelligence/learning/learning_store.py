@@ -690,11 +690,29 @@ class LearningStore:
             error_type = row["error_type"] or (
                 "low_quality" if quality < 0.6 else ""
             )
-            error_message = row["error_message"] or (
-                f"Quality was {quality:.2f} — below threshold"
-                if quality < 0.6
-                else ""
-            )
+            outcome = json.loads(row["outcome"])
+
+            # Build specific failure description from structural analysis
+            error_message = row["error_message"] or ""
+            if not error_message and quality < 0.6:
+                missing = []
+                if not outcome.get("has_code"):
+                    missing.append("no code blocks")
+                elif outcome.get("code_block_count", 0) < 3:
+                    missing.append(f"only {outcome.get('code_block_count', 0)} code blocks (need 3+)")
+                if not outcome.get("has_math"):
+                    missing.append("no math/formulas")
+                if not outcome.get("has_headings"):
+                    missing.append("no section headings")
+                if outcome.get("word_count", 0) < 500:
+                    missing.append(f"too short ({outcome.get('word_count', 0)} words)")
+                if outcome.get("goal_coverage", 1.0) < 0.5:
+                    missing.append(f"low goal coverage ({outcome.get('goal_coverage', 0):.0%})")
+                if missing:
+                    error_message = f"Quality {quality:.2f} — missing: {', '.join(missing)}"
+                else:
+                    error_message = f"Quality was {quality:.2f} — below threshold"
+
             results.append({
                 "episode_id": row["episode_id"],
                 "unit_name": row["unit_name"],
@@ -703,7 +721,7 @@ class LearningStore:
                 "error_message": error_message,
                 "context": json.loads(row["context"]),
                 "action": json.loads(row["action"]),
-                "outcome": json.loads(row["outcome"]),
+                "outcome": outcome,
                 "timestamp": row["timestamp"],
             })
         return results
