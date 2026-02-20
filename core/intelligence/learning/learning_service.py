@@ -1334,7 +1334,7 @@ class LearningService:
                     if related_patterns:
                         hints = [
                             p["recommendation"]
-                            for p in related_patterns[:2]
+                            for p in related_patterns[:3]
                             if p.get("recommendation")
                         ]
                         if hints:
@@ -1342,7 +1342,10 @@ class LearningService:
                                 f"  - {h}" for h in hints
                             )
                     break
-            return ""
+
+            # No cross-domain patterns either — provide task-aware bootstrap
+            # guidance based on what the task_type/domain typically needs.
+            return self._bootstrap_guidance(domain, task_type)
 
         # ADAPTIVE GATE: if the model is already performing well in this domain,
         # don't inject anything. Context injection hurts more than it helps
@@ -1447,6 +1450,69 @@ class LearningService:
         if not parts:
             return ""
         return "\n".join(parts)
+
+    @staticmethod
+    def _bootstrap_guidance(domain: str, task_type: str = "") -> str:
+        """
+        Zero-episode bootstrap: provide structural guidance for domains
+        that have never been seen before. This prevents cold-start silence
+        where the model gets no learning context at all.
+
+        Based on domain conventions — what successful responses in each
+        domain typically contain. Fades out once real episodes exist.
+        """
+        _DOMAIN_BOOTSTRAP: Dict[str, str] = {
+            "coding": (
+                "[Quality guidance for coding tasks]\n"
+                "  - Include complete, runnable code with class/function definitions\n"
+                "  - Add test functions (def test_*) with 5+ assertions\n"
+                "  - Use section headings to organize (## Implementation, ## Tests)\n"
+                "  - Explain key design decisions and complexity analysis"
+            ),
+            "algorithms": (
+                "[Quality guidance for algorithm tasks]\n"
+                "  - Include complete implementations in code blocks (```python)\n"
+                "  - Add test functions (def test_*) with assertions verifying correctness\n"
+                "  - Analyze time/space complexity with O() notation\n"
+                "  - Use section headings (## Algorithm, ## Analysis, ## Tests)"
+            ),
+            "compiler_design": (
+                "[Quality guidance for compiler/interpreter tasks]\n"
+                "  - Include complete implementations: tokenizer, parser, evaluator\n"
+                "  - Define proper classes (Token, AST nodes, Environment)\n"
+                "  - Add test functions covering arithmetic, functions, closures\n"
+                "  - Include 5+ assertions validating each language feature"
+            ),
+            "data_science": (
+                "[Quality guidance for data science tasks]\n"
+                "  - Include complete class implementations with fit/predict methods\n"
+                "  - Add mathematical formulations (equations, proofs)\n"
+                "  - Write test functions with assertions verifying correctness\n"
+                "  - Use code blocks (```python) for all implementations"
+            ),
+            "system_design": (
+                "[Quality guidance for system design tasks]\n"
+                "  - Include architecture diagrams or structured descriptions\n"
+                "  - Analyze trade-offs (latency, throughput, consistency)\n"
+                "  - Discuss scaling strategies and failure modes\n"
+                "  - Use tables for comparisons where appropriate"
+            ),
+            "math": (
+                "[Quality guidance for math tasks]\n"
+                "  - Include formal definitions and theorem statements\n"
+                "  - Provide step-by-step proofs with justification\n"
+                "  - Use mathematical notation and formulas\n"
+                "  - Add concrete examples to illustrate abstract concepts"
+            ),
+            "research": (
+                "[Quality guidance for research tasks]\n"
+                "  - Structure with clear sections (Introduction, Analysis, Conclusion)\n"
+                "  - Cite sources and provide evidence for claims\n"
+                "  - Compare multiple perspectives or approaches\n"
+                "  - Include a summary/conclusion section"
+            ),
+        }
+        return _DOMAIN_BOOTSTRAP.get(domain, "")
 
     # =========================================================================
     # IMPROVEMENT REPORT

@@ -41,6 +41,7 @@ EVAL_MODEL = "claude-3-haiku-20240307"
 # HELPERS
 # =============================================================================
 
+
 def separator(title: str) -> None:
     print(f"\n{'=' * 70}")
     print(f"  {title}")
@@ -56,17 +57,19 @@ def check_regex(content: str, pattern: str, flags: int = re.IGNORECASE | re.DOTA
 
 
 def check_code_blocks(content: str, min_blocks: int = 3, min_lines: int = 5) -> bool:
-    blocks = re.findall(r'```[\w]*\n(.*?)```', content, re.DOTALL)
-    substantial = [b for b in blocks if len(b.strip().split('\n')) >= min_lines]
+    blocks = re.findall(r"```[\w]*\n(.*?)```", content, re.DOTALL)
+    substantial = [b for b in blocks if len(b.strip().split("\n")) >= min_lines]
     return len(substantial) >= min_blocks
 
 
 def check_assertions(content: str, n: int = 5) -> bool:
-    return len(re.findall(r'assert\s+\w+', content)) >= n
+    return len(re.findall(r"assert\s+\w+", content)) >= n
 
 
 def check_math(content: str, n: int = 2) -> bool:
-    formulas = re.findall(r'O\([^)]+\)|Θ\([^)]+\)|n\s*log\s*n|≤|≥|∑|∫|∀|∃|→|⟹|\\frac|R\^2|MSE|∂', content)
+    formulas = re.findall(
+        r"O\([^)]+\)|Θ\([^)]+\)|n\s*log\s*n|≤|≥|∑|∫|∀|∃|→|⟹|\\frac|R\^2|MSE|∂", content
+    )
     return len(formulas) >= n
 
 
@@ -88,11 +91,11 @@ ESCALATION_TASKS = [
             "Do NOT use any tools."
         ),
         "checks": [
-            ("Merge sort implementation", lambda c: check_regex(c, r'def\s+merge_sort')),
-            ("Quick sort implementation", lambda c: check_regex(c, r'def\s+quick_?sort')),
-            ("O(n log n) analysis", lambda c: check_regex(c, r'O\(\s*n\s*log\s*n\s*\)')),
-            ("O(n²) worst case", lambda c: check_regex(c, r'O\(\s*n\s*[²2\^]\s*\)')),
-            ("Test function", lambda c: check_regex(c, r'def\s+test_')),
+            ("Merge sort implementation", lambda c: check_regex(c, r"def\s+merge_sort")),
+            ("Quick sort implementation", lambda c: check_regex(c, r"def\s+quick_?sort")),
+            ("O(n log n) analysis", lambda c: check_regex(c, r"O\(\s*n\s*log\s*n\s*\)")),
+            ("O(n²) worst case", lambda c: check_regex(c, r"O\(\s*n\s*[²2\^]\s*\)")),
+            ("Test function", lambda c: check_regex(c, r"def\s+test_")),
             ("Code blocks", lambda c: check_code_blocks(c, 2, 5)),
         ],
     },
@@ -118,14 +121,28 @@ ESCALATION_TASKS = [
             "Do NOT use any tools."
         ),
         "checks": [
-            ("AVLNode class", lambda c: check_regex(c, r'class\s+AVL(?:Node|Tree)')),
-            ("Insert with rebalance", lambda c: check_regex(c, r'def\s+insert.*(?:balance|rotat)')),
-            ("Left rotation", lambda c: check_regex(c, r'def\s+(?:left_)?rotat\w+.*(?:left|right)')),
-            ("Balance factor", lambda c: check_regex(c, r'(?:balance_factor|height.*left.*right|left.*height.*right.*height)')),
-            ("Height O(log n) proof", lambda c: check_regex(c, r'O\(\s*log\s*n\s*\).*(?:height|depth|balanc)')),
-            ("Fibonacci recurrence", lambda c: check_regex(c, r'(?:fibonacci|fib|N_h|recurrence).*(?:h-1|h-2|\+\s*1)')),
-            ("Delete implementation", lambda c: check_regex(c, r'def\s+delete')),
-            ("Test functions", lambda c: check_regex(c, r'def\s+test_.*assert')),
+            ("AVLNode class", lambda c: check_regex(c, r"class\s+AVL(?:Node|Tree)")),
+            ("Insert with rebalance", lambda c: check_regex(c, r"def\s+insert.*(?:balance|rotat)")),
+            (
+                "Left rotation",
+                lambda c: check_regex(c, r"def\s+(?:left_)?rotat\w+.*(?:left|right)"),
+            ),
+            (
+                "Balance factor",
+                lambda c: check_regex(
+                    c, r"(?:balance_factor|height.*left.*right|left.*height.*right.*height)"
+                ),
+            ),
+            (
+                "Height O(log n) proof",
+                lambda c: check_regex(c, r"O\(\s*log\s*n\s*\).*(?:height|depth|balanc)"),
+            ),
+            (
+                "Fibonacci recurrence",
+                lambda c: check_regex(c, r"(?:fibonacci|fib|N_h|recurrence).*(?:h-1|h-2|\+\s*1)"),
+            ),
+            ("Delete implementation", lambda c: check_regex(c, r"def\s+delete")),
+            ("Test functions", lambda c: check_regex(c, r"def\s+test_.*assert")),
             ("5+ assertions", lambda c: check_assertions(c, 5)),
             ("Code blocks", lambda c: check_code_blocks(c, 3, 5)),
         ],
@@ -160,19 +177,44 @@ ESCALATION_TASKS = [
             "Do NOT use any tools."
         ),
         "checks": [
-            ("B+ tree invariants", lambda c: check_regex(c, r'(?:leaf|leaves).*(?:linked list|doubly|pointer|next|prev)')),
-            ("Height O(log_m(n))", lambda c: check_regex(c, r'O\(\s*log.*[_mM].*n\s*\)|height.*log.*base.*m')),
-            ("Disk page size calculation", lambda c: check_regex(c, r'(?:4096|4\s*KB|page\s*size).*(?:key|pointer|fanout|node)')),
-            ("Read/write amplification", lambda c: check_regex(c, r'(?:read|write|space)\s+(?:amplif|amp)')),
-            ("BPlusNode class", lambda c: check_regex(c, r'class\s+BPlus(?:Node|Tree)')),
-            ("Insert with split", lambda c: check_regex(c, r'def\s+insert.*(?:split|overflow|median)')),
-            ("Split logic", lambda c: check_regex(c, r'def\s+(?:_?split|_?split_child|_?split_node)')),
-            ("Range query", lambda c: check_regex(c, r'def\s+range_query')),
-            ("Leaf linked list traversal", lambda c: check_regex(c, r'(?:next|prev|forward|linked).*(?:leaf|node|pointer)')),
-            ("Bulk loading", lambda c: check_regex(c, r'(?:bulk|batch).*(?:load|insert|build)')),
+            (
+                "B+ tree invariants",
+                lambda c: check_regex(
+                    c, r"(?:leaf|leaves).*(?:linked list|doubly|pointer|next|prev)"
+                ),
+            ),
+            (
+                "Height O(log_m(n))",
+                lambda c: check_regex(c, r"O\(\s*log.*[_mM].*n\s*\)|height.*log.*base.*m"),
+            ),
+            (
+                "Disk page size calculation",
+                lambda c: check_regex(
+                    c, r"(?:4096|4\s*KB|page\s*size).*(?:key|pointer|fanout|node)"
+                ),
+            ),
+            (
+                "Read/write amplification",
+                lambda c: check_regex(c, r"(?:read|write|space)\s+(?:amplif|amp)"),
+            ),
+            ("BPlusNode class", lambda c: check_regex(c, r"class\s+BPlus(?:Node|Tree)")),
+            (
+                "Insert with split",
+                lambda c: check_regex(c, r"def\s+insert.*(?:split|overflow|median)"),
+            ),
+            (
+                "Split logic",
+                lambda c: check_regex(c, r"def\s+(?:_?split|_?split_child|_?split_node)"),
+            ),
+            ("Range query", lambda c: check_regex(c, r"def\s+range_query")),
+            (
+                "Leaf linked list traversal",
+                lambda c: check_regex(c, r"(?:next|prev|forward|linked).*(?:leaf|node|pointer)"),
+            ),
+            ("Bulk loading", lambda c: check_regex(c, r"(?:bulk|batch).*(?:load|insert|build)")),
             ("Substantial code", lambda c: check_code_blocks(c, 3, 8)),
-            ("test_range_query", lambda c: check_regex(c, r'def\s+test_\w*range')),
-            ("test_split", lambda c: check_regex(c, r'def\s+test_\w*split')),
+            ("test_range_query", lambda c: check_regex(c, r"def\s+test_\w*range")),
+            ("test_split", lambda c: check_regex(c, r"def\s+test_\w*split")),
             ("5+ assertions", lambda c: check_assertions(c, 5)),
             ("Math reasoning", lambda c: check_math(c, 2)),
         ],
@@ -198,11 +240,11 @@ TRANSFER_SEED_TASK = {
         "Do NOT use any tools."
     ),
     "checks": [
-        ("Pipeline class", lambda c: check_regex(c, r'class\s+Pipeline')),
-        ("add_step method", lambda c: check_regex(c, r'def\s+add_step')),
-        ("StandardScaler", lambda c: check_regex(c, r'(?:class\s+)?Standard(?:Scaler|ize)')),
-        ("Caching logic", lambda c: check_regex(c, r'(?:cache|hash|memoiz)')),
-        ("Test function", lambda c: check_regex(c, r'def\s+test_')),
+        ("Pipeline class", lambda c: check_regex(c, r"class\s+Pipeline")),
+        ("add_step method", lambda c: check_regex(c, r"def\s+add_step")),
+        ("StandardScaler", lambda c: check_regex(c, r"(?:class\s+)?Standard(?:Scaler|ize)")),
+        ("Caching logic", lambda c: check_regex(c, r"(?:cache|hash|memoiz)")),
+        ("Test function", lambda c: check_regex(c, r"def\s+test_")),
         ("Code blocks", lambda c: check_code_blocks(c, 2, 5)),
     ],
 }
@@ -233,15 +275,35 @@ TRANSFER_TARGET_TASK = {
         "Do NOT use any tools."
     ),
     "checks": [
-        ("GP posterior formulas", lambda c: check_regex(c, r'(?:μ|mu|mean).*(?:K|kernel|posterior).*(?:σ|sigma|variance)')),
-        ("RBF kernel", lambda c: check_regex(c, r'(?:rbf|radial|squared.*exponential).*(?:kernel|exp|l\^2)')),
-        ("Expected Improvement formula", lambda c: check_regex(c, r'(?:EI|expected.*improvement).*(?:Φ|phi|cdf|μ|sigma)')),
-        ("Cholesky decomposition", lambda c: check_regex(c, r'(?:cholesky|cho_factor|linalg\.cho|np\.linalg)')),
-        ("GaussianProcess class", lambda c: check_regex(c, r'class\s+Gaussian(?:Process|GP)')),
-        ("BayesianOptimizer class", lambda c: check_regex(c, r'class\s+Bayesian(?:Optim|Opt)')),
-        ("suggest_next method", lambda c: check_regex(c, r'def\s+suggest_next|def\s+suggest')),
-        ("Exploration vs exploitation", lambda c: check_regex(c, r'(?:explor|exploit).*(?:σ|uncertainty|variance|mean)')),
-        ("test_gp or test_optimize", lambda c: check_regex(c, r'def\s+test_\w*(?:gp|optim|convergence)')),
+        (
+            "GP posterior formulas",
+            lambda c: check_regex(
+                c, r"(?:μ|mu|mean).*(?:K|kernel|posterior).*(?:σ|sigma|variance)"
+            ),
+        ),
+        (
+            "RBF kernel",
+            lambda c: check_regex(c, r"(?:rbf|radial|squared.*exponential).*(?:kernel|exp|l\^2)"),
+        ),
+        (
+            "Expected Improvement formula",
+            lambda c: check_regex(c, r"(?:EI|expected.*improvement).*(?:Φ|phi|cdf|μ|sigma)"),
+        ),
+        (
+            "Cholesky decomposition",
+            lambda c: check_regex(c, r"(?:cholesky|cho_factor|linalg\.cho|np\.linalg)"),
+        ),
+        ("GaussianProcess class", lambda c: check_regex(c, r"class\s+Gaussian(?:Process|GP)")),
+        ("BayesianOptimizer class", lambda c: check_regex(c, r"class\s+Bayesian(?:Optim|Opt)")),
+        ("suggest_next method", lambda c: check_regex(c, r"def\s+suggest_next|def\s+suggest")),
+        (
+            "Exploration vs exploitation",
+            lambda c: check_regex(c, r"(?:explor|exploit).*(?:σ|uncertainty|variance|mean)"),
+        ),
+        (
+            "test_gp or test_optimize",
+            lambda c: check_regex(c, r"def\s+test_\w*(?:gp|optim|convergence)"),
+        ),
         ("Substantial code", lambda c: check_code_blocks(c, 3, 5)),
         ("5+ assertions", lambda c: check_assertions(c, 5)),
         ("Math reasoning", lambda c: check_math(c, 2)),
@@ -293,27 +355,49 @@ RETRY_TASK = {
     ),
     "checks": [
         # Lexer
-        ("Token class", lambda c: check_regex(c, r'class\s+Token')),
-        ("Tokenize function", lambda c: check_regex(c, r'def\s+(?:tokenize|lex)\s*\(')),
-        ("Multi-char operators", lambda c: check_regex(c, r'(?:==|!=|<=|>=).*(?:token|Token|operator)')),
-
+        ("Token class", lambda c: check_regex(c, r"class\s+Token")),
+        ("Tokenize function", lambda c: check_regex(c, r"def\s+(?:tokenize|lex)\s*\(")),
+        (
+            "Multi-char operators",
+            lambda c: check_regex(c, r"(?:==|!=|<=|>=).*(?:token|Token|operator)"),
+        ),
         # Parser
-        ("AST node classes", lambda c: check_regex(c, r'class\s+(?:Binary|Unary|Call|If|While|Let|Fn)(?:Expr|Stmt|Node|Decl)')),
-        ("parse_expression", lambda c: check_regex(c, r'def\s+parse_(?:expression|expr)\s*\(')),
-        ("Precedence handling", lambda c: check_regex(c, r'(?:precedence|prec|binding_power|pratt)')),
-        ("parse_statement", lambda c: check_regex(c, r'def\s+parse_(?:statement|stmt)\s*\(')),
-        ("Function parsing", lambda c: check_regex(c, r'def\s+parse_(?:function|fn)\s*\(')),
-
+        (
+            "AST node classes",
+            lambda c: check_regex(
+                c, r"class\s+(?:Binary|Unary|Call|If|While|Let|Fn)(?:Expr|Stmt|Node|Decl)"
+            ),
+        ),
+        ("parse_expression", lambda c: check_regex(c, r"def\s+parse_(?:expression|expr)\s*\(")),
+        (
+            "Precedence handling",
+            lambda c: check_regex(c, r"(?:precedence|prec|binding_power|pratt)"),
+        ),
+        ("parse_statement", lambda c: check_regex(c, r"def\s+parse_(?:statement|stmt)\s*\(")),
+        ("Function parsing", lambda c: check_regex(c, r"def\s+parse_(?:function|fn)\s*\(")),
         # Interpreter
-        ("Environment/scope", lambda c: check_regex(c, r'class\s+(?:Environment|Scope|Env)')),
-        ("evaluate method", lambda c: check_regex(c, r'def\s+(?:evaluate|eval|interpret|visit)\s*\(')),
-        ("Closure capture", lambda c: check_regex(c, r'(?:closure|enclos|parent|captured).*(?:scope|env|environment)')),
-        ("Function call execution", lambda c: check_regex(c, r'(?:call|invoke|apply).*(?:arg|param|scope|env)')),
-
+        ("Environment/scope", lambda c: check_regex(c, r"class\s+(?:Environment|Scope|Env)")),
+        (
+            "evaluate method",
+            lambda c: check_regex(c, r"def\s+(?:evaluate|eval|interpret|visit)\s*\("),
+        ),
+        (
+            "Closure capture",
+            lambda c: check_regex(
+                c, r"(?:closure|enclos|parent|captured).*(?:scope|env|environment)"
+            ),
+        ),
+        (
+            "Function call execution",
+            lambda c: check_regex(c, r"(?:call|invoke|apply).*(?:arg|param|scope|env)"),
+        ),
         # Tests
-        ("test_arithmetic", lambda c: check_regex(c, r'def\s+test_\w*(?:arithmetic|precedence|expr)')),
-        ("test_functions", lambda c: check_regex(c, r'def\s+test_\w*(?:function|fn|call)')),
-        ("test_closures", lambda c: check_regex(c, r'def\s+test_\w*(?:closure|make_adder|nested)')),
+        (
+            "test_arithmetic",
+            lambda c: check_regex(c, r"def\s+test_\w*(?:arithmetic|precedence|expr)"),
+        ),
+        ("test_functions", lambda c: check_regex(c, r"def\s+test_\w*(?:function|fn|call)")),
+        ("test_closures", lambda c: check_regex(c, r"def\s+test_\w*(?:closure|make_adder|nested)")),
         ("Substantial code", lambda c: check_code_blocks(c, 4, 8)),
         ("5+ assertions", lambda c: check_assertions(c, 5)),
     ],
@@ -339,15 +423,33 @@ AB_TASKS = [
             "Do NOT use any tools."
         ),
         "checks": [
-            ("Dijkstra implementation", lambda c: check_regex(c, r'def\s+dijkstra')),
-            ("Fibonacci heap", lambda c: check_regex(c, r'(?:class|def)\s+(?:Fibonacci|Fib)(?:Heap|_heap)')),
-            ("A* implementation", lambda c: check_regex(c, r'def\s+a_?star')),
-            ("Admissibility proof", lambda c: check_regex(c, r'(?:admiss|heuristic).*(?:optimal|underestimate|≤|<=|never\s+over)')),
-            ("decrease-key", lambda c: check_regex(c, r'decrease.?key.*O\(\s*1\s*\)|O\(\s*1\s*\).*decrease.?key')),
-            ("Complexity analysis", lambda c: check_regex(c, r'O\(\s*(?:V|E).*log')),
-            ("Grid graph comparison", lambda c: check_regex(c, r'(?:grid|graph).*(?:node|explored|visited).*(?:fewer|less|more)')),
+            ("Dijkstra implementation", lambda c: check_regex(c, r"def\s+dijkstra")),
+            (
+                "Fibonacci heap",
+                lambda c: check_regex(c, r"(?:class|def)\s+(?:Fibonacci|Fib)(?:Heap|_heap)"),
+            ),
+            ("A* implementation", lambda c: check_regex(c, r"def\s+a_?star")),
+            (
+                "Admissibility proof",
+                lambda c: check_regex(
+                    c, r"(?:admiss|heuristic).*(?:optimal|underestimate|≤|<=|never\s+over)"
+                ),
+            ),
+            (
+                "decrease-key",
+                lambda c: check_regex(
+                    c, r"decrease.?key.*O\(\s*1\s*\)|O\(\s*1\s*\).*decrease.?key"
+                ),
+            ),
+            ("Complexity analysis", lambda c: check_regex(c, r"O\(\s*(?:V|E).*log")),
+            (
+                "Grid graph comparison",
+                lambda c: check_regex(
+                    c, r"(?:grid|graph).*(?:node|explored|visited).*(?:fewer|less|more)"
+                ),
+            ),
             ("Code blocks", lambda c: check_code_blocks(c, 3, 5)),
-            ("Test functions", lambda c: check_regex(c, r'def\s+test_')),
+            ("Test functions", lambda c: check_regex(c, r"def\s+test_")),
             ("5+ assertions", lambda c: check_assertions(c, 5)),
         ],
     },
@@ -358,6 +460,7 @@ AB_TASKS = [
 # EVALUATOR
 # =============================================================================
 
+
 class ComplexEval:
     def __init__(self) -> None:
         self.results: List[Dict[str, Any]] = []
@@ -367,12 +470,14 @@ class ComplexEval:
     def _get_orchestrator(self) -> Any:
         if self._orch is None:
             from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
+
             self._orch = Orchestrator()
         return self._orch
 
     def _get_learning(self) -> Any:
         if self._learning is None:
             from Jotty.core.intelligence.learning.learning_service import LearningService
+
             self._learning = LearningService.get_instance()
         return self._learning
 
@@ -398,22 +503,26 @@ class ComplexEval:
             "ctx": ctx[:200] if ctx else "",
         }
 
-    async def run_task(
-        self, task: Dict, learn: bool = True, tag: str = ""
-    ) -> Dict[str, Any]:
+    async def run_task(self, task: Dict, learn: bool = True, tag: str = "") -> Dict[str, Any]:
         label = f"{task['id']}{f' ({tag})' if tag else ''}"
         no_learn_tag = " [NO LEARNING]" if not learn else ""
         subsep(f"{label}{no_learn_tag}")
 
         orch = self._get_orchestrator()
-        domain = task.get("domain", "general")
+        # Use classifier's domain (matches what the recording pipeline uses)
+        from Jotty.core.intelligence.learning.learning_service import classify_domain
+
+        classified_domain, _ = classify_domain(task["goal"])
+        domain = classified_domain or task.get("domain", "general")
         snap_before = self._snapshot(domain)
 
         print(f"  Model: {EVAL_MODEL}")
-        print(f"  Episodes: {snap_before['episodes']} (domain) / {snap_before['global_episodes']} (global) | Rate: {snap_before['rate']:.0%}")
+        print(
+            f"  Episodes: {snap_before['episodes']} (domain) / {snap_before['global_episodes']} (global) | Rate: {snap_before['rate']:.0%}"
+        )
         print(f"  Context injected: {snap_before['ctx_len']} chars")
-        if snap_before['ctx']:
-            for line in snap_before['ctx'].split('\n')[:3]:
+        if snap_before["ctx"]:
+            for line in snap_before["ctx"].split("\n")[:3]:
                 print(f"    > {line[:100]}")
         print(f"  Retrieval: {snap_before['ret_len']} chars")
 
@@ -450,8 +559,12 @@ class ComplexEval:
         total = len(check_results)
         check_ratio = passed / max(total, 1)
 
-        code_blocks = len(re.findall(r'```[\w]*\n.+?```', content, re.DOTALL))
-        quality = check_ratio * 0.5 + min(1.0, len(content) / 6000) * 0.25 + min(1.0, code_blocks / 3) * 0.25
+        code_blocks = len(re.findall(r"```[\w]*\n.+?```", content, re.DOTALL))
+        quality = (
+            check_ratio * 0.5
+            + min(1.0, len(content) / 6000) * 0.25
+            + min(1.0, code_blocks / 3) * 0.25
+        )
 
         success = check_ratio >= 0.65 and len(content) >= 2000
 
@@ -482,8 +595,10 @@ class ComplexEval:
             f"\n  [{status}] Q={quality:.2f} | Checks={passed}/{total} ({check_ratio:.0%}) | "
             f"Len={len(content)} | Code={code_blocks} | {elapsed:.0f}s"
         )
-        print(f"  Episodes: {snap_before['episodes']}→{snap_after['episodes']} | "
-              f"Rate: {snap_before['rate']:.0%}→{snap_after['rate']:.0%}")
+        print(
+            f"  Episodes: {snap_before['episodes']}→{snap_after['episodes']} | "
+            f"Rate: {snap_before['rate']:.0%}→{snap_after['rate']:.0%}"
+        )
 
         for name, ok in check_results.items():
             print(f"    [{'+'if ok else '-'}] {name}")
@@ -525,7 +640,9 @@ class ComplexEval:
             first, last = esc[0]["check_ratio"], esc[-1]["check_ratio"]
             delta = last - first
             print(f"\n  Trend: {first:.0%} → {last:.0%} ({delta:+.0%})")
-            verdict = "LEARNING HELPS" if delta > 0.05 else "MAINTAINED" if delta >= -0.05 else "DEGRADED"
+            verdict = (
+                "LEARNING HELPS" if delta > 0.05 else "MAINTAINED" if delta >= -0.05 else "DEGRADED"
+            )
             print(f"  Verdict: {verdict}")
 
         # ─── CROSS-DOMAIN TRANSFER ───
@@ -534,8 +651,12 @@ class ComplexEval:
         if seed and target:
             subsep("CROSS-DOMAIN TRANSFER (coding → data_science)")
             s, t = seed[0], target[0]
-            print(f"  Seed (coding):       Q={s['quality']:.2f} Chk={s['checks_passed']}/{s['checks_total']}")
-            print(f"  Target (data_sci):   Q={t['quality']:.2f} Chk={t['checks_passed']}/{t['checks_total']} ctx={t['ctx_injected']}ch")
+            print(
+                f"  Seed (coding):       Q={s['quality']:.2f} Chk={s['checks_passed']}/{s['checks_total']}"
+            )
+            print(
+                f"  Target (data_sci):   Q={t['quality']:.2f} Chk={t['checks_passed']}/{t['checks_total']} ctx={t['ctx_injected']}ch"
+            )
             if t["ctx_injected"] > 0:
                 print(f"  Transfer signal: YES — learning context from seed domain reached target")
             else:
@@ -574,7 +695,11 @@ class ComplexEval:
                 if match:
                     l = match[0]
                     delta = l["check_ratio"] - b["check_ratio"]
-                    win = "LEARN WINS" if delta > 0.05 else "NEUTRAL" if abs(delta) <= 0.05 else "BASE WINS"
+                    win = (
+                        "LEARN WINS"
+                        if delta > 0.05
+                        else "NEUTRAL" if abs(delta) <= 0.05 else "BASE WINS"
+                    )
                     print(
                         f"  {b['task_id']:25s} Base={b['check_ratio']:.0%} Learn={l['check_ratio']:.0%} "
                         f"Δ={delta:+.0%} → {win}"
@@ -653,7 +778,9 @@ class ComplexEval:
         with open(out, "w") as f:
             json.dump(
                 {"timestamp": now, "model": EVAL_MODEL, "results": self.results},
-                f, indent=2, default=str,
+                f,
+                indent=2,
+                default=str,
             )
         print(f"\n  Saved: {out}")
 
