@@ -517,8 +517,10 @@ async def main() -> None:
 
     reflections = store.get_reflections(episode_id=refl_eid)
     check("Reflection persisted", len(reflections) >= 1)
-    check("Reflection marked applied", reflections[0].applied is True)
-    check("Improvement recorded", reflections[0].improvement == 0.3)
+    # Find the specific manual reflection (step=2) — auto-reflect may add others
+    manual_ref = [r for r in reflections if r.step == 2]
+    check("Reflection marked applied", len(manual_ref) >= 1 and manual_ref[0].applied is True)
+    check("Improvement recorded", len(manual_ref) >= 1 and manual_ref[0].improvement == 0.3)
 
     # ── 5. QUERYING LEARNING STATE ───────────────────────────────────
     banner("5. Query Learning State")
@@ -1135,6 +1137,139 @@ References: CLRS (2009), Algorithm Design Manual (Skiena, 2008).
     # Transfer these rich patterns to a new domain
     cd_transfer = svc.transfer("compiler_design", "math")
     check("Rich patterns transfer", len(cd_transfer) > 0, f"{len(cd_transfer)} transferred")
+
+    # ── 17c. AUTO-TRANSFER (cross-domain patterns propagate automatically) ──
+    banner("17c. Auto-Transfer: Patterns Propagate to Related Domains")
+
+    # Reset transfer counters so we can test from scratch
+    svc._domain_episode_counts = {}
+    svc._last_transfer_counts = {}
+    svc._auto_transfer_interval = 10  # Lower threshold for testing
+
+    # Record 10 high-quality "networking" episodes that will trigger auto-transfer
+    # First, define networking domain affinity (it's not in the default map)
+    from Jotty.core.intelligence.learning.learning_service import _DOMAIN_AFFINITY
+
+    _DOMAIN_AFFINITY["networking"] = ["system_design", "devops"]
+
+    for i in range(10):
+        svc.record(
+            unit_name="net-expert",
+            unit_type="agent",
+            domain="networking",
+            task_type="protocol_design",
+            context={"goal": f"Design protocol {i} for low-latency messaging"},
+            action={"model": "claude-sonnet", "tools": ["code_gen", "spec_writer"]},
+            outcome={
+                "content": (
+                    f"# Protocol Design {i}\n\n"
+                    f"```python\nclass Protocol{i}:\n"
+                    f"    def connect(self): pass\n"
+                    f"    def send(self, data): pass\n```\n"
+                    f"## Tests\n```python\ndef test_protocol():\n    assert True\n```\n"
+                    f"In conclusion, this protocol achieves sub-ms latency.\n"
+                    f"References: RFC 793 (1981)."
+                ),
+            },
+            success=True,
+            quality=0.88,
+        )
+
+    # Verify auto-transfer was triggered
+    check(
+        "Auto-transfer triggered",
+        svc._last_transfer_counts.get("networking", 0) >= 10,
+        f"last_transfer_count={svc._last_transfer_counts.get('networking', 0)}",
+    )
+
+    # Check that patterns were transferred to related domains
+    sd_patterns = store.get_patterns(domain="system_design")
+    sd_from_net = [
+        p
+        for p in sd_patterns
+        if "networking" in (p.source_domain or "") or "networking" in p.applicable_domains
+    ]
+    devops_patterns = store.get_patterns(domain="devops")
+    devops_from_net = [
+        p
+        for p in devops_patterns
+        if "networking" in (p.source_domain or "") or "networking" in p.applicable_domains
+    ]
+    transferred_total = len(sd_from_net) + len(devops_from_net)
+    check(
+        "Patterns auto-transferred to related domains",
+        transferred_total > 0,
+        f"system_design={len(sd_from_net)} devops={len(devops_from_net)}",
+    )
+
+    # ── 17d. AUTO-REFLECT (reflection on significant outcomes) ──────
+    banner("17d. Auto-Reflect: Automatic Reflection on Significant Outcomes")
+
+    # Reset reflect interval for predictable testing
+    svc._auto_reflect_interval = 1  # Reflect on every record
+    svc._auto_reflect_quality_threshold = 0.8
+
+    # Count reflections before
+    reflections_before = len(store.get_reflections())
+
+    # Record a high-quality success (should trigger auto-reflect)
+    hq_eid = svc.record(
+        unit_name="reflect-agent",
+        unit_type="agent",
+        domain="coding",
+        task_type="api_design",
+        context={"goal": "Build excellent REST API"},
+        action={"model": "claude-sonnet", "tools": ["code_gen"]},
+        outcome={"content": "Great API design result with comprehensive documentation"},
+        success=True,
+        quality=0.92,
+    )
+
+    # Record a failure (should also trigger auto-reflect)
+    fail_eid = svc.record(
+        unit_name="reflect-agent",
+        unit_type="agent",
+        domain="coding",
+        task_type="api_design",
+        context={"goal": "Build failing task"},
+        action={"model": "gpt-4o-mini", "tools": ["code_gen"]},
+        outcome={"result": "error"},
+        success=False,
+        quality=0.1,
+    )
+
+    reflections_after = len(store.get_reflections())
+    new_reflections = reflections_after - reflections_before
+    check(
+        "Auto-reflect created reflections",
+        new_reflections >= 2,
+        f"new={new_reflections} (before={reflections_before}, after={reflections_after})",
+    )
+
+    # Verify the reflections have meaningful content
+    all_refs = store.get_reflections()
+    hq_refs = [r for r in all_refs if r.episode_id == hq_eid]
+    fail_refs = [r for r in all_refs if r.episode_id == fail_eid]
+
+    check("High-quality episode has reflection", len(hq_refs) >= 1)
+    if hq_refs:
+        check(
+            "HQ reflection mentions quality",
+            "quality" in hq_refs[0].observation.lower() or "HIGH" in hq_refs[0].observation,
+            hq_refs[0].observation[:80],
+        )
+
+    check("Failure episode has reflection", len(fail_refs) >= 1)
+    if fail_refs:
+        check(
+            "Fail reflection mentions failure",
+            "FAILURE" in fail_refs[0].observation or "fail" in fail_refs[0].observation.lower(),
+            fail_refs[0].observation[:80],
+        )
+
+    # Restore defaults
+    svc._auto_reflect_interval = 10
+    svc._auto_transfer_interval = 25
 
     # ── 18. CONCURRENT MULTI-AGENT SIMULATION ────────────────────────
     banner("18. Concurrent Multi-Agent Stress Test")

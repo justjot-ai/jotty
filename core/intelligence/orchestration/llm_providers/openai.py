@@ -79,6 +79,7 @@ class OpenAIProvider(LLMProvider):
         system: str,
         stream_callback: Callable[[str], Any],
         max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
+        thinking_callback: Optional[Callable[[str], Any]] = None,
     ) -> tuple:
         full_messages = [{"role": "system", "content": system}]
         full_messages.extend(self._convert_messages(messages))

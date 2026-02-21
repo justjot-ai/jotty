@@ -17,8 +17,10 @@ DRY: Single source of truth for all web fetching across skills.
 Used by: web-search, web-scraper, screener-financials, etc.
 """
 
+import ipaddress
 import logging
 import random
+import socket
 import time
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import quote, urlparse
@@ -253,6 +255,117 @@ def get_proxy_rotator() -> ProxyRotator:
 
 
 # =========================================================================
+# SSRF PROTECTION
+# =========================================================================
+
+
+def _is_ipv6_transition_unsafe(ip: ipaddress.IPv6Address) -> tuple:
+    """
+    Check if an IPv6 address is a transition mechanism that embeds a private IPv4.
+
+    Blocks:
+    - IPv4-mapped IPv6: ::ffff:127.0.0.1, ::ffff:10.0.0.1, etc.
+    - 6to4: 2002:7f00:0001:: (embeds 127.0.0.1)
+    - Teredo: 2001:0000:... (embeds obfuscated IPv4)
+
+    Returns:
+        (is_unsafe: bool, reason: str)
+    """
+    # IPv4-mapped IPv6 (::ffff:x.x.x.x) — check the embedded IPv4
+    if ip.ipv4_mapped:
+        inner = ip.ipv4_mapped
+        if inner.is_loopback or inner.is_private or inner.is_link_local or inner.is_reserved:
+            return True, f"Blocked IPv4-mapped IPv6: {ip} (embeds {inner})"
+
+    # 6to4 (2002::/16) — first 4 bytes after prefix are the IPv4
+    _6to4_prefix = ipaddress.IPv6Network("2002::/16")
+    if ip in _6to4_prefix:
+        # Extract embedded IPv4 from bytes 2-5
+        ip_bytes = ip.packed
+        inner = ipaddress.IPv4Address(ip_bytes[2:6])
+        if inner.is_loopback or inner.is_private or inner.is_link_local or inner.is_reserved:
+            return True, f"Blocked 6to4 address: {ip} (embeds {inner})"
+
+    # Teredo (2001:0000::/32) — IPv4 is obfuscated (XORed) in last 4 bytes
+    _teredo_prefix = ipaddress.IPv6Network("2001:0000::/32")
+    if ip in _teredo_prefix:
+        ip_bytes = ip.packed
+        # Teredo client IPv4 is XOR'd with 0xFF in the last 4 bytes
+        inner_bytes = bytes(b ^ 0xFF for b in ip_bytes[12:16])
+        inner = ipaddress.IPv4Address(inner_bytes)
+        if inner.is_loopback or inner.is_private or inner.is_link_local or inner.is_reserved:
+            return True, f"Blocked Teredo address: {ip} (embeds {inner})"
+
+    return False, ""
+
+
+def is_ssrf_safe(url: str) -> tuple:
+    """
+    Check if a URL is safe from SSRF attacks.
+
+    Blocks:
+    - Non-http(s) schemes (file://, gopher://, ftp://, etc.)
+    - Loopback addresses (localhost, 127.x, ::1, 0.0.0.0)
+    - Private/internal IPs (10.x, 172.16-31.x, 192.168.x)
+    - Link-local addresses (169.254.x — AWS/cloud metadata)
+    - Reserved/unspecified addresses
+    - IPv6 transition addresses embedding private IPv4 (IPv4-mapped, 6to4, Teredo)
+
+    Returns:
+        (is_safe: bool, reason: str) — reason is empty if safe
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False, "Invalid URL"
+
+    # Block non-http(s) schemes
+    if parsed.scheme not in ("http", "https"):
+        return False, f"Blocked scheme: {parsed.scheme}"
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False, "No hostname in URL"
+
+    # Block obvious loopback hostnames before DNS
+    _loopback_names = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"}
+    if hostname.lower() in _loopback_names:
+        return False, f"Blocked loopback hostname: {hostname}"
+
+    # Resolve DNS and check the IP
+    try:
+        addr_infos = socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        return False, f"DNS resolution failed for {hostname}"
+
+    for family, _type, _proto, _canonname, sockaddr in addr_infos:
+        ip_str = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False, f"Invalid resolved IP: {ip_str}"
+
+        if ip.is_loopback:
+            return False, f"Blocked loopback IP: {ip_str}"
+        if ip.is_private:
+            return False, f"Blocked private IP: {ip_str}"
+        if ip.is_link_local:
+            return False, f"Blocked link-local IP: {ip_str}"
+        if ip.is_reserved:
+            return False, f"Blocked reserved IP: {ip_str}"
+        if ip.is_unspecified:
+            return False, f"Blocked unspecified IP: {ip_str}"
+
+        # IPv6 transition mechanism checks
+        if isinstance(ip, ipaddress.IPv6Address):
+            unsafe, reason = _is_ipv6_transition_unsafe(ip)
+            if unsafe:
+                return False, reason
+
+    return True, ""
+
+
+# =========================================================================
 # SMART FETCH — The main entry point
 # =========================================================================
 
@@ -347,6 +460,12 @@ def smart_fetch(
     Returns:
         FetchResult with success, content, source, etc.
     """
+    # SSRF protection: block private/internal/loopback URLs
+    safe, reason = is_ssrf_safe(url)
+    if not safe:
+        logger.warning(f"SmartFetch: SSRF blocked — {reason} for {url}")
+        return FetchResult(success=False, error=f"SSRF blocked: {reason}", skipped=True)
+
     _fetch_start = time.time()
     domain = urlparse(url).netloc.lower()
 

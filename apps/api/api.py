@@ -41,6 +41,29 @@ def create_app() -> "FastAPI":
         allow_headers=["*"],
     )
 
+    # Auth + rate limiting middleware
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    from Jotty.core.infrastructure.utils.api_middleware import (
+        RateLimiter,
+        make_auth_middleware,
+        make_rate_limit_middleware,
+    )
+
+    app.add_middleware(
+        BaseHTTPMiddleware,
+        dispatch=make_auth_middleware(
+            skip_paths={"/health", "/docs", "/openapi.json", "/redoc", "/static"},
+        ),
+    )
+    app.add_middleware(
+        BaseHTTPMiddleware,
+        dispatch=make_rate_limit_middleware(
+            limiter=RateLimiter(max_requests=60, window_seconds=60),
+            path_prefixes=["/api/"],
+        ),
+    )
+
     # API handler
     api = JottyAPI()
 

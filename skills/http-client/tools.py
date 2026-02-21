@@ -25,6 +25,13 @@ def _parse_response_body(response: requests.Response) -> tuple:
 
 def _make_http_request(method: str, url: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Common HTTP request handler."""
+    # SSRF protection: block private/internal/loopback URLs
+    from Jotty.core.infrastructure.utils.smart_fetcher import is_ssrf_safe
+
+    safe, reason = is_ssrf_safe(url)
+    if not safe:
+        return tool_error(f"SSRF blocked: {reason}")
+
     headers = params.get("headers", {})
     timeout = params.get("timeout", 30)
     json_data = params.get("json")

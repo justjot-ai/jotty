@@ -18,9 +18,10 @@ import hmac
 import json
 import logging
 import os
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, Set
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,7 @@ class UnifiedGateway:
 
         def _make_channel_responder(channel: ChannelType) -> Any:
             """DRY: single factory for all channel responders."""
+
             async def _responder(response: ResponseEvent) -> Any:
                 resp_event = ResponderResponseEvent(
                     channel=channel,
@@ -103,6 +105,7 @@ class UnifiedGateway:
                     reply_to=response.reply_to,
                 )
                 await responder_registry.send(resp_event)
+
             return _responder
 
         # Register responders for all channels (DRY — one factory, no duplication)
@@ -357,50 +360,62 @@ class UnifiedGateway:
             except Exception as e:
                 return {"success": False, "error": str(e)}
 
-        # ============ RATE LIMITING (simple in-memory) ============
-        _rate_limits: Dict[str, List[float]] = {}
+        # ============ RATE LIMITING (shared utility) ============
+        from starlette.middleware.base import BaseHTTPMiddleware
 
-        @app.middleware("http")
-        async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
-            """Simple rate limiting: 60 req/min per IP for API endpoints."""
-            import time
+        from Jotty.core.infrastructure.utils.api_middleware import (
+            RateLimiter,
+            make_rate_limit_middleware,
+        )
 
-            if request.url.path.startswith("/api/") or request.url.path == "/message":
-                client_ip = request.client.host if request.client else "unknown"
+        app.add_middleware(
+            BaseHTTPMiddleware,
+            dispatch=make_rate_limit_middleware(
+                limiter=RateLimiter(max_requests=60, window_seconds=60),
+                path_prefixes=["/api/", "/message"],
+            ),
+        )
+
+        # ============ WEBHOOK DEDUPE (shared across all channels) ============
+        class _WebhookDedupe:
+            """TTL cache for webhook deduplication. One per channel."""
+
+            def __init__(self, ttl: int = 300) -> None:
+                self._seen: Dict[str, float] = {}
+                self._ttl = ttl
+
+            def is_duplicate(self, key: str) -> bool:
                 now = time.time()
-                window = 60  # 1 minute
-                max_requests = 60
+                # Inline cleanup of expired entries
+                expired = [k for k, ts in self._seen.items() if now - ts > self._ttl]
+                for k in expired:
+                    del self._seen[k]
+                if key in self._seen:
+                    return True
+                self._seen[key] = now
+                return False
 
-                # Clean old entries
-                if client_ip in _rate_limits:
-                    _rate_limits[client_ip] = [
-                        t for t in _rate_limits[client_ip] if now - t < window
-                    ]
-                else:
-                    _rate_limits[client_ip] = []
-
-                if len(_rate_limits[client_ip]) >= max_requests:
-                    from starlette.responses import JSONResponse
-
-                    return JSONResponse(
-                        {"success": False, "error": "Rate limit exceeded (60/min)"},
-                        status_code=429,
-                    )
-
-                _rate_limits[client_ip].append(now)
-
-            return await call_next(request)
+        _telegram_dedupe = _WebhookDedupe()
+        _slack_dedupe = _WebhookDedupe()
+        _discord_dedupe = _WebhookDedupe()
+        _whatsapp_dedupe = _WebhookDedupe()
 
         # ============ TELEGRAM WEBHOOK ============
+
         @app.post("/webhook/telegram")
         async def telegram_webhook(request: Request) -> Any:
-            """Handle Telegram webhook updates."""
+            """Handle Telegram webhook updates (message, channel_post, edited variants)."""
             try:
                 data = await request.json()
                 logger.debug(f"Telegram webhook: {data}")
 
-                # Extract message
-                message = data.get("message") or data.get("edited_message")
+                # Extract message from all 4 update types
+                message = (
+                    data.get("message")
+                    or data.get("channel_post")
+                    or data.get("edited_message")
+                    or data.get("edited_channel_post")
+                )
                 if not message:
                     return {"ok": True}
 
@@ -409,15 +424,29 @@ class UnifiedGateway:
                     return {"ok": True}
 
                 chat = message.get("chat", {})
+                chat_id = str(chat.get("id", ""))
+                message_id = str(message.get("message_id", ""))
+
+                # Dedupe: skip already-seen messages
+                dedupe_key = f"{chat_id}:{message_id}"
+                if _telegram_dedupe.is_duplicate(dedupe_key):
+                    logger.debug(f"Telegram dedupe: skipping {dedupe_key}")
+                    return {"ok": True}
+
+                # For channel_post: no "from" field, fall back to chat info
                 user = message.get("from", {})
+                user_id = str(user.get("id", "")) if user else chat_id
+                user_name = user.get("first_name", "") if user else chat.get("title", "Unknown")
+                if not user_name:
+                    user_name = "Unknown"
 
                 event = MessageEvent(
                     channel=ChannelType.TELEGRAM,
-                    channel_id=str(chat.get("id")),
-                    user_id=str(user.get("id")),
-                    user_name=user.get("first_name", "Unknown"),
+                    channel_id=chat_id,
+                    user_id=user_id,
+                    user_name=user_name,
                     content=text,
-                    message_id=str(message.get("message_id")),
+                    message_id=message_id,
                     raw_data=data,
                 )
 
@@ -465,6 +494,12 @@ class UnifiedGateway:
                 event_type = event.get("type")
 
                 if event_type == "message" and not event.get("bot_id"):
+                    # Dedupe by channel:ts (Slack retries on timeout)
+                    slack_key = f"{event.get('channel')}:{event.get('ts')}"
+                    if _slack_dedupe.is_duplicate(slack_key):
+                        logger.debug(f"Slack dedupe: skipping {slack_key}")
+                        return {"ok": True}
+
                     msg_event = MessageEvent(
                         channel=ChannelType.SLACK,
                         channel_id=event.get("channel"),
@@ -511,6 +546,12 @@ class UnifiedGateway:
                         content = data.get("data", {}).get("custom_id", "")
 
                     if content:
+                        # Dedupe by interaction id
+                        discord_key = f"{channel_id}:{data.get('id')}"
+                        if _discord_dedupe.is_duplicate(discord_key):
+                            logger.debug(f"Discord dedupe: skipping {discord_key}")
+                            return {"type": 5}
+
                         event = MessageEvent(
                             channel=ChannelType.DISCORD,
                             channel_id=channel_id,
@@ -550,6 +591,12 @@ class UnifiedGateway:
 
                 for msg in messages:
                     if msg.get("type") == "text":
+                        # Dedupe by message id (WhatsApp retries on slow ack)
+                        wa_key = f"{msg.get('from')}:{msg.get('id')}"
+                        if _whatsapp_dedupe.is_duplicate(wa_key):
+                            logger.debug(f"WhatsApp dedupe: skipping {wa_key}")
+                            continue
+
                         contact = value.get("contacts", [{}])[0]
 
                         event = MessageEvent(

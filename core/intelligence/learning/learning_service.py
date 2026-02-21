@@ -765,6 +765,15 @@ class LearningService:
         self._pattern_extraction_interval = 1  # Extract patterns on every record
         self._record_count = 0
 
+        # Auto-transfer: track episodes per domain, trigger transfer every N episodes
+        self._domain_episode_counts: Dict[str, int] = {}
+        self._auto_transfer_interval = 25  # transfer after every 25 episodes in a domain
+        self._last_transfer_counts: Dict[str, int] = {}  # domain -> count at last transfer
+
+        # Auto-reflect: trigger post-execution reflection on significant outcomes
+        self._auto_reflect_interval = 10  # reflect every N episodes
+        self._auto_reflect_quality_threshold = 0.75  # reflect on high-quality successes too
+
         logger.info("LearningService initialized")
 
     @classmethod
@@ -913,11 +922,126 @@ class LearningService:
             except Exception as e:
                 logger.debug(f"Pattern sweep failed: {e}")
 
+        # ── Auto-transfer: propagate patterns to related domains ──
+        self._domain_episode_counts[domain] = self._domain_episode_counts.get(domain, 0) + 1
+        domain_count = self._domain_episode_counts[domain]
+        last_transfer = self._last_transfer_counts.get(domain, 0)
+        if (
+            domain
+            and domain_count >= self._auto_transfer_interval
+            and domain_count - last_transfer >= self._auto_transfer_interval
+        ):
+            self._last_transfer_counts[domain] = domain_count
+            related = _get_related_domains(domain)
+            for target in related[:3]:  # Top 3 related domains
+                try:
+                    transferred = self.transfer(domain, target)
+                    if transferred:
+                        logger.debug(
+                            f"Auto-transferred {len(transferred)} patterns "
+                            f"from {domain} → {target}"
+                        )
+                except Exception as e:
+                    logger.debug(f"Auto-transfer {domain}→{target} failed: {e}")
+
+        # ── Auto-reflect: learn from significant outcomes ──
+        if domain and self._record_count % self._auto_reflect_interval == 0:
+            try:
+                self._auto_reflect(
+                    episode_id, domain, task_type, context, outcome, success, quality, unit_name
+                )
+            except Exception as e:
+                logger.debug(f"Auto-reflect failed: {e}")
+
         logger.debug(
             f"Recorded: {unit_name} ({unit_type}) domain={domain} "
             f"task={task_type} success={success} quality={quality:.2f}"
         )
         return episode_id
+
+    def _auto_reflect(
+        self,
+        episode_id: str,
+        domain: str,
+        task_type: str,
+        context: Dict[str, Any],
+        outcome: Dict[str, Any],
+        success: bool,
+        quality: float,
+        unit_name: str,
+    ) -> None:
+        """
+        Automatic post-execution reflection for significant outcomes.
+
+        Triggers on:
+        - High-quality successes (quality >= threshold) to learn *what worked*
+        - Failures to learn *what went wrong*
+        - Large quality variance from domain average to learn *what changed*
+        """
+        # Get domain baseline for comparison
+        state_key = self._make_state_key(domain, task_type)
+        baseline = self._store.get_value(state_key, "", domain)
+        baseline_value = baseline.value if baseline else 0.5
+
+        # Determine if this outcome is significant enough to reflect on
+        is_high_quality = success and quality >= self._auto_reflect_quality_threshold
+        is_failure = not success
+        is_surprise = abs(quality - baseline_value) > 0.3  # Large deviation
+
+        if not (is_high_quality or is_failure or is_surprise):
+            return
+
+        # Build observation
+        goal = ""
+        if isinstance(context, dict):
+            goal = str(context.get("goal", context.get("message", "")))[:200]
+
+        if is_high_quality:
+            observation = (
+                f"HIGH QUALITY outcome in {domain}/{task_type}: "
+                f"quality={quality:.2f}, goal='{goal}'. "
+                f"Structural features: "
+                f"has_code={outcome.get('has_code', 'N/A')}, "
+                f"has_headings={outcome.get('has_headings', 'N/A')}, "
+                f"word_count={outcome.get('word_count', 'N/A')}, "
+                f"goal_coverage={outcome.get('goal_coverage', 'N/A')}"
+            )
+            analysis = (
+                f"Success pattern: quality {quality:.2f} exceeds threshold "
+                f"{self._auto_reflect_quality_threshold}. "
+                f"Baseline for domain is {baseline_value:.2f}."
+            )
+        elif is_failure:
+            observation = (
+                f"FAILURE in {domain}/{task_type}: " f"quality={quality:.2f}, goal='{goal}'"
+            )
+            analysis = (
+                f"Failure analysis: success=False, quality={quality:.2f}. "
+                f"Baseline for domain is {baseline_value:.2f}."
+            )
+        else:  # is_surprise
+            direction = "above" if quality > baseline_value else "below"
+            observation = (
+                f"SURPRISE outcome in {domain}/{task_type}: "
+                f"quality={quality:.2f} is {direction} baseline {baseline_value:.2f}, "
+                f"goal='{goal}'"
+            )
+            analysis = (
+                f"Deviation: quality {quality:.2f} vs baseline {baseline_value:.2f} "
+                f"(delta={quality - baseline_value:+.2f})."
+            )
+
+        self.reflect(
+            episode_id=episode_id,
+            step=0,
+            observation=observation,
+            unit_name=unit_name or "auto_reflect",
+            analysis=analysis,
+        )
+        logger.debug(
+            f"Auto-reflected on {episode_id}: "
+            f"high_q={is_high_quality}, fail={is_failure}, surprise={is_surprise}"
+        )
 
     # =========================================================================
     # QUERY — Get recommendations for a given context

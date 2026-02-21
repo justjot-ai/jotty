@@ -64,3 +64,11 @@ class TextBlock:
 
     text: str
     type: str = "text"
+
+
+@dataclass
+class ThinkingBlock:
+    """Unified thinking block (extended thinking / chain-of-thought)."""
+
+    thinking: str
+    type: str = "thinking"

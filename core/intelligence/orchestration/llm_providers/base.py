@@ -3,7 +3,7 @@ Abstract base class for LLM providers with tool calling support.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from Jotty.core.infrastructure.foundation.config_defaults import (
     LLM_MAX_OUTPUT_TOKENS,  # type: ignore[import]
@@ -39,6 +39,7 @@ class LLMProvider(ABC):
         system: str,
         stream_callback: Callable[[str], Any],
         max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
+        thinking_callback: Optional[Callable[[str], Any]] = None,
     ) -> tuple:
         """Call LLM API with streaming, return (response, streamed_content)."""
         pass

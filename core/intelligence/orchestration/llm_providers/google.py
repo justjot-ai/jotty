@@ -84,6 +84,7 @@ class GoogleProvider(LLMProvider):
         system: str,
         stream_callback: Callable[[str], Any],
         max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
+        thinking_callback: Optional[Callable[[str], Any]] = None,
     ) -> tuple:
         # Google streaming is more complex, fall back to non-streaming
         response = await self.call(messages, tools, system, max_tokens)

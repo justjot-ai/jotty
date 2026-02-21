@@ -10,7 +10,7 @@ import os
 from typing import Any, Callable, Dict, List, Optional
 
 from .base import LLM_MAX_OUTPUT_TOKENS, LLMProvider
-from .types import LLMResponse, TextBlock, ToolUseBlock
+from .types import LLMResponse, TextBlock, ThinkingBlock, ToolUseBlock
 
 
 def _get_client_kwargs(api_key: Optional[str] = None) -> Any:
@@ -82,6 +82,7 @@ class AnthropicProvider(LLMProvider):
         system: str,
         stream_callback: Callable[[str], Any],
         max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
+        thinking_callback: Optional[Callable[[str], Any]] = None,
     ) -> tuple:
         full_content = ""
 
@@ -92,12 +93,20 @@ class AnthropicProvider(LLMProvider):
             messages=messages,
             tools=self.convert_tools(tools),
         ) as stream:
-            for text in stream.text_stream:
-                if text:
-                    result = stream_callback(text)
-                    if asyncio.iscoroutine(result):
-                        await result
-                    full_content += text
+            for event in stream:
+                if event.type == "content_block_delta":
+                    delta = event.delta
+                    if delta.type == "text_delta" and delta.text:
+                        result = stream_callback(delta.text)
+                        if asyncio.iscoroutine(result):
+                            await result
+                        full_content += delta.text
+                    elif delta.type == "thinking_delta" and thinking_callback:
+                        thinking_text = getattr(delta, "thinking", "")
+                        if thinking_text:
+                            result = thinking_callback(thinking_text)
+                            if asyncio.iscoroutine(result):
+                                await result
 
             response = stream.get_final_message()
 
@@ -108,6 +117,8 @@ class AnthropicProvider(LLMProvider):
         for block in response.content:
             if block.type == "text":
                 content.append(TextBlock(text=block.text))
+            elif block.type == "thinking":
+                content.append(ThinkingBlock(thinking=block.thinking))
             elif block.type == "tool_use":
                 content.append(ToolUseBlock(id=block.id, name=block.name, input=block.input))  # type: ignore[arg-type]
 
