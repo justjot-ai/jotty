@@ -3201,8 +3201,9 @@ class Orchestrator:
                             result_text = _val
                         elif isinstance(_val, dict):
                             _text = (
-                                _val.get("content", "")
+                                _val.get("response", "")
                                 or _val.get("text", "")
+                                or _val.get("content", "")
                                 or _val.get("output", "")
                             )
                             if isinstance(_text, str) and len(_text) > len(result_text):
@@ -3210,7 +3211,15 @@ class Orchestrator:
                     _outputs = getattr(_raw_output, "outputs", None)
                     if isinstance(_outputs, dict) and not result_text:
                         for _v in _outputs.values():
-                            if isinstance(_v, str) and len(_v) > len(result_text):
+                            if isinstance(_v, dict):
+                                _txt = (
+                                    _v.get("response", "")
+                                    or _v.get("text", "")
+                                    or _v.get("content", "")
+                                )
+                                if isinstance(_txt, str) and len(_txt) > len(result_text):
+                                    result_text = _txt
+                            elif isinstance(_v, str) and len(_v) > len(result_text):
                                 result_text = _v
             elif result:
                 for _attr in ("final_output", "output", "content"):
@@ -3221,10 +3230,10 @@ class Orchestrator:
                         if len(_val) > len(result_text):
                             result_text = _val
                     elif isinstance(_val, dict):
-                        # AgenticExecutionResult.final_output is often a dict
                         _text = (
-                            _val.get("content", "")
+                            _val.get("response", "")
                             or _val.get("text", "")
+                            or _val.get("content", "")
                             or _val.get("output", "")
                         )
                         if isinstance(_text, str) and len(_text) > len(result_text):

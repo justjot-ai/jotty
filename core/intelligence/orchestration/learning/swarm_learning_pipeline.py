@@ -1034,7 +1034,44 @@ class SwarmLearningPipeline:
                     if isinstance(step, dict) and step.get("tool"):
                         tools_used.append(step["tool"])
 
-            output_str = str(result.output) if result.output else ""
+            # Extract actual text content from the result, handling nested
+            # AgenticExecutionResult inside EpisodeResult.output.
+            output_str = ""
+            raw_output = result.output if result.output else None
+            if isinstance(raw_output, str):
+                output_str = raw_output
+            elif raw_output is not None:
+                # AgenticExecutionResult: final_output may be dict with 'text'
+                for _attr in ("final_output", "output", "content"):
+                    _val = getattr(raw_output, _attr, None)
+                    if isinstance(_val, str) and len(_val) > len(output_str):
+                        output_str = _val
+                    elif isinstance(_val, dict):
+                        _txt = (
+                            _val.get("response", "")
+                            or _val.get("text", "")
+                            or _val.get("content", "")
+                            or _val.get("output", "")
+                        )
+                        if isinstance(_txt, str) and len(_txt) > len(output_str):
+                            output_str = _txt
+                # Check outputs dict
+                _outputs = getattr(raw_output, "outputs", None)
+                if isinstance(_outputs, dict) and not output_str:
+                    for _v in _outputs.values():
+                        if isinstance(_v, dict):
+                            _txt = (
+                                _v.get("response", "")
+                                or _v.get("text", "")
+                                or _v.get("content", "")
+                            )
+                            if isinstance(_txt, str) and len(_txt) > len(output_str):
+                                output_str = _txt
+                        elif isinstance(_v, str) and len(_v) > len(output_str):
+                            output_str = _v
+            if not output_str and raw_output is not None:
+                output_str = str(raw_output)[:2000]
+
             pipeline_outcome: dict = {
                 "output_length": len(output_str),
                 "has_error": bool(getattr(result, "error", None)),
@@ -1044,6 +1081,7 @@ class SwarmLearningPipeline:
                     output_str[:600].rsplit("\n", 1)[0] if len(output_str) > 600 else output_str
                 )
                 pipeline_outcome["response_excerpt"] = excerpt
+                pipeline_outcome["content"] = output_str[:2000]
             ls.record(
                 unit_name=ctx["agent_name"],
                 unit_type="swarm_pipeline",
@@ -1143,8 +1181,18 @@ class SwarmLearningPipeline:
 
     def _step_brain_consolidation(self, ctx: Any) -> Any:
         """Brain consolidation (fire-and-forget in running loop)."""
+        raw = ctx["result"].output
+        content_str = ""
+        if isinstance(raw, str):
+            content_str = raw[:500]
+        elif raw is not None:
+            fo = getattr(raw, "final_output", None)
+            if isinstance(fo, dict):
+                content_str = (fo.get("text", "") or fo.get("content", ""))[:500]
+            elif isinstance(fo, str):
+                content_str = fo[:500]
         experience = {
-            "content": str(ctx["result"].output)[:500] if ctx["result"].output else "",
+            "content": content_str,
             "context": {"goal": ctx["goal"], "episode": self.episode_count},
             "reward": ctx["episode_reward"],
             "agent": "swarm",

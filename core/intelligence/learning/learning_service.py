@@ -3802,13 +3802,23 @@ class LearningService:
         )
         return "|".join(parts[:5]) or "default"
 
+    _CONTENT_KEYS = frozenset({"content", "response_excerpt", "response", "result"})
+
     @staticmethod
     def _truncate_dict(d: Dict[str, Any], max_str_len: int = 500) -> Dict[str, Any]:
-        """Truncate string values in a dict to avoid DB bloat."""
+        """Truncate string values in a dict to avoid DB bloat.
+
+        Content-bearing keys (content, response_excerpt) get a 3000-char
+        limit so retrieval has meaningful few-shot examples to inject.
+        """
         result: Dict[str, Any] = {}
         for k, v in list(d.items())[:40]:
-            if isinstance(v, str) and len(v) > max_str_len:
-                result[k] = v[:max_str_len] + "..."
+            if isinstance(v, str):
+                limit = 3000 if k in LearningService._CONTENT_KEYS else max_str_len
+                if len(v) > limit:
+                    result[k] = v[:limit] + "..."
+                else:
+                    result[k] = v
             elif isinstance(v, dict):
                 result[k] = LearningService._truncate_dict(v, max_str_len)
             else:
