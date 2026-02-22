@@ -144,6 +144,22 @@ def _subsystems() -> Dict[str, Any]:
                 "ProviderManager",
             ],
         },
+        "coordination": {
+            "description": "Agent coordination patterns: 9 patterns (pipeline, parallel, debate, consensus, hierarchical, iterative, blackboard, round_robin, custom/DAG)",
+            "package": "Jotty.core.intelligence.orchestration.swarms.base",
+            "key_classes": [
+                "TeamCoordinator",
+                "SwarmTemplate",
+                "PhaseExecutor",
+                "CoordinationPattern",
+                "MergeStrategy",
+                "SynthesisStrategy",
+            ],
+            "key_files": [
+                "core/intelligence/orchestration/swarms/base/team_coordinator.py",
+                "core/intelligence/orchestration/swarms/base/swarm_template.py",
+            ],
+        },
         "skills": {
             "description": "Skill registry, providers (browser-use, openhands, etc.), tool management",
             "package": "Jotty.core.registry",
@@ -371,6 +387,28 @@ def _explanations() -> Dict[str, str]:
             "  from Jotty.core.intelligence.orchestration import Orchestrator\n"
             "  orch = Orchestrator(actors=[...], config=config)\n"
             "  result = await orch.run(goal='...')"
+        ),
+        "coordination": (
+            "Coordination Subsystem (TeamCoordinator + SwarmTemplate)\n"
+            "=========================================================\n"
+            "Declarative multi-agent coordination with 9 patterns:\n"
+            "- PIPELINE/SEQUENTIAL: Chain agents, output→next input (schema-aware auto-wiring)\n"
+            "- PARALLEL: Run all agents concurrently, merge results\n"
+            "- CONSENSUS: Parallel + majority voting\n"
+            "- DEBATE: Multi-round deliberation + LLM synthesis\n"
+            "- HIERARCHICAL: Manager delegates to workers, aggregates\n"
+            "- ITERATIVE: Feedback loop until quality threshold met\n"
+            "- BLACKBOARD: Shared knowledge board, agents contribute\n"
+            "- ROUND_ROBIN: Agents take turns on subtasks\n"
+            "- CUSTOM: DAG with dependency resolution and stages\n\n"
+            "Key classes:\n"
+            "  TeamCoordinator — defines agent teams with patterns\n"
+            "  SwarmTemplate — base class for declarative swarm definition (AGENT_TEAM)\n"
+            "  PhaseExecutor — manages phase execution with tracing & error handling\n"
+            "  CoordinationPattern, MergeStrategy, SynthesisStrategy — enums\n\n"
+            "Access:\n"
+            "  from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import TeamCoordinator\n"
+            "  from Jotty.core.intelligence.orchestration.swarms.base.swarm_template import SwarmTemplate"
         ),
         "semantic": (
             "Semantic Layer Subsystem (Jotty.core.capabilities.semantic)\n"

@@ -142,15 +142,35 @@ class TierDetector:
     ) -> Tuple[ExecutionTier, float]:
         """Detect tier with a confidence score.
 
+        Architecture: CogRouter (learned) is PRIMARY, keyword heuristics
+        are the COLD-START FALLBACK.  Once enough execution history exists,
+        CogRouter overrides hardcoded keywords — this is the whole point
+        of the CogRouter paper integration.
+
         Returns:
-            (tier, confidence) where confidence 0.0-1.0 indicates how
-            certain the heuristic match is. High-confidence keyword matches
-            get 0.85, clear simple queries get 0.80, and ambiguous
-            fall-through to AGENTIC gets 0.40.
+            (tier, confidence) where confidence 0.0-1.0.
         """
         goal_lower = goal.lower()
 
-        # Tier 5 (AUTONOMOUS) - sandbox/coalition/trust keywords
+        # ── PRIMARY: CogRouter learned routing ──────────────────────
+        # Consult historical tier success FIRST.  When sufficient data
+        # exists (≥5 samples, success >0.6), learned routing beats
+        # keyword heuristics because it reflects actual outcomes.
+        learned = self._consult_tier_history(goal_lower)
+        if learned is not None:
+            return learned
+
+        # ── COLD-START FALLBACK: keyword heuristics ─────────────────
+        # Only used when CogRouter has no data for this task type.
+        # As the system runs, CogRouter gradually takes over.
+
+        # Delegation overhead floor (AI Delegation paper):
+        # Trivial tasks below complexity floor → always DIRECT.
+        # Checked first because it's the cheapest gate.
+        if self._below_delegation_floor(goal_lower):
+            return ExecutionTier.DIRECT, 0.75
+
+        # Tier 5 (AUTONOMOUS) - sandbox/coalition keywords
         if any(ind in goal_lower for ind in self.AUTONOMOUS_INDICATORS):
             return ExecutionTier.AUTONOMOUS, 0.85
 
@@ -166,19 +186,9 @@ class TierDetector:
         if self._is_simple_query(goal_lower):
             return ExecutionTier.DIRECT, 0.80
 
-        # Delegation overhead floor (AI Delegation paper):
-        # Trivial tasks below complexity floor → always DIRECT
-        if self._below_delegation_floor(goal_lower):
-            return ExecutionTier.DIRECT, 0.75
-
         # Check for multi-step indicators (moderate confidence)
         if any(ind in goal_lower for ind in self.MULTI_STEP_INDICATORS):
             return ExecutionTier.AGENTIC, 0.75
-
-        # CogRouter: consult learned tier history before low-confidence fallthrough
-        learned = self._consult_tier_history(goal_lower)
-        if learned is not None:
-            return learned
 
         # Default: Tier 2 (AGENTIC) — ambiguous, low confidence
         return ExecutionTier.AGENTIC, 0.40
@@ -270,9 +280,10 @@ class TierDetector:
     def _consult_tier_history(self, goal_lower: str) -> Optional[Tuple[ExecutionTier, float]]:
         """CogRouter: consult learned tier success history.
 
-        When heuristic confidence is low, check which tier has the highest
-        historical success rate for this task type. Returns (tier, confidence)
-        or None if insufficient data.
+        PRIMARY routing method.  When sufficient execution history exists
+        (≥5 samples, success rate >0.6), returns the tier that historically
+        works best for this task type.  Returns None on cold-start so
+        keyword heuristics can bootstrap the data.
         """
         baseline = self._grouped_baseline
         if baseline is None:
@@ -295,7 +306,7 @@ class TierDetector:
             if result is None:
                 continue
             success_rate, count = result
-            if count >= 3 and success_rate > 0.6 and success_rate > best_success:
+            if count >= 5 and success_rate > 0.6 and success_rate > best_success:
                 best_success = success_rate
                 best_tier = tier_enum
 
@@ -304,7 +315,7 @@ class TierDetector:
                 f"CogRouter: learned tier {best_tier.name} for "
                 f"task_type={task_type} (success={best_success:.2f})"
             )
-            return best_tier, 0.70
+            return best_tier, 0.85
 
         return None
 

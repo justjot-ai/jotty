@@ -117,6 +117,85 @@ from Jotty.core.intelligence.orchestration import Orchestrator  # NO!
 | **Data analysis** | `data_analysis_swarm` | Analyze datasets and create visualizations |
 | **DevOps tasks** | `devops_swarm` | Deployment, monitoring, infrastructure |
 
+### Agent Coordination Patterns (TeamCoordinator)
+
+Jotty's multi-agent coordination is built on `TeamCoordinator` + `SwarmTemplate`, supporting **9 coordination patterns** — more than any other framework:
+
+```python
+from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import (
+    TeamCoordinator, CoordinationPattern, MergeStrategy, SynthesisStrategy,
+)
+from Jotty.core.intelligence.orchestration.swarms.base.swarm_template import (
+    SwarmTemplate, PhaseExecutor,
+)
+```
+
+| Pattern | What It Does | Use Case |
+|---------|-------------|----------|
+| `PIPELINE` | Chain agents sequentially, output → next input | Architect → Developer → Tester |
+| `PARALLEL` | Run all agents concurrently, merge results | Multiple reviewers at once |
+| `CONSENSUS` | Parallel + majority voting | Fact-checking, classification |
+| `DEBATE` | Multi-round deliberation + LLM synthesis | Complex design decisions |
+| `HIERARCHICAL` | Manager delegates to workers, aggregates | Project management |
+| `ITERATIVE` | Feedback loop until quality threshold met | Code refinement, optimization |
+| `BLACKBOARD` | Shared knowledge board, agents contribute | Research synthesis |
+| `ROUND_ROBIN` | Agents take turns on subtasks | Load distribution |
+| `CUSTOM` + stages | DAG with dependency resolution | Complex multi-phase workflows |
+
+**Declarative team definition:**
+```python
+class MySwarm(SwarmTemplate):
+    AGENT_TEAM = TeamCoordinator.define(
+        (SecurityReviewer, "Security"),
+        (PerformanceReviewer, "Performance"),
+        (StyleReviewer, "Style"),
+        pattern=CoordinationPattern.PARALLEL,
+        merge_strategy=MergeStrategy.CONCAT,
+    )
+
+    async def _execute_domain(self, code: str, **kwargs):
+        team_result = await self.execute_team(task=code)
+        return ReviewResult(findings=team_result.merged_output)
+```
+
+**Pipeline with schema-aware auto-wiring** (output fields automatically mapped to next agent's inputs):
+```python
+AGENT_TEAM = TeamCoordinator.define(
+    (ArchitectAgent, "Architect", None, None, 3),  # priority=3, runs first
+    (DeveloperAgent, "Developer", None, None, 2),
+    (TesterAgent, "Tester", None, None, 1),        # runs last
+    pattern=CoordinationPattern.PIPELINE,
+)
+```
+
+**Quality-gated iteration:**
+```python
+AGENT_TEAM = TeamCoordinator.define(
+    (GeneratorAgent, "Generator"),
+    (CriticAgent, "Critic"),
+    pattern=CoordinationPattern.ITERATIVE,
+    quality_threshold=0.85,  # Loop until 85% quality
+    max_iterations=5,
+)
+```
+
+**Multi-round debate with LLM synthesis:**
+```python
+AGENT_TEAM = TeamCoordinator.define(
+    (OptimistAgent, "Optimist"),
+    (PessimistAgent, "Pessimist"),
+    (RealistAgent, "Realist"),
+    pattern=CoordinationPattern.DEBATE,
+    debate_rounds=3,
+    synthesis_strategy=SynthesisStrategy.LLM,
+)
+```
+
+**Key files:**
+- `core/intelligence/orchestration/swarms/base/team_coordinator.py` — All 9 coordination patterns
+- `core/intelligence/orchestration/swarms/base/swarm_template.py` — SwarmTemplate + PhaseExecutor
+- `core/infrastructure/foundation/types/execution_types.py` — CoordinationPattern, MergeStrategy enums
+
 ### Educational Content Example
 ```python
 from Jotty.core.intelligence.swarms.olympiad_learning_swarm import learn_topic
@@ -713,6 +792,9 @@ See: LAYER5_CLEANUP_COMPLETE.md, LAYER3_CLEANUP_COMPLETE.md
 | `core/infrastructure/utils/facade.py` | Utilities subsystem facade |
 | `core/capabilities/registry/unified_registry.py` | Single entry point for all capabilities |
 | `core/intelligence/swarms/base_swarm.py` | Learning hooks (_pre/_post_execute_learning) |
+| `core/intelligence/orchestration/swarms/base/team_coordinator.py` | **9 coordination patterns** (pipeline, parallel, debate, consensus, etc.) |
+| `core/intelligence/orchestration/swarms/base/swarm_template.py` | SwarmTemplate + PhaseExecutor — declarative swarm definition |
+| `core/infrastructure/foundation/types/execution_types.py` | CoordinationPattern, MergeStrategy, SynthesisStrategy enums |
 | `core/intelligence/orchestration/swarm_manager.py` | SwarmIntelligence (learning state management) |
 | `cli/gateway/server.py` | UnifiedGateway (all webhooks) |
 | `cli/gateway/channels.py` | ChannelRouter (message routing) |
@@ -748,6 +830,19 @@ All imports have been updated. If you see old import paths in documentation or e
 ## Type Hints
 
 The codebase targets 100% type hint coverage. Use `Any` when the concrete type is dynamic or would require heavy imports; prefer concrete types for public APIs. `core/py.typed` marks the package as typed (PEP 561).
+
+---
+
+## Contributing: Feature Discoverability Checklist
+
+When adding a major feature or subsystem, update these discovery layers so that **any LLM or contributor** can find it:
+
+- [ ] **CLAUDE.md** — Add section with import paths, code examples, and key files
+- [ ] **`capabilities()`** — Add to `_subsystems()` dict and `_explanations()` in `core/capabilities/__init__.py`
+- [ ] **Docstrings** — Key class has a comprehensive module/class docstring
+- [ ] **Important Files table** — Listed in the Important Files section of this file
+
+> **Why:** If a feature exists in code but not in these 4 places, no LLM (and most humans) will discover it. This checklist prevents the TeamCoordinator problem — a flagship feature that was invisible to AI assistants because it wasn't documented in the discovery surfaces.
 
 ---
 
