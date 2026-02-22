@@ -14,6 +14,7 @@ SOTA: Treats prompt updates as weight updates.
 import json
 import logging
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,11 @@ class SwarmLearner:
     - Updates prompts with new patterns
     - Accumulates wisdom over time
     - Like fine-tuning but at prompt level
+    - Persists evolved prompts to disk for cross-session learning
     """
+
+    _PERSIST_DIR = Path.home() / "jotty" / "learning"
+    _PERSIST_FILE = "evolved_prompts.json"
 
     def __init__(self, config: Any) -> None:
         """
@@ -76,6 +81,9 @@ class SwarmLearner:
         self.prompt_versions: Dict[str, List[str]] = {}  # prompt_name -> versions
         self.update_threshold = getattr(config, "policy_update_threshold", 3)
         self.episode_buffer: List[Dict] = []
+
+        # Load persisted prompt evolution from disk
+        self._load_persisted_prompts()
 
     def record_episode(self, trajectory: List[Dict], outcome: bool, insights: List[str]) -> Any:
         """
@@ -156,6 +164,9 @@ class SwarmLearner:
                 self.prompt_versions[prompt_name] = []
             self.prompt_versions[prompt_name].append(updated)
 
+            # Persist to disk for cross-session learning
+            self._save_persisted_prompts()
+
             # Clear buffer after update
             self.episode_buffer = []
 
@@ -184,9 +195,53 @@ class SwarmLearner:
         """Get version history for a prompt."""
         return self.prompt_versions.get(prompt_name, [])
 
+    def get_latest_prompt(self, prompt_name: str) -> str:
+        """Get the latest evolved prompt (or empty string if none)."""
+        versions = self.prompt_versions.get(prompt_name, [])
+        return versions[-1] if versions else ""
+
     def clear_buffer(self) -> None:
         """Clear episode buffer without updating prompts."""
         self.episode_buffer = []
+
+    # ─── Persistence ──────────────────────────────────────────────────────
+
+    def _persist_path(self) -> Path:
+        self._PERSIST_DIR.mkdir(parents=True, exist_ok=True)
+        return self._PERSIST_DIR / self._PERSIST_FILE
+
+    def _load_persisted_prompts(self) -> None:
+        """Load prompt versions and patterns from disk."""
+        path = self._persist_path()
+        if not path.exists():
+            return
+        try:
+            data = json.loads(path.read_text())
+            self.prompt_versions = data.get("prompt_versions", {})
+            self.learned_patterns = data.get("learned_patterns", [])[-100:]
+            logger.info(
+                "Loaded %d prompt versions, %d patterns from disk",
+                sum(len(v) for v in self.prompt_versions.values()),
+                len(self.learned_patterns),
+            )
+        except Exception as exc:
+            logger.warning("Failed to load persisted prompts: %s", exc)
+
+    def _save_persisted_prompts(self) -> None:
+        """Write prompt versions and patterns to disk."""
+        try:
+            path = self._persist_path()
+            # Keep last 5 versions per prompt, last 100 patterns
+            trimmed_versions = {k: v[-5:] for k, v in self.prompt_versions.items()}
+            data = {
+                "prompt_versions": trimmed_versions,
+                "learned_patterns": self.learned_patterns[-100:],
+                "updated_at": time.time(),
+            }
+            path.write_text(json.dumps(data, indent=2, default=str))
+            logger.debug("Persisted prompt evolution to %s", path)
+        except Exception as exc:
+            logger.warning("Failed to persist prompts: %s", exc)
 
 
 __all__ = ["SwarmLearner", "SwarmLearnerSignature"]

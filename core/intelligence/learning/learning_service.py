@@ -42,6 +42,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from .learning_store import (
+    DistilledLesson,
     EpisodeRecord,
     LearningStore,
     PatternRecord,
@@ -50,6 +51,19 @@ from .learning_store import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Lazy import — avoids loading sentence-transformers at module level
+_embedding_service = None
+
+
+def _get_embeddings():
+    """Lazy-load the EmbeddingService singleton."""
+    global _embedding_service
+    if _embedding_service is None:
+        from .embeddings import EmbeddingService
+
+        _embedding_service = EmbeddingService.get_instance()
+    return _embedding_service
 
 
 # =============================================================================
@@ -966,6 +980,28 @@ class LearningService:
             _goal = str(context.get("goal", context.get("message", task_type)))
             self.schedule_background_judge(episode_id, _goal, _content, domain, quality)
 
+        # ── Compute & store embedding for the goal text ──────────────────
+        _goal_text = ""
+        if isinstance(context, dict):
+            _goal_text = str(context.get("goal", context.get("message", "")))
+        if _goal_text and len(_goal_text) > 20:
+            try:
+                emb = _get_embeddings()
+                if emb.available:
+                    from .embeddings import EmbeddingService
+
+                    vec = emb.embed(_goal_text)
+                    if vec is not None:
+                        self._store.save_embedding(episode_id, EmbeddingService.serialize(vec))
+            except Exception as exc:
+                logger.debug("Embedding computation failed: %s", exc)
+
+        # ── Schedule fact distillation for good episodes (mem0 pattern) ──
+        if isinstance(_content, str) and len(_content) > 300 and success and quality >= 0.4:
+            self._schedule_fact_distillation(
+                episode_id, _goal_text or task_type, _content, domain, unit_name
+            )
+
         logger.debug(
             f"Recorded: {unit_name} ({unit_type}) domain={domain} "
             f"task={task_type} success={success} quality={quality:.2f}"
@@ -1526,31 +1562,50 @@ class LearningService:
             # guidance based on what the task_type/domain typically needs.
             return self._bootstrap_guidance(domain, task_type)
 
-        # ADAPTIVE GATE: if the model is already performing well in this domain,
-        # provide lightweight maintenance guidance instead of full corrective context.
+        # ADAPTIVE GATE: "First, do no harm."
+        #
+        # When the model succeeds, ANY context injection risks degradation.
+        # Distilled lessons can over-constrain the model by nudging it toward
+        # one specific approach. Only inject substantive context when there are
+        # real failures to correct.
+        #
+        # Tiers:
+        #   1. Succeeding (rate >= 90%): silence — let the model do its thing
+        #   2. Cold start (0-2 episodes, no failures): lightweight bootstrap only
+        #   3. Failures present: full corrective context (lessons + retrieval)
         has_failures = rate < 0.90 and total >= 3
         is_cold_start = total < 3
         has_early_failures = is_cold_start and total > 0 and rate < 0.90
+        is_succeeding = rate >= 0.90 and total >= 1
+
         if not has_failures and not is_cold_start:
+            # Stable success: stay silent. The model knows what it's doing.
             return self._maintenance_guidance(domain, task_type)
 
-        # ── Strategy ──────────────────────────────────────────────
-        # Prioritise CONCRETE examples (few-shot retrieval) over abstract
-        # patterns.  Abstract guidance is cheap filler that eats the token
-        # budget; a real excerpt of a high-quality prior response is what
-        # actually shifts model behaviour.
-        #
-        # Budget: 1500 chars total (~375 tokens).  Retrieval gets up to
-        # 1200 chars; abstract guidance + failure hints share the rest.
+        # Cold start succeeding: minimal bootstrap only — no lessons yet
+        if is_cold_start and is_succeeding and not has_early_failures:
+            return self._bootstrap_guidance(domain, task_type)
 
-        MAX_TOTAL = 1500
+        # ── Active correction mode: failures present ─────────────
+        # Full context: distilled lessons + retrieval + failure hints.
+        # Budget: 2000 chars total.
+
+        MAX_TOTAL = 2000
         MAX_RETRIEVAL = 1200
-        MAX_ABSTRACT = MAX_TOTAL - MAX_RETRIEVAL  # 300 chars
+        MAX_ABSTRACT = 400
 
-        # ── 1. Concrete few-shot retrieval (highest-impact signal) ────
+        # ── 1. Concrete few-shot retrieval (for failing domains) ────
         retrieval = ""
         try:
-            retrieval = self.build_retrieval_context(domain, task_type, goal=goal) or ""
+            retrieval = (
+                self.build_retrieval_context(
+                    domain,
+                    task_type,
+                    goal=goal,
+                    agent_name=unit_name,
+                )
+                or ""
+            )
             if retrieval and len(retrieval) < 100:
                 retrieval = ""
         except Exception:
@@ -1597,8 +1652,27 @@ class LearningService:
         if len(abstract) > MAX_ABSTRACT:
             abstract = abstract[:MAX_ABSTRACT]
 
-        # ── 3. Assemble: retrieval first, then abstract ───────────────
+        # ── 3. Distilled lessons (mem0 pattern) ──────────────────────────
+        distilled = ""
+        try:
+            dist_lessons = self.retrieve_distilled_lessons(
+                domain, goal=goal, agent_name=unit_name, top_k=3
+            )
+            if dist_lessons:
+                d_parts = ["[Learned from prior tasks]"]
+                for dl in dist_lessons[:3]:
+                    if dl.get("lesson"):
+                        d_parts.append(f"  - {dl['lesson']}")
+                if len(d_parts) > 1:
+                    distilled = "\n".join(d_parts)
+        except Exception:
+            pass
+
+        # ── 4. Assemble: distilled → retrieval → abstract ────────────────
+        MAX_TOTAL_EXPANDED = 2000  # more budget now that we have richer signals
         sections = []
+        if distilled:
+            sections.append(distilled[:400])
         if retrieval:
             sections.append(retrieval[:MAX_RETRIEVAL])
         if abstract:
@@ -1608,8 +1682,8 @@ class LearningService:
             return ""
 
         result = "\n".join(sections)
-        if len(result) > MAX_TOTAL:
-            result = result[:MAX_TOTAL]
+        if len(result) > MAX_TOTAL_EXPANDED:
+            result = result[:MAX_TOTAL_EXPANDED]
         return result
 
     @staticmethod
@@ -2227,186 +2301,39 @@ class LearningService:
     # =========================================================================
 
     def retrieve_similar_responses(
-        self, domain: str, task_type: str = "", goal: str = "", top_k: int = 2
+        self,
+        domain: str,
+        task_type: str = "",
+        goal: str = "",
+        top_k: int = 2,
+        agent_name: str = "",
     ) -> List[Dict[str, Any]]:
         """
-        Retrieve excerpts from the best prior responses in this domain.
+        Retrieve excerpts from the best prior responses using vector embeddings.
 
-        Returns actual response content (not just metadata) so the LLM can
-        learn from concrete examples of what worked.
+        Uses sentence-transformers (384-dim) for semantic similarity when available,
+        falls back to TF-IDF. Also retrieves distilled lessons (mem0 pattern).
+        Supports per-agent filtering.
         """
-        episodes = self._store.query_episodes(domain=domain, success_only=True, limit=50)
-        if not episodes:
-            # Try related domains via affinity map (cross-domain transfer)
-            for alt_domain in _get_related_domains(domain):
-                episodes = self._store.query_episodes(
-                    domain=alt_domain, success_only=True, limit=20
-                )
-                if episodes:
-                    break
-            # Final fallback: general
-            if not episodes:
-                episodes = self._store.query_episodes(domain="general", success_only=True, limit=20)
 
-        if not episodes:
-            return []
+        emb = _get_embeddings()
+        now = time.time()
+        goal_vec = None
 
-        # Pre-filter: only keep episodes that have retrievable content.
-        # Old episodes without stored content are useless for few-shot learning.
-        episodes = [
-            ep
-            for ep in episodes
-            if ep.outcome
-            and (
-                any(
-                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 100
-                    for k in ("content", "response", "response_excerpt")
-                )
-                or (ep.context.get("goal") or ep.context.get("message"))
-            )
-        ]
+        # ── Try embedding-based retrieval first ──────────────────────────
+        if goal and emb.available:
+            goal_vec = emb.embed(goal)
 
-        if not episodes:
-            return []
-
-        # Score episodes by quality, TF-IDF cosine relevance, and recency
-        import time as _time
-
-        now = _time.time()
-        scored = []
-        if goal:
-            import math as _math
-            from collections import Counter as _Counter
-
-            _stop = {
-                "the",
-                "a",
-                "an",
-                "is",
-                "are",
-                "was",
-                "were",
-                "be",
-                "been",
-                "and",
-                "or",
-                "not",
-                "in",
-                "on",
-                "at",
-                "to",
-                "for",
-                "of",
-                "with",
-                "it",
-                "this",
-                "that",
-                "do",
-                "does",
-                "did",
-                "have",
-                "has",
-                "had",
-                "will",
-                "would",
-                "could",
-                "should",
-                "may",
-                "can",
-                "must",
-                "shall",
-                "from",
-                "by",
-                "as",
-                "if",
-                "but",
-                "so",
-                "all",
-                "each",
-                "every",
-                "any",
-                "no",
-                "your",
-                "my",
-                "their",
-                "our",
-                "its",
-                "use",
-                "using",
-            }
-
-            def _tokenize(text: str) -> List[str]:
-                return [w for w in re.findall(r"\b[a-z]{3,}\b", text.lower()) if w not in _stop]
-
-            goal_tokens = _tokenize(goal)
-            goal_tf = _Counter(goal_tokens)
-
-            # Build document frequency across all episode goals
-            doc_tokens_list = []
-            for ep in episodes:
-                ctx_text = str(ep.context.get("goal", ep.context.get("message", "")))
-                doc_tokens_list.append(_tokenize(ctx_text))
-
-            # IDF: log(N / df) for each term
-            n_docs = len(doc_tokens_list) + 1  # +1 for goal
-            df: Dict[str, int] = defaultdict(int)
-            for dtoks in doc_tokens_list:
-                for w in set(dtoks):
-                    df[w] += 1
-            for w in set(goal_tokens):
-                df[w] += 1
-
-            def _tfidf_vec(tf: Dict[str, int]) -> Dict[str, float]:
-                return {w: c * _math.log(n_docs / max(df.get(w, 1), 1)) for w, c in tf.items()}
-
-            def _cosine(v1: Dict[str, float], v2: Dict[str, float]) -> float:
-                shared = set(v1) & set(v2)
-                if not shared:
-                    return 0.0
-                dot = sum(v1[w] * v2[w] for w in shared)
-                mag1 = _math.sqrt(sum(x * x for x in v1.values()))
-                mag2 = _math.sqrt(sum(x * x for x in v2.values()))
-                return dot / max(mag1 * mag2, 1e-10)
-
-            goal_vec = _tfidf_vec(goal_tf)
-
-            for i, ep in enumerate(episodes):
-                if ep.quality <= 0:
-                    continue
-                doc_tf = _Counter(doc_tokens_list[i])
-                doc_vec = _tfidf_vec(doc_tf)
-                relevance = _cosine(goal_vec, doc_vec)
-                # Recency bonus: episodes from last hour get +0.15, decaying over 24h
-                age_h = max((now - ep.timestamp) / 3600, 0.01)
-                recency = 0.15 * _math.exp(-age_h / 6)
-                # Has-content bonus: episodes with actual stored content get +0.1
-                has_content = any(
-                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
-                    for k in ("content", "response_excerpt")
-                )
-                content_bonus = 0.1 if has_content else 0.0
-                score = ep.quality * 0.4 + relevance * 0.4 + recency + content_bonus
-                scored.append((score, ep))
+        if goal_vec is not None:
+            scored = self._embedding_retrieval(domain, goal_vec, agent_name, now)
         else:
-            for ep in episodes:
-                if ep.quality <= 0:
-                    continue
-                age_h = max((now - ep.timestamp) / 3600, 0.01)
-                recency = 0.15 * _math.exp(-age_h / 6)
-                has_content = any(
-                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
-                    for k in ("content", "response_excerpt")
-                )
-                content_bonus = 0.1 if has_content else 0.0
-                scored.append((ep.quality * 0.75 + recency + content_bonus, ep))
+            scored = self._tfidf_retrieval(domain, goal, agent_name, now)
 
         scored.sort(key=lambda x: x[0], reverse=True)
 
         results = []
         for score, ep in scored[:top_k]:
             outcome = ep.outcome or {}
-            # Try multiple keys where callers store response content.
-            # Prefer actual response content over structural digest.
             actual_content = ""
             for _ck in ("content", "response", "result"):
                 _cv = outcome.get(_ck, "")
@@ -2435,22 +2362,246 @@ class LearningService:
                     "goal_preview": str(ep.context.get("goal", ep.context.get("message", "")))[
                         :100
                     ],
+                    "agent_name": ep.unit_name,
                 }
             )
 
         return results
 
-    def build_retrieval_context(self, domain: str, task_type: str = "", goal: str = "") -> str:
+    def _embedding_retrieval(
+        self,
+        domain: str,
+        goal_vec: Any,
+        agent_name: str,
+        now: float,
+    ) -> List[Tuple[float, EpisodeRecord]]:
+        """Retrieve episodes using embedding cosine similarity."""
+        import math as _math
+
+        import numpy as np
+
+        from .embeddings import EmbeddingService
+
+        emb = _get_embeddings()
+        scored: List[Tuple[float, EpisodeRecord]] = []
+
+        # Get episodes with stored embeddings
+        ep_embs = self._store.get_episodes_with_embeddings(domain=domain, limit=200)
+        if not ep_embs:
+            for alt_domain in _get_related_domains(domain):
+                ep_embs = self._store.get_episodes_with_embeddings(domain=alt_domain, limit=100)
+                if ep_embs:
+                    break
+        if not ep_embs:
+            ep_embs = self._store.get_episodes_with_embeddings(domain=None, limit=100)
+
+        for ep, emb_blob in ep_embs:
+            if ep.quality <= 0:
+                continue
+            ep_vec = EmbeddingService.deserialize(emb_blob)
+            similarity = float(np.dot(goal_vec, ep_vec))
+
+            age_h = max((now - ep.timestamp) / 3600, 0.01)
+            recency = 0.15 * _math.exp(-age_h / 6)
+
+            has_content = any(
+                isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
+                for k in ("content", "response_excerpt")
+            )
+            content_bonus = 0.1 if has_content else 0.0
+
+            # Per-agent boost: same agent gets +0.1
+            agent_bonus = 0.1 if agent_name and ep.unit_name == agent_name else 0.0
+
+            score = similarity * 0.45 + ep.quality * 0.30 + recency + content_bonus + agent_bonus
+            scored.append((score, ep))
+
+        return scored
+
+    def _tfidf_retrieval(
+        self,
+        domain: str,
+        goal: str,
+        agent_name: str,
+        now: float,
+    ) -> List[Tuple[float, EpisodeRecord]]:
+        """Fallback TF-IDF retrieval when embeddings unavailable."""
+        import math as _math
+        from collections import Counter as _Counter
+
+        episodes = self._store.query_episodes(domain=domain, success_only=True, limit=50)
+        if not episodes:
+            for alt_domain in _get_related_domains(domain):
+                episodes = self._store.query_episodes(
+                    domain=alt_domain, success_only=True, limit=20
+                )
+                if episodes:
+                    break
+            if not episodes:
+                episodes = self._store.query_episodes(domain="general", success_only=True, limit=20)
+
+        if not episodes:
+            return []
+
+        episodes = [
+            ep
+            for ep in episodes
+            if ep.outcome
+            and (
+                any(
+                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 100
+                    for k in ("content", "response", "response_excerpt")
+                )
+                or (ep.context.get("goal") or ep.context.get("message"))
+            )
+        ]
+        if not episodes:
+            return []
+
+        scored: List[Tuple[float, EpisodeRecord]] = []
+
+        _stop = {
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "and",
+            "or",
+            "not",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "it",
+            "this",
+            "that",
+            "do",
+            "does",
+            "did",
+            "have",
+            "has",
+            "had",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "can",
+            "must",
+            "shall",
+            "from",
+            "by",
+            "as",
+            "if",
+            "but",
+            "so",
+            "all",
+            "each",
+            "every",
+            "any",
+            "no",
+            "your",
+            "my",
+            "their",
+            "our",
+            "its",
+            "use",
+            "using",
+        }
+
+        def _tokenize(text: str) -> List[str]:
+            return [w for w in re.findall(r"\b[a-z]{3,}\b", text.lower()) if w not in _stop]
+
+        if goal:
+            goal_tokens = _tokenize(goal)
+            goal_tf = _Counter(goal_tokens)
+            doc_tokens_list = []
+            for ep in episodes:
+                ctx_text = str(ep.context.get("goal", ep.context.get("message", "")))
+                doc_tokens_list.append(_tokenize(ctx_text))
+
+            n_docs = len(doc_tokens_list) + 1
+            df: Dict[str, int] = defaultdict(int)
+            for dtoks in doc_tokens_list:
+                for w in set(dtoks):
+                    df[w] += 1
+            for w in set(goal_tokens):
+                df[w] += 1
+
+            def _tfidf_vec(tf: Dict[str, int]) -> Dict[str, float]:
+                return {w: c * _math.log(n_docs / max(df.get(w, 1), 1)) for w, c in tf.items()}
+
+            def _cosine(v1: Dict[str, float], v2: Dict[str, float]) -> float:
+                shared = set(v1) & set(v2)
+                if not shared:
+                    return 0.0
+                dot = sum(v1[w] * v2[w] for w in shared)
+                mag1 = _math.sqrt(sum(x * x for x in v1.values()))
+                mag2 = _math.sqrt(sum(x * x for x in v2.values()))
+                return dot / max(mag1 * mag2, 1e-10)
+
+            goal_vec = _tfidf_vec(goal_tf)
+
+            for i, ep in enumerate(episodes):
+                if ep.quality <= 0:
+                    continue
+                doc_tf = _Counter(doc_tokens_list[i])
+                doc_vec = _tfidf_vec(doc_tf)
+                relevance = _cosine(goal_vec, doc_vec)
+                age_h = max((now - ep.timestamp) / 3600, 0.01)
+                recency = 0.15 * _math.exp(-age_h / 6)
+                has_content = any(
+                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
+                    for k in ("content", "response_excerpt")
+                )
+                content_bonus = 0.1 if has_content else 0.0
+                agent_bonus = 0.1 if agent_name and ep.unit_name == agent_name else 0.0
+                score = ep.quality * 0.4 + relevance * 0.4 + recency + content_bonus + agent_bonus
+                scored.append((score, ep))
+        else:
+            for ep in episodes:
+                if ep.quality <= 0:
+                    continue
+                age_h = max((now - ep.timestamp) / 3600, 0.01)
+                recency = 0.15 * _math.exp(-age_h / 6)
+                has_content = any(
+                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
+                    for k in ("content", "response_excerpt")
+                )
+                content_bonus = 0.1 if has_content else 0.0
+                agent_bonus = 0.1 if agent_name and ep.unit_name == agent_name else 0.0
+                scored.append((ep.quality * 0.75 + recency + content_bonus + agent_bonus, ep))
+
+        return scored
+
+    def build_retrieval_context(
+        self,
+        domain: str,
+        task_type: str = "",
+        goal: str = "",
+        agent_name: str = "",
+    ) -> str:
         """
         Build few-shot learning context from the best prior responses.
 
-        Injects CONCRETE examples of successful responses so the model can
-        learn from the structure, depth, and approach — not just be told
-        "be comprehensive". This is the highest-impact learning signal.
-
-        Gate: fires when there are episodes to learn from (any success).
+        Uses vector embeddings for semantic matching when available,
+        falls back to TF-IDF. Supports per-agent scoping.
         """
-        similar = self.retrieve_similar_responses(domain, task_type, goal, top_k=3)
+        similar = self.retrieve_similar_responses(
+            domain,
+            task_type,
+            goal,
+            top_k=3,
+            agent_name=agent_name,
+        )
         if not similar:
             return ""
 
@@ -2559,6 +2710,263 @@ class LearningService:
         except RuntimeError:
             # No event loop — skip background judge
             logger.debug("No event loop for background judge, skipping")
+
+    # =========================================================================
+    # FACT DISTILLATION — mem0 pattern: extract lessons from episodes
+    # =========================================================================
+
+    def _schedule_fact_distillation(
+        self,
+        episode_id: str,
+        goal: str,
+        content: str,
+        domain: str,
+        agent_name: str,
+    ) -> None:
+        """
+        Extract facts from an episode using LLM (mem0 pattern).
+
+        Cold start (<5 distilled lessons in domain): runs synchronously
+        via thread pool so lessons are available for the very next task.
+        After warm-up: runs as async background task.
+        """
+        existing_lessons = self._store.get_distilled_lessons(domain=domain, limit=5)
+        is_cold = len(existing_lessons) < 5
+
+        if is_cold:
+            # Cold start: synchronous distillation in current thread.
+            # Blocks for ~3-5s but ensures lessons are immediately available.
+            self._sync_distill(episode_id, goal, content, domain, agent_name)
+            return
+
+        # Warm: background async task
+        async def _distill() -> None:
+            try:
+                lessons = await self._extract_lessons(goal, content, domain, agent_name)
+                self._store_distilled_lessons(lessons, episode_id, domain, agent_name)
+                logger.debug("Distilled %d lessons from episode %s", len(lessons), episode_id)
+            except Exception as exc:
+                logger.debug("Fact distillation failed for %s: %s", episode_id, exc)
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_distill())
+        except RuntimeError:
+            # No event loop — fall back to sync
+            self._sync_distill(episode_id, goal, content, domain, agent_name)
+
+    def _sync_distill(
+        self,
+        episode_id: str,
+        goal: str,
+        content: str,
+        domain: str,
+        agent_name: str,
+    ) -> None:
+        """Synchronous fact distillation — blocks calling thread."""
+        try:
+            import json as _json
+
+            import anthropic
+
+            prompt = self._build_distillation_prompt(goal, content, domain)
+            client = anthropic.Anthropic()
+            response = client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.content[0].text.strip()  # type: ignore[union-attr]
+            if "```" in text:
+                text = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`")
+            lessons = _json.loads(text)
+            if isinstance(lessons, list):
+                parsed = [
+                    {
+                        "lesson": str(l.get("lesson", ""))[:200],
+                        "type": str(l.get("type", "pattern")),
+                        "applies_to": str(l.get("applies_to", ""))[:100],
+                        "confidence": min(1.0, max(0.0, float(l.get("confidence", 0.6)))),
+                    }
+                    for l in lessons[:3]
+                    if l.get("lesson")
+                ]
+                self._store_distilled_lessons(parsed, episode_id, domain, agent_name)
+                logger.debug(
+                    "Sync-distilled %d lessons for %s (cold start)", len(parsed), episode_id
+                )
+        except Exception as exc:
+            logger.debug("Sync distillation failed: %s", exc)
+
+    def _build_distillation_prompt(self, goal: str, content: str, domain: str) -> str:
+        return (
+            f"Analyze this {domain} task execution and extract 2-3 concise, actionable lessons.\n\n"
+            f"TASK: {goal[:500]}\n\n"
+            f"OUTPUT (first 1500 chars):\n{content[:1500]}\n\n"
+            f"For each lesson, provide:\n"
+            f"- lesson: One sentence, specific and actionable (not generic advice)\n"
+            f"- type: 'strategy' | 'mistake' | 'pattern' | 'tool_usage'\n"
+            f"- applies_to: When this lesson applies\n"
+            f"- confidence: 0.0-1.0 how reliable this lesson is\n\n"
+            f"CRITICAL: Only extract NON-OBVIOUS lessons. Skip generic advice like "
+            f"'write tests' or 'handle errors'.\n\n"
+            f"Respond as JSON array. Example:\n"
+            f'[{{"lesson": "Using dataclass for Request/Response gives cleaner API than raw dicts", '
+            f'"type": "pattern", "applies_to": "Python API framework tasks", "confidence": 0.8}}]'
+        )
+
+    def _store_distilled_lessons(
+        self,
+        lessons: List[Dict[str, Any]],
+        episode_id: str,
+        domain: str,
+        agent_name: str,
+    ) -> None:
+        """Store extracted lessons with embeddings."""
+        emb_svc = _get_embeddings()
+        for lesson_data in lessons:
+            lesson = DistilledLesson(
+                lesson_id=f"dl_{episode_id}_{uuid.uuid4().hex[:4]}",
+                episode_id=episode_id,
+                domain=domain,
+                agent_name=agent_name,
+                lesson=lesson_data["lesson"],
+                context_type=lesson_data.get("type", "pattern"),
+                applicability=lesson_data.get("applies_to", ""),
+                confidence=lesson_data.get("confidence", 0.6),
+            )
+            embedding_bytes = None
+            if emb_svc.available:
+                from .embeddings import EmbeddingService
+
+                vec = emb_svc.embed(lesson.lesson)
+                if vec is not None:
+                    embedding_bytes = EmbeddingService.serialize(vec)
+            self._store.save_distilled_lesson(lesson, embedding_bytes)
+
+    async def _extract_lessons(
+        self,
+        goal: str,
+        content: str,
+        domain: str,
+        agent_name: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Use a cheap LLM to extract 2-3 concise lessons from an episode.
+
+        Returns list of {"lesson": str, "type": str, "applies_to": str, "confidence": float}
+        """
+        prompt = self._build_distillation_prompt(goal, content, domain)
+
+        try:
+            import json as _json
+
+            import anthropic
+
+            client = anthropic.AsyncAnthropic()
+            response = await client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.content[0].text.strip()  # type: ignore[union-attr]
+
+            if "```" in text:
+                text = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`")
+
+            lessons = _json.loads(text)
+            if isinstance(lessons, list):
+                return [
+                    {
+                        "lesson": str(l.get("lesson", ""))[:200],
+                        "type": str(l.get("type", "pattern")),
+                        "applies_to": str(l.get("applies_to", ""))[:100],
+                        "confidence": min(1.0, max(0.0, float(l.get("confidence", 0.6)))),
+                    }
+                    for l in lessons[:3]
+                    if l.get("lesson")
+                ]
+        except Exception as exc:
+            logger.debug("LLM lesson extraction failed: %s", exc)
+
+        return []
+
+    def retrieve_distilled_lessons(
+        self,
+        domain: str,
+        goal: str = "",
+        agent_name: str = "",
+        top_k: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve the most relevant distilled lessons using vector similarity.
+
+        These are concise, actionable facts — the highest signal-to-noise
+        learning context available.
+        """
+        emb_svc = _get_embeddings()
+
+        if goal and emb_svc.available:
+            goal_vec = emb_svc.embed(goal)
+            if goal_vec is not None:
+                return self._embedding_lesson_retrieval(domain, goal_vec, agent_name, top_k)
+
+        # Fallback: return highest-confidence lessons for domain
+        lessons = self._store.get_distilled_lessons(
+            domain=domain, agent_name=agent_name or None, limit=top_k
+        )
+        return [
+            {
+                "lesson": l.lesson,
+                "type": l.context_type,
+                "applies_to": l.applicability,
+                "confidence": l.confidence,
+                "agent": l.agent_name,
+            }
+            for l in lessons
+        ]
+
+    def _embedding_lesson_retrieval(
+        self,
+        domain: str,
+        goal_vec: Any,
+        agent_name: str,
+        top_k: int,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve distilled lessons using embedding cosine similarity."""
+        import numpy as np
+
+        from .embeddings import EmbeddingService
+
+        lesson_embs = self._store.get_distilled_lessons_with_embeddings(domain=domain, limit=100)
+
+        if not lesson_embs:
+            # Try broader: all domains
+            lesson_embs = self._store.get_distilled_lessons_with_embeddings(domain=None, limit=100)
+        if not lesson_embs:
+            return []
+
+        scored = []
+        for lesson, emb_blob in lesson_embs:
+            lesson_vec = EmbeddingService.deserialize(emb_blob)
+            similarity = float(np.dot(goal_vec, lesson_vec))
+            agent_bonus = 0.1 if agent_name and lesson.agent_name == agent_name else 0.0
+            score = similarity * 0.6 + lesson.confidence * 0.3 + agent_bonus
+            scored.append((score, lesson))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        return [
+            {
+                "lesson": lesson.lesson,
+                "type": lesson.context_type,
+                "applies_to": lesson.applicability,
+                "confidence": lesson.confidence,
+                "agent": lesson.agent_name,
+                "relevance": round(score, 3),
+            }
+            for score, lesson in scored[:top_k]
+        ]
 
     # =========================================================================
     # TAUTOLOGY FILTER — LLM-based pattern filtering + DB purge

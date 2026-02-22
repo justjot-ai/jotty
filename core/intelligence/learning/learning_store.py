@@ -104,6 +104,25 @@ class ReflectionRecord:
 
 
 @dataclass
+class DistilledLesson:
+    """A concise lesson extracted from an episode by LLM (mem0 pattern)."""
+
+    lesson_id: str
+    episode_id: str
+    domain: str
+    agent_name: str
+    lesson: str  # concise, actionable takeaway
+    context_type: str  # "strategy", "mistake", "pattern", "tool_usage"
+    applicability: str  # when this lesson applies
+    confidence: float  # 0.0 - 1.0
+    timestamp: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.timestamp == 0.0:
+            self.timestamp = time.time()
+
+
+@dataclass
 class ValueEstimate:
     """Value estimate for a (state, action) pair."""
 
@@ -245,6 +264,24 @@ class LearningStore:
             );
 
             CREATE INDEX IF NOT EXISTS idx_values_domain ON value_estimates(domain);
+
+            CREATE TABLE IF NOT EXISTS distilled_lessons (
+                lesson_id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL,
+                domain TEXT NOT NULL DEFAULT '',
+                agent_name TEXT NOT NULL DEFAULT '',
+                lesson TEXT NOT NULL,
+                context_type TEXT NOT NULL DEFAULT 'pattern',
+                applicability TEXT NOT NULL DEFAULT '',
+                confidence REAL NOT NULL DEFAULT 0.5,
+                embedding BLOB,
+                timestamp REAL NOT NULL,
+                FOREIGN KEY (episode_id) REFERENCES episodes(episode_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_lessons_domain ON distilled_lessons(domain);
+            CREATE INDEX IF NOT EXISTS idx_lessons_agent ON distilled_lessons(agent_name);
+            CREATE INDEX IF NOT EXISTS idx_lessons_episode ON distilled_lessons(episode_id);
         """
         )
         conn.commit()
@@ -273,6 +310,7 @@ class LearningStore:
                 ("error_message", "TEXT"),
                 ("parent_episode_id", "TEXT"),
                 ("metadata", "TEXT NOT NULL DEFAULT '{}'"),
+                ("embedding", "BLOB"),
             ],
             "reflections": [
                 ("unit_name", "TEXT NOT NULL DEFAULT ''"),
@@ -850,6 +888,161 @@ class LearningStore:
                     "timestamp": row["timestamp"],
                 }
             )
+        return results
+
+    # =========================================================================
+    # EMBEDDINGS
+    # =========================================================================
+
+    def save_embedding(self, episode_id: str, embedding: bytes) -> None:
+        """Store embedding BLOB for an episode."""
+        conn = self._get_conn()
+        conn.execute(
+            "UPDATE episodes SET embedding = ? WHERE episode_id = ?",
+            (embedding, episode_id),
+        )
+        conn.commit()
+
+    def get_episodes_with_embeddings(
+        self,
+        domain: Optional[str] = None,
+        success_only: bool = True,
+        limit: int = 200,
+    ) -> List[Tuple[EpisodeRecord, bytes]]:
+        """Get episodes that have embeddings, for vector search."""
+        conn = self._get_conn()
+        conditions = ["embedding IS NOT NULL"]
+        params: list = []
+
+        if domain:
+            conditions.append("domain = ?")
+            params.append(domain)
+        if success_only:
+            conditions.append("success = 1")
+
+        where = f"WHERE {' AND '.join(conditions)}"
+        query = f"SELECT * FROM episodes {where} ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        rows = conn.execute(query, params).fetchall()
+        results: List[Tuple[EpisodeRecord, bytes]] = []
+        for row in rows:
+            ep = self._row_to_episode(row)
+            emb = row["embedding"]
+            if emb:
+                results.append((ep, emb))
+        return results
+
+    # =========================================================================
+    # DISTILLED LESSONS
+    # =========================================================================
+
+    def save_distilled_lesson(
+        self, lesson: "DistilledLesson", embedding: Optional[bytes] = None
+    ) -> None:
+        """Save a distilled lesson (mem0 pattern: LLM-extracted fact)."""
+        conn = self._get_conn()
+        conn.execute(
+            """INSERT OR REPLACE INTO distilled_lessons
+               (lesson_id, episode_id, domain, agent_name, lesson,
+                context_type, applicability, confidence, embedding, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                lesson.lesson_id,
+                lesson.episode_id,
+                lesson.domain,
+                lesson.agent_name,
+                lesson.lesson,
+                lesson.context_type,
+                lesson.applicability,
+                lesson.confidence,
+                embedding,
+                lesson.timestamp,
+            ),
+        )
+        conn.commit()
+
+    def get_distilled_lessons(
+        self,
+        domain: Optional[str] = None,
+        agent_name: Optional[str] = None,
+        min_confidence: float = 0.3,
+        limit: int = 50,
+    ) -> List["DistilledLesson"]:
+        """Get distilled lessons, optionally filtered by domain/agent."""
+        conn = self._get_conn()
+        conditions = ["confidence >= ?"]
+        params: list = [min_confidence]
+
+        if domain:
+            conditions.append("domain = ?")
+            params.append(domain)
+        if agent_name:
+            conditions.append("agent_name = ?")
+            params.append(agent_name)
+
+        where = f"WHERE {' AND '.join(conditions)}"
+        query = f"""SELECT * FROM distilled_lessons {where}
+                    ORDER BY confidence DESC, timestamp DESC LIMIT ?"""
+        params.append(limit)
+
+        rows = conn.execute(query, params).fetchall()
+        return [
+            DistilledLesson(
+                lesson_id=row["lesson_id"],
+                episode_id=row["episode_id"],
+                domain=row["domain"],
+                agent_name=row["agent_name"],
+                lesson=row["lesson"],
+                context_type=row["context_type"],
+                applicability=row["applicability"],
+                confidence=row["confidence"],
+                timestamp=row["timestamp"],
+            )
+            for row in rows
+        ]
+
+    def get_distilled_lessons_with_embeddings(
+        self,
+        domain: Optional[str] = None,
+        agent_name: Optional[str] = None,
+        min_confidence: float = 0.3,
+        limit: int = 100,
+    ) -> List[Tuple["DistilledLesson", bytes]]:
+        """Get lessons that have embeddings, for vector retrieval."""
+        conn = self._get_conn()
+        conditions = ["confidence >= ?", "embedding IS NOT NULL"]
+        params: list = [min_confidence]
+
+        if domain:
+            conditions.append("domain = ?")
+            params.append(domain)
+        if agent_name:
+            conditions.append("agent_name = ?")
+            params.append(agent_name)
+
+        where = f"WHERE {' AND '.join(conditions)}"
+        query = f"""SELECT * FROM distilled_lessons {where}
+                    ORDER BY confidence DESC, timestamp DESC LIMIT ?"""
+        params.append(limit)
+
+        rows = conn.execute(query, params).fetchall()
+        results: List[Tuple[DistilledLesson, bytes]] = []
+        for row in rows:
+            lesson = DistilledLesson(
+                lesson_id=row["lesson_id"],
+                episode_id=row["episode_id"],
+                domain=row["domain"],
+                agent_name=row["agent_name"],
+                lesson=row["lesson"],
+                context_type=row["context_type"],
+                applicability=row["applicability"],
+                confidence=row["confidence"],
+                timestamp=row["timestamp"],
+            )
+            emb = row["embedding"]
+            if emb:
+                results.append((lesson, emb))
         return results
 
     def close(self) -> None:
