@@ -776,6 +776,15 @@ class ReviewSwarm(SwarmTemplate):
             executor, code_result, security_result, performance_result, synthesis, lang
         )
 
+    @staticmethod
+    def _ensure_dict(value: Any, fallback_key: str = "content") -> Dict[str, Any]:
+        """Coerce agent output to a dict so downstream .get() calls never crash."""
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            return {fallback_key: value, "issues": [], "vulnerabilities": []}
+        return {"issues": [], "vulnerabilities": []}
+
     def _build_review_result(
         self,
         executor: Any,
@@ -798,9 +807,17 @@ class ReviewSwarm(SwarmTemplate):
         Returns:
             ReviewResult with all findings aggregated
         """
+        code_result = self._ensure_dict(code_result, "code_review")
+        security_result = self._ensure_dict(security_result, "security_scan")
+        performance_result = self._ensure_dict(performance_result, "performance_analysis")
+        if not isinstance(synthesis, dict):
+            synthesis = {"status": "approved", "summary": str(synthesis) if synthesis else ""}
+
         # Convert issues to ReviewComment objects
         comments = []
         for issue in code_result.get("issues", []):
+            if isinstance(issue, str):
+                issue = {"message": issue, "severity": "medium"}
             severity = self._parse_severity(issue.get("severity", "medium"))
             comments.append(
                 ReviewComment(
@@ -815,6 +832,8 @@ class ReviewSwarm(SwarmTemplate):
         # Convert vulnerabilities to SecurityFinding objects
         security_findings = []
         for vuln in security_result.get("vulnerabilities", []):
+            if isinstance(vuln, str):
+                vuln = {"description": vuln, "severity": "high", "type": "unknown"}
             severity = self._parse_severity(vuln.get("severity", "medium"))
             security_findings.append(
                 SecurityFinding(
@@ -829,6 +848,8 @@ class ReviewSwarm(SwarmTemplate):
         # Convert performance issues
         performance_findings = []
         for issue in performance_result.get("issues", []):
+            if isinstance(issue, str):
+                issue = {"description": issue, "severity": "medium", "type": "unknown"}
             severity = self._parse_severity(issue.get("severity", "medium"))
             performance_findings.append(
                 PerformanceFinding(

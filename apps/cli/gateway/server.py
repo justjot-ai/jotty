@@ -55,9 +55,18 @@ class UnifiedGateway:
     - Response delivery back to channels
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8766, enable_trust: bool = True) -> None:
+    def __init__(
+        self,
+        host: str = "0.0.0.0",
+        port: int = 8766,
+        enable_trust: bool = True,
+        ssl_keyfile: str | None = None,
+        ssl_certfile: str | None = None,
+    ) -> None:
         self.host = host
         self.port = port
+        self.ssl_keyfile = ssl_keyfile
+        self.ssl_certfile = ssl_certfile
         self.router = ChannelRouter()
         self.trust = TrustManager() if enable_trust else None
         self._app = None
@@ -748,7 +757,10 @@ class UnifiedGateway:
             raise ImportError("FastAPI not installed")
 
         app = self.create_app()
-        config = uvicorn.Config(app, host=self.host, port=self.port, log_level="info")
+        ssl_kwargs = {}
+        if self.ssl_keyfile and self.ssl_certfile:
+            ssl_kwargs = {"ssl_keyfile": self.ssl_keyfile, "ssl_certfile": self.ssl_certfile}
+        config = uvicorn.Config(app, host=self.host, port=self.port, log_level="info", **ssl_kwargs)
         server = uvicorn.Server(config)
         await server.serve()
 
@@ -758,12 +770,21 @@ class UnifiedGateway:
             raise ImportError("FastAPI not installed")
 
         app = self.create_app()
-        uvicorn.run(app, host=self.host, port=self.port)
+        ssl_kwargs = {}
+        if self.ssl_keyfile and self.ssl_certfile:
+            ssl_kwargs = {"ssl_keyfile": self.ssl_keyfile, "ssl_certfile": self.ssl_certfile}
+        uvicorn.run(app, host=self.host, port=self.port, **ssl_kwargs)
 
 
-def start_gateway(host: str = "0.0.0.0", port: int = 8766, cli: Any = None) -> Any:
+def start_gateway(
+    host: str = "0.0.0.0",
+    port: int = 8766,
+    cli: Any = None,
+    ssl_keyfile: str | None = None,
+    ssl_certfile: str | None = None,
+) -> Any:
     """Start the unified gateway server."""
-    gateway = UnifiedGateway(host, port)
+    gateway = UnifiedGateway(host, port, ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile)
     if cli:
         gateway.set_cli(cli)
     gateway.run()

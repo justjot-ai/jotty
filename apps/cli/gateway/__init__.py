@@ -66,6 +66,8 @@ def main() -> Any:
     )
     parser.add_argument("--no-cli", action="store_true", help="Run without JottyCLI (echo mode)")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--ssl-keyfile", default=None, help="SSL private key file")
+    parser.add_argument("--ssl-certfile", default=None, help="SSL certificate file")
 
     args = parser.parse_args()
 
@@ -96,7 +98,13 @@ def main() -> Any:
     logger.info(f"WebSocket: ws://{args.host}:{args.port}/ws")
     logger.info(f"Health: http://{args.host}:{args.port}/health")
 
-    start_gateway(host=args.host, port=args.port, cli=cli)
+    start_gateway(
+        host=args.host,
+        port=args.port,
+        cli=cli,
+        ssl_keyfile=args.ssl_keyfile,
+        ssl_certfile=args.ssl_certfile,
+    )
 
 
 if __name__ == "__main__":

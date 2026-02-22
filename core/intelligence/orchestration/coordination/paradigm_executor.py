@@ -67,10 +67,91 @@ class ParadigmExecutor:
 
     Composed by ExecutionEngine. Holds a reference to the Orchestrator
     for access to agents, runners, semaphore, and learning hooks.
+
+    Team of Thoughts paper: agents are filtered by learned proficiency
+    scores before debate/relay iteration.
     """
+
+    _DEBATE_TASK_KEYWORDS = {
+        "research": ["research", "find", "search", "investigate"],
+        "analysis": ["analyze", "evaluate", "compare", "assess"],
+        "creation": ["create", "build", "write", "generate"],
+        "coding": ["code", "implement", "debug", "fix"],
+    }
 
     def __init__(self, manager: Any) -> None:
         self._manager = manager
+
+    def _infer_debate_task_type(self, goal: str) -> str:
+        """Simple keyword task categorization for proficiency lookup."""
+        goal_lower = goal.lower()
+        for task_type, keywords in self._DEBATE_TASK_KEYWORDS.items():
+            if any(kw in goal_lower for kw in keywords):
+                return task_type
+        return "general"
+
+    def _filter_by_proficiency(self, agents: list, goal: str, min_agents: int = 2) -> list:
+        """Team of Thoughts: filter agents by learned proficiency.
+
+        Agents with proficiency below 0.3 are excluded. Unknown agents get
+        benefit of the doubt. Always keeps at least min_agents.
+        """
+        sm = self._manager
+        baseline = None
+        try:
+            learning = getattr(sm, "learning", None)
+            td = getattr(learning, "td_learner", None) if learning else None
+            baseline = getattr(td, "grouped_baseline", None) if td else None
+        except Exception:
+            pass
+
+        if baseline is None:
+            return agents
+
+        task_type = self._infer_debate_task_type(goal)
+        scored = []
+        for agent_config in agents:
+            result = baseline.get_agent_proficiency(agent_config.name, task_type)
+            if result is None:
+                # Unknown agent — benefit of the doubt
+                scored.append((agent_config, 0.5))
+            else:
+                proficiency, _count = result
+                scored.append((agent_config, proficiency))
+
+        # Sort by proficiency descending
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        # Filter out below 0.3, but keep at least min_agents
+        filtered = [a for a, p in scored if p >= 0.3]
+        if len(filtered) < min_agents:
+            filtered = [a for a, _ in scored[:min_agents]]
+
+        if len(filtered) < len(agents):
+            dropped = [a.name for a, p in scored if p < 0.3 and a not in filtered]
+            if dropped:
+                logger.info(f"ToT proficiency filter: dropped {dropped} (below 0.3)")
+
+        return filtered
+
+    def _record_agent_outcomes(self, results: dict, goal: str) -> None:
+        """Record agent outcomes for proficiency tracking."""
+        sm = self._manager
+        baseline = None
+        try:
+            learning = getattr(sm, "learning", None)
+            td = getattr(learning, "td_learner", None) if learning else None
+            baseline = getattr(td, "grouped_baseline", None) if td else None
+        except Exception:
+            pass
+
+        if baseline is None:
+            return
+
+        task_type = self._infer_debate_task_type(goal)
+        for name, result in results.items():
+            reward = 1.0 if result.success else 0.0
+            baseline.update_agent(name, task_type, reward)
 
     async def run_agent(
         self, runner: Any, sub_goal: str, agent_name: str, **kwargs: Any
@@ -204,7 +285,10 @@ class ParadigmExecutor:
         prev_schema = None
         prev_output = None
 
-        for agent_config in sm.agents:
+        # Team of Thoughts: filter by learned proficiency
+        active_agents = self._filter_by_proficiency(sm.agents, goal)
+
+        for agent_config in active_agents:
             runner = sm.runners.get(agent_config.name)
             if not runner:
                 continue
@@ -258,6 +342,7 @@ class ParadigmExecutor:
                 prev_schema = None
                 prev_output = None
 
+        self._record_agent_outcomes(all_results, goal)
         combined = self.aggregate_results(all_results, goal)
         sm._schedule_background_learning(combined, goal)
         return combined
@@ -276,8 +361,11 @@ class ParadigmExecutor:
         # Round 1: All agents produce initial drafts
         safe_status(status_callback, "Debate round 1", "all agents drafting")
 
+        # Team of Thoughts: filter by learned proficiency
+        active_agents = self._filter_by_proficiency(sm.agents, goal)
+
         draft_tasks = []
-        for agent_config in sm.agents:
+        for agent_config in active_agents:
             runner = sm.runners.get(agent_config.name)
             if not runner:
                 continue
@@ -375,6 +463,7 @@ class ParadigmExecutor:
             except Exception as e:
                 logger.debug(f"Consistency check skipped in debate: {e}")
 
+        self._record_agent_outcomes(all_results, goal)
         combined = self.aggregate_results(all_results, goal)
         sm._schedule_background_learning(combined, goal)
         return combined

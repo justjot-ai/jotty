@@ -285,7 +285,10 @@ class AutonomousAgent(BaseAgent):
         self, step: Any, outputs: Dict[str, Any], status_callback: Optional[Callable] = None
     ) -> Dict[str, Any]:
         """Execute a single step via SkillPlanExecutor."""
-        return await self.executor.execute_step(step, outputs, status_callback)
+        learning_ctx = getattr(self, "_learning_context", None)
+        return await self.executor.execute_step(
+            step, outputs, status_callback, learning_context=learning_ctx
+        )
 
     # =========================================================================
     # EVENT EMISSION HELPER

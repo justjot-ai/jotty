@@ -253,7 +253,7 @@ class AutoWorkflow:
                 # Create swarms
                 swarms = SwarmAdapter.quick_swarms(
                     swarms_config,
-                    model=stage_config.get("model", "claude-3-5-haiku-20241022"),
+                    model=stage_config.get("model", "claude-3-haiku-20240307"),
                     max_tokens=stage_config.get("max_tokens", 800),
                 )
 

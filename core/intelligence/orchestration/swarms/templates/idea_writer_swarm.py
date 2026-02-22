@@ -439,12 +439,19 @@ class BodySectionWriter(SectionWriter):
         """Write body section."""
         try:
             section_info = context.get("section_info", {})
+            other_titles = context.get("other_section_titles", [])
+            section_ctx = context.get("previous_sections", [])
+            if other_titles:
+                section_ctx = section_ctx + [
+                    f"Other sections in this article cover: {', '.join(other_titles)}. "
+                    "Do NOT repeat their content — focus only on YOUR section's unique angle."
+                ]
             result = self._writer(
                 section_title=section_info.get("title", topic),
                 key_points=json.dumps(section_info.get("key_points", [])),
                 research=json.dumps(research),
                 tone=config.tone.value,
-                context=json.dumps(context.get("previous_sections", [])),
+                context=json.dumps(section_ctx),
             )
 
             title = section_info.get("title", "Section")
@@ -877,9 +884,9 @@ class IdeaWriterSwarm(SwarmTemplate):
         Returns:
             WriterResult with generated content
         """
-        # Default sections if not provided
+        # Default sections — each type is distinct to avoid repetitive content
         if not sections:
-            sections = ["introduction", "body", "body", "conclusion"]
+            sections = ["introduction", "body", "case_studies", "conclusion"]
 
         self._run_input = {
             "topic": topic[:200],
@@ -964,24 +971,34 @@ class IdeaWriterSwarm(SwarmTemplate):
         # =================================================================
         parallel_tasks = []
 
+        # Build unique context per section so parallel writers don't repeat
+        all_section_titles = [
+            (outline.sections[i].get("title", "") if i < len(outline.sections) else "")
+            for i in range(len(sections))
+        ]
+
         for i, section_type in enumerate(sections):
             writer = SectionRegistry.create(section_type, self._memory, self._context, self._bus)
 
             if not writer:
-                # Fallback to body writer for unknown types
                 writer = SectionRegistry.create("body", self._memory, self._context, self._bus)
 
             if writer:
                 section_info = outline.sections[i] if i < len(outline.sections) else {}
+                # Tell each writer about the other sections to avoid overlap
+                other_titles = [t for j, t in enumerate(all_section_titles) if j != i and t]
                 ctx = {
                     "thesis": outline.thesis,
                     "key_points": outline.key_points,
                     "section_info": section_info,
+                    "section_index": i,
+                    "total_sections": len(sections),
+                    "other_section_titles": other_titles,
                     "previous_sections": [],
                 }
                 parallel_tasks.append(
                     (
-                        f"SectionWriter({section_type})",
+                        f"SectionWriter({section_type}_{i})",
                         AgentRole.ACTOR,
                         writer.write(topic, ctx, research, config),  # type: ignore[arg-type]
                         ["section_write"],

@@ -53,12 +53,18 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
     - Post-execution: store results, run improvement cycle, update learner
     - Trace recording: log execution traces for debugging
 
+    MAPLE paper integration: Learning is split into hot-path (sync, needed
+    for next execution) and cold-path (deferred, background async task).
+
     Expects to be mixed into SwarmLearning which provides:
     - self._memory, self._context_manager, self._learner
     - self._gold_db, self._improvement_history, self._evaluation_history
     - self.config, self._traces, self._execution_count
     - self._improvement_agents dict
     """
+
+    # Background learning tasks (MAPLE: cold-path deferred learning)
+    _bg_learning_tasks: set = set()
 
     def _classify_error(self, success: bool, result: Any, execution_time: float) -> Optional[str]:
         """Classify execution outcome for learning.
@@ -282,19 +288,16 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
         """
         Post-execution learning hook. Called at end of execute().
 
-        Sends executor feedback, recomputes MorphAgent scores, re-analyzes
-        tools, evaluates output, runs improvement cycle, and saves all state.
+        MAPLE paper: Split into hot-path (sync, needed for next execution)
+        and cold-path (deferred async, background learning).
 
-        Args:
-            success: Whether execution succeeded
-            execution_time: Total execution time in seconds
-            tools_used: List of tool names used during execution
-            task_type: Type of task that was executed
-            output_data: Optional dict of output metrics for evaluation
-            input_data: Optional dict of input params for evaluation matching
-            result: Optional raw result object for error classification
+        Hot-path: error classification, executor feedback, MorphAgent scores,
+        tool re-analysis, coordination protocols.
+        Cold-path: evaluation, learning extraction, improvement cycle, state save.
         """
         try:
+            # === HOT PATH (sync — needed for next execution) ===
+
             # 1. Send executor feedback (tools, success, timing, error classification)
             error_type = self._classify_error(success, result, execution_time)
             error_message = str(getattr(result, "error", "") or "")[:500] if not success else None
@@ -326,18 +329,12 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                         },
                     }
                 )
-                # Note: morph_score_history is a deque(maxlen=100), self-bounding.
-                # No manual truncation needed.
 
             # 3. Re-analyze tools and update assignments.
-            # Reuse cached analysis from _pre_execute_learning if available
-            # (the tool set doesn't change between pre and post).
             if not getattr(self, "_cached_tool_analysis", None):
                 self._manage_tools()  # type: ignore[attr-defined]
 
-            # 3a. Post-execution coordination protocols (byzantine verify,
-            #     circuit breakers, gossip broadcast, coalition cleanup,
-            #     load balancing, failure recovery)
+            # 3a. Post-execution coordination protocols
             self._coordinate_post_execution(
                 si=si,
                 success=success,
@@ -360,12 +357,104 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 for _interceptor in guard.interceptor_registry._interceptors.values():
                     if _interceptor.get_all_calls():
                         feedback.feed_from_interceptor(_interceptor)
-                # Clear after feeding to avoid double-counting
                 guard.interceptor_registry.clear_all()
             except Exception as e:
                 logger.debug(f"Tool learning feedback skipped: {e}")
 
-            # 4. Evaluate output against gold standard (centralized for all swarms)
+            # === COLD PATH (deferred — schedule as background task) ===
+            self._schedule_deferred_learning(
+                si=si,
+                success=success,
+                execution_time=execution_time,
+                tools_used=tools_used,
+                task_type=task_type,
+                output_data=output_data,
+                input_data=input_data,
+            )
+
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"Post-execution learning skipped (optional dep): {e}")
+        except (LearningError, MemoryError) as e:
+            logger.warning(
+                f"Post-execution learning failed (recoverable): {e}. "
+                f"Learning data for this execution may be incomplete."
+            )
+        except Exception as e:
+            logger.warning(
+                f"Post-execution learning failed unexpectedly: {type(e).__name__}: {e}. "
+                f"Learning data for this execution may be lost.",
+                exc_info=True,
+            )
+
+    def _schedule_deferred_learning(
+        self,
+        si: Any,
+        success: bool,
+        execution_time: float,
+        tools_used: List[str],
+        task_type: str,
+        output_data: Optional[Dict[str, Any]] = None,
+        input_data: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Schedule cold-path learning as a background task (MAPLE paper).
+
+        Falls back to synchronous execution when no event loop is available
+        (e.g. test environments).
+        """
+        import asyncio
+
+        try:
+            loop = asyncio.get_running_loop()
+            task = loop.create_task(
+                self._deferred_post_learning(
+                    si=si,
+                    success=success,
+                    execution_time=execution_time,
+                    tools_used=tools_used,
+                    task_type=task_type,
+                    output_data=output_data,
+                    input_data=input_data,
+                )
+            )
+            self._bg_learning_tasks.add(task)
+            task.add_done_callback(self._bg_learning_tasks.discard)
+        except RuntimeError:
+            # No event loop — run synchronously (test/CLI environments)
+            import asyncio as _aio
+
+            try:
+                _aio.get_event_loop().run_until_complete(
+                    self._deferred_post_learning(
+                        si=si,
+                        success=success,
+                        execution_time=execution_time,
+                        tools_used=tools_used,
+                        task_type=task_type,
+                        output_data=output_data,
+                        input_data=input_data,
+                    )
+                )
+            except Exception as e:
+                logger.debug(f"Sync fallback for deferred learning failed: {e}")
+
+    async def _deferred_post_learning(
+        self,
+        si: Any,
+        success: bool,
+        execution_time: float,
+        tools_used: List[str],
+        task_type: str,
+        output_data: Optional[Dict[str, Any]] = None,
+        input_data: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Cold-path learning: evaluation, extraction, improvement, state save.
+
+        MAPLE paper: These steps are not needed for the next execution and
+        can safely run in the background without blocking response return.
+        Errors are logged but never propagated.
+        """
+        try:
+            # 4. Evaluate output against gold standard
             evaluation = None
             if success and output_data and self.config.enable_self_improvement:  # type: ignore[attr-defined]
                 try:
@@ -402,7 +491,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 except Exception:
                     pass  # Non-blocking
 
-            # 4b. Record iteration in benchmarks (always, not just when evaluation exists)
+            # 4b. Record iteration in benchmarks
             if si:
                 try:
                     score = evaluation.overall_score if evaluation else (1.0 if success else 0.0)
@@ -520,17 +609,10 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 task_type=task_type,
             )
 
-        except (ImportError, AttributeError) as e:
-            logger.debug(f"Post-execution learning skipped (optional dep): {e}")
-        except (LearningError, MemoryError) as e:
-            logger.warning(
-                f"Post-execution learning failed (recoverable): {e}. "
-                f"Learning data for this execution may be incomplete."
-            )
         except Exception as e:
+            # MAPLE: cold-path errors never propagate to caller
             logger.warning(
-                f"Post-execution learning failed unexpectedly: {type(e).__name__}: {e}. "
-                f"Learning data for this execution may be lost.",
+                f"Deferred learning failed: {type(e).__name__}: {e}",
                 exc_info=True,
             )
 

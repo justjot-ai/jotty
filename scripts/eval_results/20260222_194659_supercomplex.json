@@ -1,0 +1,252 @@
+{
+  "timestamp": "2026-02-22T19:46:59.976569",
+  "model": "claude-sonnet-4-20250514",
+  "results": [
+    {
+      "dimension": "PURE_REASONING",
+      "test_name": "cross_domain_synthesis",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 27955,
+      "elapsed": 104.18,
+      "checks": {
+        "Consensus protocol": true,
+        "ML model serving": true,
+        "Risk scoring (VaR)": true,
+        "Rollback mechanism": true,
+        "Python classes": true,
+        "Test cases": true,
+        "Architecture": true,
+        "500+ words": true,
+        "Code blocks": true,
+        "Formal arguments": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "PURE_REASONING",
+      "test_name": "math_proof_implementation",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 21705,
+      "elapsed": 73.53,
+      "checks": {
+        "Halting problem stated": true,
+        "Diagonalization": true,
+        "Formal proof structure": true,
+        "BoundedHalting class": true,
+        "Subprocess/sandbox": true,
+        "Resource limits": true,
+        "Pattern detection": true,
+        "Test cases": true,
+        "Code blocks": true,
+        "500+ words": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "TOOL_CALLING",
+      "test_name": "web_search_synthesis",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 5210,
+      "elapsed": 47.66,
+      "checks": {
+        "Has content": true,
+        "Mentions AI frameworks": true,
+        "Has structure (headers/lists)": true,
+        "Pros mentioned": true,
+        "Cons mentioned": true,
+        "Multiple frameworks": true,
+        "200+ words": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": "tools_used=0"
+    },
+    {
+      "dimension": "TOOL_CALLING",
+      "test_name": "math_calculation",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 727,
+      "elapsed": 9.23,
+      "checks": {
+        "Has result": true,
+        "Correct 17^5 (1419857)": true,
+        "Correct sqrt(144) (12)": true,
+        "Correct ln(e^3) (3)": true,
+        "Final answer ~1419866": true,
+        "Shows steps": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "MULTI_TURN",
+      "test_name": "4_turn_conversation",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 70782,
+      "elapsed": 243.73,
+      "checks": {
+        "Turn 1: Architecture suggestion": true,
+        "Turn 2: Code implementation": true,
+        "Turn 3: Virtual nodes added": true,
+        "Turn 4: Test cases": true,
+        "Coherent across turns": true,
+        "No errors": true,
+        "All turns responded": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "SDK_LOCAL",
+      "test_name": "chat_mode",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 1971,
+      "elapsed": 12.57,
+      "checks": {
+        "Response received": true,
+        "Success flag": true,
+        "CAP mentioned": true,
+        "All 3 properties": true,
+        "Trade-off explained": true,
+        "Under 60s": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "SDK_LOCAL",
+      "test_name": "workflow_mode",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 1102,
+      "elapsed": 20.39,
+      "checks": {
+        "Response received": true,
+        "Success flag": true,
+        "Sorting mentioned": true,
+        "Complexity mentioned": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "LEARNING",
+      "test_name": "record_and_query",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 5130,
+      "elapsed": 10.27,
+      "checks": {
+        "Task completed": true,
+        "Episode recorded": true,
+        "Guidance available": true,
+        "Context string non-empty": true,
+        "BST content correct": true,
+        "Complexity mentioned": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": "episodes_before=0, after=632, ctx=0ch, ret=288ch"
+    },
+    {
+      "dimension": "ERROR_RECOVERY",
+      "test_name": "empty_input",
+      "success": true,
+      "quality": 0.5,
+      "content_length": 0,
+      "elapsed": 0.38,
+      "checks": {
+        "No crash": true,
+        "Some response": false
+      },
+      "check_ratio": 0.5,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "ERROR_RECOVERY",
+      "test_name": "long_input",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 362,
+      "elapsed": 1.68,
+      "checks": {
+        "No crash": true,
+        "Responded": true,
+        "Recognized repetition": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "ERROR_RECOVERY",
+      "test_name": "nonexistent_tool",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 494,
+      "elapsed": 3.58,
+      "checks": {
+        "No crash": true,
+        "Responded": true,
+        "Handled gracefully": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": ""
+    },
+    {
+      "dimension": "WORKFLOW",
+      "test_name": "framework_comparison",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 7609,
+      "elapsed": 51.22,
+      "checks": {
+        "Response received": true,
+        "Django mentioned": true,
+        "FastAPI mentioned": true,
+        "Flask mentioned": true,
+        "Performance discussed": true,
+        "Learning curve": true,
+        "Use cases": true,
+        "Structured output": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": "skills_used=['claude-cli-llm'], steps=1"
+    },
+    {
+      "dimension": "MEMORY",
+      "test_name": "store_retrieve",
+      "success": true,
+      "quality": 1.0,
+      "content_length": 0,
+      "elapsed": 0,
+      "checks": {
+        "Stored all memories": true,
+        "Retrieved results for Q1": true,
+        "Retrieved results for Q2": true,
+        "Status available": true,
+        "Relevant retrieval": true
+      },
+      "check_ratio": 1.0,
+      "error": null,
+      "notes": "stored=3, retrieved=[3, 3], status=3"
+    }
+  ]
+}

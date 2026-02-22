@@ -80,6 +80,7 @@ class SkillPlanExecutor:
         self._planner = planner
         self._excluded_skills: set = set()
         self._current_task: str = ""  # Original task text (set during plan_and_execute)
+        self._learning_context: Optional[str] = None  # Set via execute_step or plan_and_execute
 
         # Skill selection cache: task_type → selected skill names
         # Avoids redundant LLM calls when the same type of task is seen again.
@@ -168,7 +169,7 @@ class SkillPlanExecutor:
         self,
         task: str,
         available_skills: List[Dict[str, Any]],
-        max_skills: int = 8,
+        max_skills: int = 3,
         task_type: str = "",
     ) -> List[Dict[str, Any]]:
         """
@@ -324,6 +325,36 @@ class SkillPlanExecutor:
         if injected:
             selected = list(selected) + injected
         return selected
+
+    def _enforce_skill_cap(
+        self,
+        selected: List[Dict[str, Any]],
+        essential_names: set,
+        max_skills: int = 3,
+    ) -> List[Dict[str, Any]]:
+        """Enforce SkillsBench-inspired skill cap after essential injection.
+
+        SkillsBench finding: 2-3 skills optimal (+18.6pp), 4+ skills sharp
+        dropoff (+5.9pp). After essential injection the count can exceed
+        max_skills. This method drops lowest-ranked non-essential skills
+        to stay within the cap.
+        """
+        if len(selected) <= max_skills:
+            return selected
+
+        # Partition into essential (keep) and non-essential (ranked by position)
+        keep = [s for s in selected if s.get("name", "") in essential_names]
+        rest = [s for s in selected if s.get("name", "") not in essential_names]
+
+        # Fill remaining slots with highest-ranked non-essential skills
+        remaining_slots = max(0, max_skills - len(keep))
+        keep.extend(rest[:remaining_slots])
+
+        dropped = [s.get("name") for s in rest[remaining_slots:]]
+        if dropped:
+            logger.info(f"SkillsBench cap: dropped {dropped} (keeping {max_skills} skills)")
+
+        return keep
 
     # =========================================================================
     # EXECUTION PLANNING
@@ -532,7 +563,11 @@ class SkillPlanExecutor:
     # =========================================================================
 
     async def execute_step(
-        self, step: Any, outputs: Dict[str, Any], status_callback: Optional[Callable] = None
+        self,
+        step: Any,
+        outputs: Dict[str, Any],
+        status_callback: Optional[Callable] = None,
+        learning_context: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Execute a single ExecutionStep.
@@ -541,10 +576,17 @@ class SkillPlanExecutor:
             step: ExecutionStep to execute
             outputs: Previous step outputs for param resolution
             status_callback: Optional progress callback
+            learning_context: Optional learning context to inject into LLM skill prompts
 
         Returns:
             Step result dict with 'success' key
         """
+        # Store for reuse by internal callers (DAG executor, retry logic)
+        if learning_context is not None:
+            self._learning_context = learning_context
+        # Fall back to stored context if caller didn't pass one
+        learning_context = learning_context or self._learning_context
+
         _status = StatusReporter(status_callback)
 
         if self._skills_registry is None:
@@ -901,6 +943,17 @@ class SkillPlanExecutor:
                 break
         else:
             _status("Executing", f" Running {step.skill_name}...")
+
+        # Inject learning context into LLM-calling skills' prompt param
+        _LLM_SKILL_KEYWORDS = ("llm", "claude", "openai", "groq", "generate-text")
+        _is_llm_skill = any(kw in step.skill_name.lower() for kw in _LLM_SKILL_KEYWORDS)
+        if learning_context and _is_llm_skill and isinstance(resolved_params.get("prompt"), str):
+            _condensed = learning_context.strip()
+            if len(_condensed) > 500:
+                # Keep first 300 + last 200 chars (preserves opening guidance + closing hints)
+                _condensed = _condensed[:300] + "\n...\n" + _condensed[-195:]
+            if _condensed:
+                resolved_params["prompt"] = f"{_condensed}\n\n{resolved_params['prompt']}"
 
         try:
             import asyncio as _asyncio
@@ -1374,8 +1427,9 @@ class SkillPlanExecutor:
         self._excluded_skills.add(skill_name)
 
     def clear_exclusions(self) -> None:
-        """Clear all skill exclusions."""
+        """Clear all skill exclusions and stale learning context."""
         self._excluded_skills.clear()
+        self._learning_context = None
 
     @property
     def excluded_skills(self) -> set:
@@ -1541,7 +1595,10 @@ class SkillPlanExecutor:
         # Step 2b: Inject essential skills the planner may have missed.
         # The LLM skill selector can't always anticipate which tools are
         # needed (e.g. "execute the script" requires shell-exec).
+        essential_before = {s.get("name", "") for s in skills}
         skills = self._inject_essential_skills(task, skills, discovered_skills)
+        essential_names = {s.get("name", "") for s in skills} - essential_before
+        skills = self._enforce_skill_cap(skills, essential_names)
         _status("Skills selected", ", ".join(s["name"] for s in skills[:5]))
 
         # Step 3: Create plan

@@ -733,28 +733,35 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
         )
 
         # =================================================================
-        # PHASE 5: VERIFICATION + DEBUGGER FEEDBACK
+        # PHASES 5 + 5.5 + 7 + 8: PARALLEL POST-GENERATION
+        # Verification, Simplicity, Tests, and Docs are independent —
+        # running them concurrently cuts ~60-70% off this stage.
         # =================================================================
-        verification_result = await self._phase_verify(
-            executor,
-            files,
-            main_file,
-            requirements,
-            arch_result,
+        _progress(
+            "Phase 5-8", "Parallel", "Running verification, simplicity, tests, docs in parallel..."
         )
 
-        # =================================================================
-        # PHASE 5.5: SIMPLICITY JUDGE (Anti-Over-Engineering Gate)
-        # =================================================================
-        simplicity_result = await self._phase_simplicity_judge(
-            executor,
-            files,
-            main_file,
-            requirements,
-        )
+        async def _do_verify():
+            return await self._phase_verify(executor, files, main_file, requirements, arch_result)
+
+        async def _do_simplicity():
+            return await self._phase_simplicity_judge(executor, files, main_file, requirements)
+
+        async def _do_tests():
+            return await self._phase_test_generation(executor, files, main_file, lang, gen_tests)
+
+        async def _do_docs():
+            return await self._phase_documentation(executor, files, arch_result, gen_docs)
+
+        (
+            verification_result,
+            simplicity_result,
+            (tests, test_coverage),
+            documentation,
+        ) = await asyncio.gather(_do_verify(), _do_simplicity(), _do_tests(), _do_docs())
 
         # =================================================================
-        # PHASE 6: TEAM REVIEW
+        # PHASE 6: TEAM REVIEW (needs simplicity_result from above)
         # =================================================================
         team_review_result = None
         skip_review = getattr(config, "skip_team_review", False)
@@ -783,27 +790,6 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
             )
         elif skip_review:
             _progress("Phase 6", "TeamReview", "Skipped (fast path - trivial task)")
-
-        # =================================================================
-        # PHASE 7: TEST GENERATION (if enabled)
-        # =================================================================
-        tests, test_coverage = await self._phase_test_generation(
-            executor,
-            files,
-            main_file,
-            lang,
-            gen_tests,
-        )
-
-        # =================================================================
-        # PHASE 8: DOCUMENTATION (if enabled)
-        # =================================================================
-        documentation = await self._phase_documentation(
-            executor,
-            files,
-            arch_result,
-            gen_docs,
-        )
 
         # =================================================================
         # BUILD RESULT

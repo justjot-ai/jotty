@@ -797,7 +797,7 @@ class LearningStore:
 
         where = f"WHERE {' AND '.join(conditions)}"
         rows = conn.execute(
-            f"""SELECT episode_id, unit_name, task_type, error_type, error_message,
+            f"""SELECT episode_id, unit_name, domain, task_type, error_type, error_message,
                        context, action, outcome, quality, timestamp
                 FROM episodes {where}
                 ORDER BY timestamp DESC LIMIT ?""",
@@ -817,10 +817,14 @@ class LearningStore:
                 if not outcome.get("has_code"):
                     missing.append("no code blocks")
                 elif outcome.get("code_block_count", 0) < 3:
-                    missing.append(
-                        f"only {outcome.get('code_block_count', 0)} code blocks (need 3+)"
-                    )
-                if not outcome.get("has_math"):
+                    n = outcome.get("code_block_count", 0)
+                    missing.append(f"only {n} code block{'s' if n != 1 else ''} (need 3+)")
+                _domain = row["domain"] if "domain" in row.keys() else domain
+                if not outcome.get("has_math") and _domain not in (
+                    "coding",
+                    "algorithms",
+                    "compiler_design",
+                ):
                     missing.append("no math/formulas")
                 if not outcome.get("has_headings"):
                     missing.append("no section headings")

@@ -133,11 +133,14 @@ class DirectAnthropicLM(dspy.BaseLM):
         # Resolve model name
         self.model_id = MODEL_MAP.get(model, model)
 
-        # Centralized default for max output tokens
-        if max_tokens is None:
-            from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+        # Model-aware output-token ceiling
+        from Jotty.core.infrastructure.foundation.config_defaults import get_max_output_tokens
 
-            max_tokens = LLM_MAX_OUTPUT_TOKENS
+        model_limit = get_max_output_tokens(self.model_id)
+        if max_tokens is None:
+            max_tokens = model_limit
+        elif max_tokens > model_limit:
+            max_tokens = model_limit
 
         super().__init__(model=f"anthropic-direct/{model}", **kwargs)
         self.model_alias = model

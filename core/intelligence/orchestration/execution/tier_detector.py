@@ -90,12 +90,15 @@ class TierDetector:
         "process and",
     ]
 
-    def __init__(self, enable_llm_fallback: bool = False) -> None:
+    def __init__(
+        self, enable_llm_fallback: bool = False, grouped_baseline: Optional[Any] = None
+    ) -> None:
         self.detection_cache: Dict[str, Any] = (
             {}
         )  # Simple cache for repeated queries  # type: ignore[name-defined]
         self._enable_llm_fallback = enable_llm_fallback
         self._llm_classifier = None
+        self._grouped_baseline = grouped_baseline  # CogRouter: learned tier history
 
     def detect(
         self, goal: str, context: Optional[dict] = None, force_tier: Optional[ExecutionTier] = None
@@ -163,9 +166,19 @@ class TierDetector:
         if self._is_simple_query(goal_lower):
             return ExecutionTier.DIRECT, 0.80
 
+        # Delegation overhead floor (AI Delegation paper):
+        # Trivial tasks below complexity floor → always DIRECT
+        if self._below_delegation_floor(goal_lower):
+            return ExecutionTier.DIRECT, 0.75
+
         # Check for multi-step indicators (moderate confidence)
         if any(ind in goal_lower for ind in self.MULTI_STEP_INDICATORS):
             return ExecutionTier.AGENTIC, 0.75
+
+        # CogRouter: consult learned tier history before low-confidence fallthrough
+        learned = self._consult_tier_history(goal_lower)
+        if learned is not None:
+            return learned
 
         # Default: Tier 2 (AGENTIC) — ambiguous, low confidence
         return ExecutionTier.AGENTIC, 0.40
@@ -234,6 +247,103 @@ class TierDetector:
 
         # Simple query: direct indicator OR short without multi-step
         return (has_direct or is_short) and not has_multi_step
+
+    # =========================================================================
+    # COGROUTER: LEARNED TIER ROUTING
+    # =========================================================================
+
+    _TASK_TYPE_KEYWORDS = {
+        "research": ["research", "find", "search", "look up", "investigate"],
+        "creation": ["create", "build", "write", "generate", "make"],
+        "analysis": ["analyze", "calculate", "evaluate", "compare", "assess"],
+        "coding": ["code", "implement", "debug", "refactor", "fix bug"],
+        "automation": ["automate", "deploy", "run", "execute", "schedule"],
+    }
+
+    def _infer_task_type_simple(self, goal_lower: str) -> str:
+        """Keyword-based task type for tier history lookup."""
+        for task_type, keywords in self._TASK_TYPE_KEYWORDS.items():
+            if any(kw in goal_lower for kw in keywords):
+                return task_type
+        return "general"
+
+    def _consult_tier_history(self, goal_lower: str) -> Optional[Tuple[ExecutionTier, float]]:
+        """CogRouter: consult learned tier success history.
+
+        When heuristic confidence is low, check which tier has the highest
+        historical success rate for this task type. Returns (tier, confidence)
+        or None if insufficient data.
+        """
+        baseline = self._grouped_baseline
+        if baseline is None:
+            return None
+
+        task_type = self._infer_task_type_simple(goal_lower)
+        tier_map = {
+            "DIRECT": ExecutionTier.DIRECT,
+            "AGENTIC": ExecutionTier.AGENTIC,
+            "LEARNING": ExecutionTier.LEARNING,
+            "RESEARCH": ExecutionTier.RESEARCH,
+            "AUTONOMOUS": ExecutionTier.AUTONOMOUS,
+        }
+
+        best_tier = None
+        best_success = 0.0
+
+        for tier_name, tier_enum in tier_map.items():
+            result = baseline.get_tier_success(tier_name, task_type)
+            if result is None:
+                continue
+            success_rate, count = result
+            if count >= 3 and success_rate > 0.6 and success_rate > best_success:
+                best_success = success_rate
+                best_tier = tier_enum
+
+        if best_tier is not None:
+            logger.info(
+                f"CogRouter: learned tier {best_tier.name} for "
+                f"task_type={task_type} (success={best_success:.2f})"
+            )
+            return best_tier, 0.70
+
+        return None
+
+    # Keywords that signal complexity even in short tasks
+    _COMPLEX_KEYWORDS = frozenset(
+        [
+            "analyze",
+            "research",
+            "compare",
+            "build",
+            "create",
+            "deploy",
+            "implement",
+            "design",
+            "optimize",
+            "refactor",
+            "debug",
+            "benchmark",
+            "experiment",
+            "evaluate",
+            "generate report",
+        ]
+    )
+
+    def _below_delegation_floor(self, goal_lower: str) -> bool:
+        """Check if task is below the delegation complexity floor.
+
+        AI Delegation paper: tasks below a complexity floor always cost more
+        to delegate than to execute directly. Short, simple queries with no
+        multi-step or complex keywords qualify.
+        """
+        words = goal_lower.split()
+        if len(words) > 15:
+            return False
+        if any(kw in goal_lower for kw in self._COMPLEX_KEYWORDS):
+            return False
+        if any(ind in goal_lower for ind in self.MULTI_STEP_INDICATORS):
+            return False
+        return True
 
     def explain_detection(self, goal: str) -> str:
         """

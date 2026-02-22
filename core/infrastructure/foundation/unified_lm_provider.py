@@ -259,11 +259,14 @@ class UnifiedLMProvider:
         if not api_key:
             raise InvalidConfigError(f"API key required for provider '{provider}'")
 
-        # Use DSPy's native LM (faster than CLI, more reliable)
-        # Centralized default — DSPy's built-in 1024 truncates real-world output.
-        from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+        # Model-aware output-token ceiling (haiku=4096, sonnet=8192, etc.)
+        from Jotty.core.infrastructure.foundation.config_defaults import get_max_output_tokens
 
-        kwargs.setdefault("max_tokens", LLM_MAX_OUTPUT_TOKENS)
+        model_limit = get_max_output_tokens(resolved_model)
+        if "max_tokens" in kwargs and kwargs["max_tokens"] > model_limit:
+            kwargs["max_tokens"] = model_limit
+        else:
+            kwargs.setdefault("max_tokens", model_limit)
 
         # For Anthropic, enable structured output mode to enforce JSON
         if provider == "anthropic":
@@ -396,7 +399,7 @@ class UnifiedLMProvider:
         # temperature=1.0 or None, and max_tokens >= 16000 or None.
         import re
 
-        from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+        from Jotty.core.infrastructure.foundation.config_defaults import get_max_output_tokens
 
         is_reasoning = bool(
             re.match(
@@ -414,7 +417,10 @@ class UnifiedLMProvider:
                 max_tokens = 16000
         else:
             temperature = kwargs.pop("temperature", None)
-            max_tokens = kwargs.pop("max_tokens", LLM_MAX_OUTPUT_TOKENS)
+            model_limit = get_max_output_tokens(model)
+            max_tokens = kwargs.pop("max_tokens", model_limit)
+            if max_tokens > model_limit:
+                max_tokens = model_limit
 
         if api_format == "anthropic":
             dspy_model = f"anthropic/{model}"
@@ -591,13 +597,13 @@ class UnifiedLMProvider:
                 "models": [
                     "claude-sonnet-4-20250514",
                     "claude-opus-4-20250514",
-                    "claude-3-5-haiku-20241022",
+                    "claude-3-haiku-20240307",
                 ],
                 "default": "claude-sonnet-4-20250514",
                 "aliases": {
                     "sonnet": "claude-sonnet-4-20250514",
                     "opus": "claude-opus-4-20250514",
-                    "haiku": "claude-3-5-haiku-20241022",
+                    "haiku": "claude-3-haiku-20240307",
                 },
             },
             "openai": {

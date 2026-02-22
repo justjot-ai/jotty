@@ -80,7 +80,7 @@ class SwarmAdapter:
     @staticmethod
     def quick_swarms(
         configs: List[Tuple[str, str]],
-        model: str = "claude-3-5-haiku-20241022",
+        model: str = "claude-3-haiku-20240307",
         max_tokens: int = 200,
     ) -> List[Any]:
         """
@@ -188,7 +188,7 @@ class _QuickSwarm:
         self,
         name: str,
         system_prompt: str,
-        model: str = "claude-3-5-haiku-20241022",
+        model: str = "claude-3-haiku-20240307",
         max_tokens: int = 200,
     ) -> None:
         self.name = name

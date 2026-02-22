@@ -198,6 +198,9 @@ class SmartContextManager:
         # Compression history for learning
         self.compression_history: List[Dict] = []
 
+        # LCM hierarchical compression: lossless content store
+        self._content_store: Dict[str, str] = {}
+
         # Overflow detection (from global_context_guard)
         self.overflow_detector = OverflowDetector(max_tokens)
 
@@ -698,11 +701,11 @@ class SmartContextManager:
 
     def compress_parts(self, parts: List[str], max_total_chars: int = 8000) -> List[str]:
         """
-        Fair-share multi-source compression.
+        Fair-share multi-source compression with LCM hierarchical pointers.
 
         Divides the character budget equally across parts, then compresses
-        any part that exceeds its share by keeping start + end and marking
-        the middle as compressed.
+        any part that exceeds its share using hierarchical compression
+        (summary + lossless pointer to original stored in _content_store).
 
         Args:
             parts: List of text parts to compress.
@@ -720,20 +723,31 @@ class SmartContextManager:
 
         per_part_budget = max_total_chars // len(parts)
         compressed_parts = []
-        for p in parts:
+        for idx, p in enumerate(parts):
             if len(p) <= per_part_budget:
                 compressed_parts.append(p)
             else:
-                keep = max(100, per_part_budget)
-                half = keep // 2
-                compressed_parts.append(p[:half] + "\n[...compressed...]\n" + p[-half:])
+                chunk_id = f"ctx_{idx}_{id(p) % 10000}"
+                summary = ctx_utils.hierarchical_compress(p, chunk_id, self._content_store)
+                compressed_parts.append(summary)
 
         logger.debug(
             f"Context budget: compressed {total_chars} -> "
             f"{sum(len(p) for p in compressed_parts)} chars "
-            f"(budget: {max_total_chars})"
+            f"(budget: {max_total_chars}, store: {len(self._content_store)} entries)"
         )
         return compressed_parts
+
+    def retrieve_full_content(self, content_id: str) -> Optional[str]:
+        """Retrieve full original content by its hierarchical compression ID.
+
+        Returns None if the content_id is not found in the store.
+        """
+        return self._content_store.get(content_id)
+
+    def clear_content_store(self) -> None:
+        """Clear the hierarchical compression content store."""
+        self._content_store.clear()
 
     def estimate_tokens(self, text: str) -> int:
         """Estimate token count using shared utility."""

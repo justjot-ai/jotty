@@ -216,10 +216,11 @@ class SemanticEmbedder:
         emb2 = self.embed(text2)
 
         if NUMPY_AVAILABLE and self.model:
-            # Cosine similarity
-            dot = np.dot(emb1, emb2)  # type: ignore[name-defined]
-            norm1 = np.linalg.norm(emb1)  # type: ignore[name-defined]
-            norm2 = np.linalg.norm(emb2)  # type: ignore[name-defined]
+            import numpy as np  # type: ignore[import-untyped]
+
+            dot = np.dot(emb1, emb2)
+            norm1 = np.linalg.norm(emb1)
+            norm2 = np.linalg.norm(emb2)
             if norm1 > 0 and norm2 > 0:
                 return float(dot / (norm1 * norm2))
             return 0.0

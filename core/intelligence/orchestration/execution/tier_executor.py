@@ -357,7 +357,11 @@ class TierExecutor:
         self.config = config or ExecutionConfig()
         self._registry: Optional[Any] = registry
         self._provider: Optional[Any] = provider
-        self._detector = TierDetector(enable_llm_fallback=True)
+        # CogRouter: try to wire grouped baseline for learned tier routing
+        self._grouped_baseline = self._load_grouped_baseline()
+        self._detector = TierDetector(
+            enable_llm_fallback=True, grouped_baseline=self._grouped_baseline
+        )
 
         # Lazy-loaded components
         self._planner = None
@@ -449,6 +453,34 @@ class TierExecutor:
         if self._complexity_gate is None:
             self._complexity_gate = ComplexityGate()  # type: ignore[assignment]
         return self._complexity_gate
+
+    # =========================================================================
+    # COGROUTER: LEARNED TIER ROUTING
+    # =========================================================================
+
+    @staticmethod
+    def _load_grouped_baseline() -> Optional[Any]:
+        """Load GroupedValueBaseline for CogRouter learned tier routing."""
+        try:
+            from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+            from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+
+            config = SwarmConfig()
+            learner = TDLambdaLearner(config)
+            return learner.grouped_baseline
+        except Exception:
+            return None
+
+    def _record_tier_outcome(self, goal: str, tier: ExecutionTier, success: bool) -> None:
+        """CogRouter: record tier execution outcome for future routing."""
+        if self._grouped_baseline is None:
+            return
+        try:
+            task_type = self._detector._infer_task_type_simple(goal.lower())
+            reward = 1.0 if success else 0.0
+            self._grouped_baseline.update_tier(tier.name, task_type, reward)
+        except Exception as e:
+            logger.debug(f"Tier outcome recording failed: {e}")
 
     # =========================================================================
     # COMPONENT FACTORIES
@@ -643,6 +675,9 @@ class TierExecutor:
                 error=result.error,
                 metadata={"goal": goal[:200]},
             )
+
+            # CogRouter: record tier outcome for learned routing
+            self._record_tier_outcome(goal, config.tier, result.success)
 
             logger.info(f"Execution complete: {result}")
             return result
@@ -892,28 +927,28 @@ class TierExecutor:
         if status_callback:
             status_callback("direct", "Discovering skills...")
 
-        # For fact-retrieval tasks, force essential research tools
-        # The default discovery returns irrelevant skills (mindmap, slides, etc.)
+        # Always discover tools relevant to the task
+        discovery = self.registry.discover_for_task(goal)
+        raw_skills = discovery.get("skills", [])[:5]
+        skill_names = [s["name"] if isinstance(s, dict) else s for s in raw_skills]
+
+        # For fact-retrieval tasks, merge in essential research tools
         if kwargs.get("_intent") == "fact_retrieval":
-            # GAIA/fact-retrieval tasks need: search, PDF reading, calculator, files, browser automation
-            # Top performers (75%+) use: multi-agent architecture, browser interaction, PDF parsing
-            skill_names = [
-                "web-search",  # Web search + fetch_webpage_tool for PDFs
-                "web-scraper",  # Structured data extraction from HTML/tables
-                "browser-automation",  # Form filling, JS execution, table extraction
-                "document-converter",  # PDF/doc conversion
-                "pdf-tools",  # Advanced PDF parsing and text extraction
-                "math-toolkit",  # Mathematical calculations
-                "file-operations",  # File I/O
-                "openai-whisper-api",  # Audio transcription for tasks with .mp3
-                "youtube-downloader",  # YouTube transcript download for video tasks (CORRECT NAME!)
+            essential = [
+                "web-search",
+                "web-scraper",
+                "browser-automation",
+                "document-converter",
+                "pdf-tools",
+                "math-toolkit",
+                "file-operations",
+                "openai-whisper-api",
+                "youtube-downloader",
             ]
-            logger.info(f"Using curated tools for fact-retrieval: {skill_names}")
-        else:
-            # Normal discovery for other task types
-            discovery = self.registry.discover_for_task(goal)
-            raw_skills = discovery.get("skills", [])[:5]
-            skill_names = [s["name"] if isinstance(s, dict) else s for s in raw_skills]
+            for skill in essential:
+                if skill not in skill_names:
+                    skill_names.append(skill)
+            logger.info(f"Fact-retrieval tools (discovered + essential): {skill_names}")
 
         if status_callback:
             status_callback("direct", f"Found {len(skill_names)} skills")
@@ -966,7 +1001,7 @@ class TierExecutor:
         # This ensures GAIA benchmark gets "79" not "The answer is 79 because..."
         if kwargs.get("_intent") == "fact_retrieval" and len(output) > 100:
             # Response is too verbose for a fact answer - extract the actual answer
-            extraction_prompt = """Extract ONLY the final answer from this response. Return just the answer with no explanation.
+            extraction_prompt = f"""Extract ONLY the final answer from this response. Return just the answer with no explanation.
 
 Response: {output}
 

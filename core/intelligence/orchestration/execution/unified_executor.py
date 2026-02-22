@@ -763,7 +763,14 @@ The user has requested {section_name} visualization format. You MUST:
                     if content:
                         messages.append({"role": role, "content": content})
 
-            # Add current task as user message
+            # Add current task as user message (validate non-empty)
+            if not task or not task.strip():
+                return LLMExecutionResult(
+                    content="Please provide a message or question. I'm ready to help!",
+                    tool_results=[],
+                    steps=["input_validation"],
+                    sections=[],
+                )
             messages.append({"role": "user", "content": task})
 
             # 3. Multi-turn tool calling loop

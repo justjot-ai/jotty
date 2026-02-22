@@ -54,8 +54,8 @@ class JottyDefaults:
     MODEL_OPUS: str = "claude-opus-4-20250514"
     """Full Anthropic Opus model identifier."""
 
-    MODEL_HAIKU: str = "claude-3-5-haiku-20241022"
-    """Full Anthropic Haiku model identifier."""
+    MODEL_HAIKU: str = "claude-3-haiku-20240307"
+    """Full Anthropic Haiku model identifier (3.5-haiku EOL 2026-02-19)."""
 
     MODEL_OPENAI_DEFAULT: str = "gpt-4o"
     """Default OpenAI model."""
@@ -80,16 +80,11 @@ class JottyDefaults:
     """Temperature for deterministic tasks (classification, routing)."""
 
     LLM_MAX_OUTPUT_TOKENS: int = 8192
-    """Max tokens the LLM may generate per response.
+    """Fallback max output tokens when no model-specific limit is known.
 
-    Raised from 4096 to 8192 — long content tasks (guides, reports, code)
-    were being truncated. Claude Sonnet supports up to 8192.
-    Single source of truth — every LM creation path should reference this
-    instead of hardcoding 4096/1024/8192.  DSPy's built-in default is only
-    1024, which truncates most real-world outputs (reports, code, analysis).
-
-    Override per-call when you genuinely need a different limit (e.g. the
-    ValidationGate classifier only needs ~10 tokens).
+    Prefer ``get_max_output_tokens(model)`` over using this directly — it
+    returns the correct ceiling for each model.  This constant is kept for
+    backward compatibility and as the dictionary's default fallback.
     """
 
     LLM_PLANNING_MAX_TOKENS: int = 4096
@@ -391,6 +386,45 @@ MODEL_ALIASES = {
     "haiku": DEFAULTS.MODEL_HAIKU,
 }
 
+# Per-model max output token limits.
+# Keys: full model names AND short aliases so callers can pass either.
+MODEL_MAX_OUTPUT_TOKENS: dict[str, int] = {
+    # Anthropic
+    DEFAULTS.MODEL_SONNET: 8192,
+    DEFAULTS.MODEL_OPUS: 8192,
+    DEFAULTS.MODEL_HAIKU: 4096,
+    "sonnet": 8192,
+    "opus": 8192,
+    "haiku": 4096,
+    # OpenAI
+    DEFAULTS.MODEL_OPENAI_DEFAULT: 16384,
+    "gpt-4-turbo": 4096,
+    "gpt-4o-mini": 16384,
+    # Google
+    DEFAULTS.MODEL_GEMINI_DEFAULT: 8192,
+    # Groq (Llama)
+    DEFAULTS.MODEL_GROQ_DEFAULT: 8192,
+}
+
+
+def get_max_output_tokens(model: str | None = None) -> int:
+    """Return the max output token limit for *model*.
+
+    Checks ``MODEL_MAX_OUTPUT_TOKENS`` by full name, then by alias, and
+    falls back to ``LLM_MAX_OUTPUT_TOKENS`` (8192) if the model is unknown.
+    """
+    if model is None:
+        return LLM_MAX_OUTPUT_TOKENS
+    # Direct hit (full name or alias)
+    if model in MODEL_MAX_OUTPUT_TOKENS:
+        return MODEL_MAX_OUTPUT_TOKENS[model]
+    # Strip provider prefix ("anthropic/claude-..." → "claude-...")
+    bare = model.split("/", 1)[-1] if "/" in model else model
+    if bare in MODEL_MAX_OUTPUT_TOKENS:
+        return MODEL_MAX_OUTPUT_TOKENS[bare]
+    return LLM_MAX_OUTPUT_TOKENS
+
+
 # LLM defaults
 LLM_TEMPERATURE = DEFAULTS.LLM_TEMPERATURE
 LLM_TIMEOUT_SECONDS = DEFAULTS.LLM_TIMEOUT_SECONDS
@@ -413,6 +447,8 @@ __all__ = [
     "MODEL_HAIKU",
     "DEFAULT_MODEL_ALIAS",
     "MODEL_ALIASES",
+    "MODEL_MAX_OUTPUT_TOKENS",
+    "get_max_output_tokens",
     # LLM defaults
     "LLM_TEMPERATURE",
     "LLM_TIMEOUT_SECONDS",

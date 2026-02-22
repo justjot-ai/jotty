@@ -20,12 +20,18 @@ base
 
 ## Tools
 
-- **check_weather_tool**: Get current weather conditions
-  - `location` (required): City name or location (e.g., "London", "New York", "Tokyo")
+### check_weather_tool
+Get current weather conditions for any city or location.
 
-- **get_weather_forecast_tool**: Get weather forecast for next 1-3 days
-  - `location` (required): City name or location
-  - `days` (optional): Number of days (1-3, default: 3)
+**Parameters:**
+- `location` (str, required): City name or location (e.g., "London", "New York", "Tokyo")
+
+### get_weather_forecast_tool
+Get weather forecast for next 1-3 days.
+
+**Parameters:**
+- `location` (str, required): City name or location (e.g., "London", "Delhi")
+- `days` (int, optional): Number of forecast days (default: 3)
 
 ## Examples
 

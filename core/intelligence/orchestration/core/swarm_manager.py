@@ -32,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
@@ -488,6 +489,9 @@ class AgentFactory:
         try:
             if hasattr(sm, "learning") and sm.learning:
                 components = sm.learning.learning_components
+                # Include Q-predictor so runners can feed experiences
+                if sm.q_predictor is not None:
+                    components["q_predictor"] = sm.q_predictor
                 for runner in sm.runners.values():
                     runner.inject_learning(components)
                 logger.info("Learning components injected into all runners")
@@ -1536,7 +1540,11 @@ class ExecutionEngine:
             batch = []
 
             while True:
-                next_task = sm.swarm_task_board.get_next_task()
+                next_task = sm.swarm_task_board.get_next_task(
+                    q_predictor=sm.q_predictor,
+                    current_state={"goal": goal, "iteration": _iter_count},
+                    goal=goal,
+                )
                 if next_task is None:
                     break
                 # Mark as IN_PROGRESS so it's not returned again
@@ -2082,6 +2090,21 @@ class Orchestrator:
     learning = LazyComponent(lambda self: _create_learning_pipeline(self.config))
     mas_learning = LazyComponent(lambda self: _create_mas_learning(self))
 
+    # Q-learning predictor (lazy, non-fatal)
+    _Q_UNSET = object()  # sentinel: "not yet loaded"
+
+    @property
+    def q_predictor(self) -> Any:
+        """Lazy LLMQPredictor for ε-greedy task selection."""
+        if self._q_predictor is self._Q_UNSET:
+            try:
+                from Jotty.core.intelligence.learning.q_learning import LLMQPredictor
+
+                self._q_predictor = LLMQPredictor(self.config)
+            except Exception:
+                self._q_predictor = None
+        return self._q_predictor
+
     # =========================================================================
     # COMPOSED MANAGERS (has-a, not is-a) — replaces mixin inheritance
     # Each manager takes explicit dependencies instead of implicit self.xxx
@@ -2148,6 +2171,7 @@ class Orchestrator:
         self.enable_zero_config = enable_zero_config
         self.enable_lotus = enable_lotus
         self.episode_count = 0
+        self._q_predictor = Orchestrator._Q_UNSET  # Lazy-created by q_predictor property
 
         # AIOS-inspired: Concurrency control for multi-agent LLM fan-out.
         # Prevents API rate-limit errors when N agents fire in parallel.
@@ -3092,12 +3116,14 @@ class Orchestrator:
             try:
                 ctx_parts: List[str] = []
                 guidance_str = learning.build_context_string(
-                    domain=detected_domain, task_type=detected_task_type
+                    domain=detected_domain, task_type=detected_task_type, goal=goal
                 )
                 if guidance_str:
                     ctx_parts.append(guidance_str)
                 if detected_domain != "general":
-                    general_str = learning.build_context_string(domain="general", task_type="run")
+                    general_str = learning.build_context_string(
+                        domain="general", task_type="run", goal=goal
+                    )
                     if general_str and general_str != guidance_str:
                         ctx_parts.append(general_str)
                 retrieval_ctx = learning.build_retrieval_context(
@@ -3162,10 +3188,63 @@ class Orchestrator:
             success = getattr(result, "success", True) if result else False
 
             result_text = ""
+            _raw_output = None
             if isinstance(result, EpisodeResult):
-                result_text = getattr(result, "output", "") or str(result)
+                _raw_output = getattr(result, "output", None)
+                if isinstance(_raw_output, str):
+                    result_text = _raw_output
+                elif _raw_output is not None:
+                    # output may be AgenticExecutionResult — extract text from it
+                    for _attr in ("final_output", "output", "content"):
+                        _val = getattr(_raw_output, _attr, None)
+                        if isinstance(_val, str) and len(_val) > len(result_text):
+                            result_text = _val
+                        elif isinstance(_val, dict):
+                            _text = (
+                                _val.get("content", "")
+                                or _val.get("text", "")
+                                or _val.get("output", "")
+                            )
+                            if isinstance(_text, str) and len(_text) > len(result_text):
+                                result_text = _text
+                    _outputs = getattr(_raw_output, "outputs", None)
+                    if isinstance(_outputs, dict) and not result_text:
+                        for _v in _outputs.values():
+                            if isinstance(_v, str) and len(_v) > len(result_text):
+                                result_text = _v
             elif result:
-                result_text = str(result)
+                for _attr in ("final_output", "output", "content"):
+                    _val = getattr(result, _attr, None)
+                    if _val is None:
+                        continue
+                    if isinstance(_val, str):
+                        if len(_val) > len(result_text):
+                            result_text = _val
+                    elif isinstance(_val, dict):
+                        # AgenticExecutionResult.final_output is often a dict
+                        _text = (
+                            _val.get("content", "")
+                            or _val.get("text", "")
+                            or _val.get("output", "")
+                        )
+                        if isinstance(_text, str) and len(_text) > len(result_text):
+                            result_text = _text
+                        elif not result_text:
+                            result_text = json.dumps(_val, default=str)[:10000]
+                    elif isinstance(_val, list):
+                        # Concatenate list items
+                        _parts = [str(v) for v in _val if v]
+                        _text = "\n".join(_parts)
+                        if len(_text) > len(result_text):
+                            result_text = _text
+                # Also check outputs dict (common in AgenticExecutionResult)
+                _outputs = getattr(result, "outputs", None)
+                if isinstance(_outputs, dict) and not result_text:
+                    for _v in _outputs.values():
+                        if isinstance(_v, str) and len(_v) > len(result_text):
+                            result_text = _v
+            if not isinstance(result_text, str):
+                result_text = str(result_text) if result_text else ""
 
             from Jotty.core.intelligence.learning.learning_service import analyze_response
 
@@ -3181,11 +3260,13 @@ class Orchestrator:
                 **{k: v for k, v in response_analysis.items() if k != "empty"},
             }
             if result_text:
-                # Build a structural digest: first ~600 chars preserving headings/structure
                 excerpt = (
                     result_text[:600].rsplit("\n", 1)[0] if len(result_text) > 600 else result_text
                 )
                 outcome["response_excerpt"] = excerpt
+                # Store actual response content for few-shot retrieval.
+                # Retrieval depends on this key being present and non-trivial.
+                outcome["content"] = result_text[:2000]
 
             # 1. Record with rich metadata
             import uuid as _uuid
@@ -3407,14 +3488,16 @@ class Orchestrator:
 
                 # 1. Domain-specific guidance (has its own adaptive gate)
                 domain_ctx = learning.build_context_string(
-                    domain=detected_domain, task_type=detected_task_type
+                    domain=detected_domain, task_type=detected_task_type, goal=message
                 )
                 if domain_ctx:
                     ctx_parts.append(domain_ctx)
 
                 # 2. General guidance (if different domain)
                 if detected_domain != "general":
-                    general_ctx = learning.build_context_string(domain="general", task_type="run")
+                    general_ctx = learning.build_context_string(
+                        domain="general", task_type="run", goal=message
+                    )
                     if general_ctx and general_ctx != domain_ctx:
                         ctx_parts.append(general_ctx)
 
@@ -3512,6 +3595,8 @@ class Orchestrator:
                 }
                 if content:
                     outcome["response_excerpt"] = _build_response_digest(content)
+                    # Store actual content for semantic retrieval (mem0-style)
+                    outcome["content"] = content[:1500]
 
                 action_meta: Dict[str, Any] = {
                     "provider": effective_provider or "auto",
@@ -3744,7 +3829,13 @@ class Orchestrator:
         if status_callback:
             status_callback("swarm", f"Executing {swarm.__class__.__name__}")
 
-        return await swarm.execute(task=goal, **kwargs)
+        # Strip orchestrator-internal kwargs that swarm templates don't accept
+        swarm_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k not in ("learning_context", "status_callback", "session_id")
+        }
+        return await swarm.execute(task=goal, **swarm_kwargs)
 
     async def _run_swarm_stream(
         self,

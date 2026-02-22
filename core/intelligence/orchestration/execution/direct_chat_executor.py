@@ -41,7 +41,7 @@ class DirectChatExecutor:
     No analysis, no tools, no complexity - just a single LLM call.
     """
 
-    def __init__(self, model: str = "claude-3-5-haiku-20241022") -> None:
+    def __init__(self, model: str = "claude-3-haiku-20240307") -> None:
         """
         Initialize direct chat executor.
 

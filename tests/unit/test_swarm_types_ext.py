@@ -343,7 +343,7 @@ class TestImprovementSuggestion:
 class TestSwarmAgentConfig:
     """Test SwarmAgentConfig dataclass with __post_init__ defaults."""
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_creation_with_defaults_resolution(self, mock_defaults):
         """Test __post_init__ resolves sentinel defaults."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "claude-3-5-sonnet-20241022"
@@ -358,7 +358,7 @@ class TestSwarmAgentConfig:
         assert config.temperature == 0.7
         assert config.max_tokens == 4096
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_creation_with_explicit_values(self, mock_defaults):
         """Test explicit values are not overridden."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "claude-3-5-sonnet-20241022"
@@ -376,7 +376,7 @@ class TestSwarmAgentConfig:
         assert config.temperature == 0.5
         assert config.max_tokens == 2000
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_empty_string_model_resolved(self, mock_defaults):
         """Test empty string model is resolved to default."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "default-model"
@@ -390,7 +390,7 @@ class TestSwarmAgentConfig:
         )
         assert config.model == "default-model"
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_zero_temperature_resolved(self, mock_defaults):
         """Test 0.0 temperature is resolved to default."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -404,7 +404,7 @@ class TestSwarmAgentConfig:
         )
         assert config.temperature == 0.8
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_zero_max_tokens_resolved(self, mock_defaults):
         """Test 0 max_tokens is resolved to default."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -418,7 +418,7 @@ class TestSwarmAgentConfig:
         )
         assert config.max_tokens == 8192
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_negative_max_tokens_resolved(self, mock_defaults):
         """Test negative max_tokens is resolved to default."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -432,7 +432,7 @@ class TestSwarmAgentConfig:
         )
         assert config.max_tokens == 4096
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_with_tools_and_parameters(self, mock_defaults):
         """Test config with tools and parameters."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -449,7 +449,7 @@ class TestSwarmAgentConfig:
         assert config.parameters["param1"] == "value1"
         assert config.parameters["param2"] == 42
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_with_system_prompt(self, mock_defaults):
         """Test config with system prompt."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -463,7 +463,7 @@ class TestSwarmAgentConfig:
         )
         assert config.system_prompt == "You are a helpful assistant"
 
-    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
+    @patch("Jotty.core.infrastructure.foundation.config_defaults.DEFAULTS")
     def test_version_field(self, mock_defaults):
         """Test version field."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"

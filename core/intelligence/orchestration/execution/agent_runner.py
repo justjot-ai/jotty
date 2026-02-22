@@ -269,6 +269,7 @@ class AgentRunner:
         self._mas_learning = None
         self._metrics = None
         self._swarm_name = "orchestrator"
+        self._q_predictor = None  # Set via inject_learning or direct assignment
 
         # Get agent state tracker (creates if doesn't exist)
         if self.swarm_state_manager:
@@ -415,6 +416,8 @@ class AgentRunner:
         self._byzantine_verifier = components.get("byzantine")
         self._mas_learning = components.get("mas_learning")
         self._metrics = components.get("metrics")
+        if "q_predictor" in components:
+            self._q_predictor = components["q_predictor"]
 
     # =========================================================================
     # AGENT HOOK BRIDGE
@@ -717,6 +720,7 @@ class AgentRunner:
                 domain=_domain or "general",
                 task_type="",
                 unit_name=self.agent_name,
+                goal=goal,
             )
             if learned_ctx:
                 parts.append(f"Learned Insights:\n{learned_ctx}")
@@ -772,6 +776,16 @@ class AgentRunner:
                     parts.append(condensed)
             except Exception as e:
                 logger.debug(f"Warm-start context skipped: {e}")
+
+        # 5. Q-learning natural language lessons
+        _q_pred = getattr(self, "_q_predictor", None)
+        if _q_pred:
+            try:
+                q_ctx = _q_pred.get_learned_context({"goal": goal, "agent": self.agent_name})
+                if q_ctx:
+                    parts.append(q_ctx)
+            except Exception:
+                pass
 
         # Consecutive failure hint — tell the agent to change approach
         if self._consecutive_failures >= self._max_consecutive_before_hint:
@@ -933,15 +947,32 @@ class AgentRunner:
                     f"Learning: Updated {len(updates)} memory values (shaped={shaped_total:.3f})"
                 )
 
-        # Q-learning record
+            # Persist TD-Lambda baseline to SQLite after episode
+            try:
+                self.agent_learner._persist_baseline()
+            except Exception:
+                pass
+
+        # Q-learning record (MAS learning manager path)
         if self.learning_manager:
             try:
                 q_state = {"query": goal, "agent": self.agent_name, "success": success}
                 q_action = {"actor": self.agent_name, "task": goal[:100]}
-                q_reward = final_reward if final_reward else (1.0 if success else -0.5)
+                q_reward = final_reward if final_reward != 0.0 else (1.0 if success else -0.5)
                 self.learning_manager.record_outcome(q_state, q_action, q_reward, done=True)
             except (LearningError, KeyError, AttributeError) as e:
                 logger.debug(f"Swarm Q-learning record skipped: {e}")
+
+        # Feed Q-learning predictor if available (parallel to MAS path)
+        _q_pred = getattr(self, "_q_predictor", None)
+        if _q_pred is not None:
+            try:
+                _q_state = {"query": goal, "agent": self.agent_name, "success": success}
+                _q_action = {"actor": self.agent_name, "task": goal[:100]}
+                _q_reward = final_reward if final_reward != 0.0 else (1.0 if success else -0.5)
+                _q_pred.add_experience(_q_state, _q_action, _q_reward, done=True)
+            except Exception:
+                pass
 
         # Memory consolidation
         if self.agent_memory:

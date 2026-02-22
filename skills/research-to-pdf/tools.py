@@ -84,7 +84,12 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 "Run: python -m Jotty.cli skills install web-search"
             )
 
-        web_search_tool = web_search_skill.get_tool("web_search_tool")
+        web_search_tool = web_search_skill.get_tool("search_web_tool")
+        if not web_search_tool:
+            return tool_error(
+                "Tool 'search_web_tool' not found in web-search skill. "
+                "Available tools may have changed — check skills/web-search/tools.py"
+            )
         search_results = await web_search_tool({"query": topic, "limit": limit})
 
         if not search_results.get("success"):
@@ -146,7 +151,12 @@ Format in Markdown with clear headings."""
                 "Document converter skill not available. Install document-converter skill."
             )
 
-        doc_tool = doc_skill.get_tool("document_converter_tool")
+        doc_tool = doc_skill.get_tool("convert_to_pdf_tool")
+        if not doc_tool:
+            return tool_error(
+                "Tool 'convert_to_pdf_tool' not found in document-converter skill. "
+                "Available tools may have changed — check skills/document-converter/tools.py"
+            )
 
         # Add title and metadata to document
         import datetime
@@ -183,20 +193,26 @@ Format in Markdown with clear headings."""
         if send_telegram:
             status.emit("Sending", "📤 Sending to Telegram...")
 
-            telegram_skill = registry.get_skill("telegram-sender")
+            telegram_skill = registry.get_skill("messaging_tools") or registry.get_skill(
+                "messaging-tools"
+            )
             if not telegram_skill:
                 return tool_error(
-                    "Telegram sender skill not available. Install telegram-sender skill. "
+                    "Messaging tools skill not available. Install messaging-tools skill. "
                     "Also set TELEGRAM_TOKEN environment variable."
                 )
 
-            telegram_tool = telegram_skill.get_tool("telegram_send_tool")
+            telegram_tool = telegram_skill.get_tool("send_to_telegram_tool")
+            if not telegram_tool:
+                return tool_error(
+                    "Tool 'send_to_telegram_tool' not found in messaging-tools skill."
+                )
 
             telegram_result = await telegram_tool(
                 {
-                    "file": pdf_path,
+                    "file_path": pdf_path,
                     "chat_id": telegram_chat_id,
-                    "caption": f"📊 Research Report: {topic}",
+                    "caption": f"Research Report: {topic}",
                 }
             )
 

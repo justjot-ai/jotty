@@ -1,0 +1,153 @@
+{
+  "timestamp": "2026-02-22T21:22:25.290575",
+  "total_tests": 10,
+  "passed": 10,
+  "failed": 0,
+  "total_time_s": 765.4186682701111,
+  "results": [
+    {
+      "name": "CodingSwarm: LRU Cache",
+      "swarm": "coding",
+      "passed": true,
+      "elapsed_s": 308.00497174263,
+      "output_len": 2575,
+      "agents_detected": [],
+      "learning_recorded": true,
+      "error": "",
+      "quality_notes": [
+        "Strong output quality"
+      ],
+      "score": 7.0
+    },
+    {
+      "name": "ReviewSwarm: Security Audit",
+      "swarm": "review",
+      "passed": true,
+      "elapsed_s": 68.53714799880981,
+      "output_len": 7169,
+      "agents_detected": [],
+      "learning_recorded": false,
+      "error": "",
+      "quality_notes": [
+        "No structured formatting"
+      ],
+      "score": 6.666666666666667
+    },
+    {
+      "name": "TestingSwarm: Scheduler Tests",
+      "swarm": "testing",
+      "passed": true,
+      "elapsed_s": 55.41385579109192,
+      "output_len": 24319,
+      "agents_detected": [],
+      "learning_recorded": false,
+      "error": "",
+      "quality_notes": [
+        "No structured formatting"
+      ],
+      "score": 7.0
+    },
+    {
+      "name": "DevOpsSwarm: Payment Gateway Infra",
+      "swarm": "devops",
+      "passed": true,
+      "elapsed_s": 67.68278479576111,
+      "output_len": 30733,
+      "agents_detected": [],
+      "learning_recorded": false,
+      "error": "",
+      "quality_notes": [
+        "Strong output quality"
+      ],
+      "score": 8.0
+    },
+    {
+      "name": "IdeaWriterSwarm: Chaos Engineering Blog",
+      "swarm": "idea_writer",
+      "passed": true,
+      "elapsed_s": 77.59166979789734,
+      "output_len": 3720,
+      "agents_detected": [],
+      "learning_recorded": false,
+      "error": "",
+      "quality_notes": [
+        "High repetition detected"
+      ],
+      "score": 5.428571428571429
+    },
+    {
+      "name": "Auto-Detect: Retry Decorator",
+      "swarm": "auto",
+      "passed": true,
+      "elapsed_s": 77.31444954872131,
+      "output_len": 87387,
+      "agents_detected": [],
+      "learning_recorded": true,
+      "error": "",
+      "quality_notes": [
+        "Strong output quality"
+      ],
+      "score": 8.0
+    },
+    {
+      "name": "Auto-Detect: Architecture Analysis",
+      "swarm": "auto",
+      "passed": true,
+      "elapsed_s": 65.05589485168457,
+      "output_len": 2743,
+      "agents_detected": [],
+      "learning_recorded": true,
+      "error": "",
+      "quality_notes": [
+        "Strong output quality"
+      ],
+      "score": 9.0
+    },
+    {
+      "name": "Orchestrator.chat(): Multi-turn",
+      "swarm": "chat",
+      "passed": true,
+      "elapsed_s": 43.119004011154175,
+      "output_len": 11436,
+      "agents_detected": [],
+      "learning_recorded": false,
+      "error": "",
+      "quality_notes": [
+        "Strong output quality"
+      ],
+      "score": 10.0
+    },
+    {
+      "name": "Learning: Episode Persistence",
+      "swarm": "learning",
+      "passed": true,
+      "elapsed_s": 0.10543036460876465,
+      "output_len": 0,
+      "agents_detected": [],
+      "learning_recorded": true,
+      "error": "",
+      "quality_notes": [
+        "Episode recorded: ep_eval_test_agent_1771775545_939789",
+        "Context retrieved (53 chars)"
+      ],
+      "score": 8.0
+    },
+    {
+      "name": "Circuit Breaker: Adaptive Deferral",
+      "swarm": "infra",
+      "passed": true,
+      "elapsed_s": 0.00021338462829589844,
+      "output_len": 0,
+      "agents_detected": [],
+      "learning_recorded": false,
+      "error": "",
+      "quality_notes": [
+        "Fresh provider is healthy",
+        "Circuit opened after 2 failures",
+        "Backoff: level 1, timeout 60.0s"
+      ],
+      "score": 10.0
+    }
+  ],
+  "overall_score": 7.90952380952381
+}

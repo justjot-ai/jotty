@@ -87,6 +87,14 @@ class GroupedValueBaseline:
         # Cross-group transfer weights
         self.transfer_matrix: Dict[str, Dict[str, float]] = {}
 
+        # Per-tier success tracking (CogRouter: learned cognitive depth selection)
+        self.tier_baselines: Dict[str, Dict[str, float]] = {}  # tier -> {task_type -> EMA}
+        self.tier_counts: Dict[str, Dict[str, int]] = {}  # tier -> {task_type -> count}
+
+        # Per-agent proficiency tracking (Team of Thoughts: proficiency-scored agents)
+        self.agent_baselines: Dict[str, Dict[str, float]] = {}  # agent -> {task_type -> EMA}
+        self.agent_counts: Dict[str, Dict[str, int]] = {}  # agent -> {task_type -> count}
+
         logger.info("GroupedValueBaseline initialized (HRPO-inspired)")
 
     def get_baseline(
@@ -320,6 +328,54 @@ class GroupedValueBaseline:
         baseline = self.get_baseline(task_type)
         return reward - baseline
 
+    # =========================================================================
+    # TIER SUCCESS TRACKING (CogRouter paper)
+    # =========================================================================
+
+    def update_tier(self, tier: str, task_type: str, success: float) -> None:
+        """Update tier success baseline for a task type (EMA)."""
+        if tier not in self.tier_baselines:
+            self.tier_baselines[tier] = {}
+            self.tier_counts[tier] = {}
+        old = self.tier_baselines[tier].get(task_type, 0.5)
+        self.tier_baselines[tier][task_type] = (1 - self.ema_alpha) * old + self.ema_alpha * success
+        self.tier_counts[tier][task_type] = self.tier_counts[tier].get(task_type, 0) + 1
+
+    def get_tier_success(self, tier: str, task_type: str) -> Optional[Tuple[float, int]]:
+        """Get tier success rate and sample count for a task type.
+
+        Returns (success_rate, count) or None if no data.
+        """
+        count = self.tier_counts.get(tier, {}).get(task_type, 0)
+        if count == 0:
+            return None
+        return self.tier_baselines[tier][task_type], count
+
+    # =========================================================================
+    # AGENT PROFICIENCY TRACKING (Team of Thoughts paper)
+    # =========================================================================
+
+    def update_agent(self, agent: str, task_type: str, reward: float) -> None:
+        """Update agent proficiency baseline for a task type (EMA)."""
+        if agent not in self.agent_baselines:
+            self.agent_baselines[agent] = {}
+            self.agent_counts[agent] = {}
+        old = self.agent_baselines[agent].get(task_type, 0.5)
+        self.agent_baselines[agent][task_type] = (
+            1 - self.ema_alpha
+        ) * old + self.ema_alpha * reward
+        self.agent_counts[agent][task_type] = self.agent_counts[agent].get(task_type, 0) + 1
+
+    def get_agent_proficiency(self, agent: str, task_type: str) -> Optional[Tuple[float, int]]:
+        """Get agent proficiency and sample count for a task type.
+
+        Returns (proficiency, count) or None if no data.
+        """
+        count = self.agent_counts.get(agent, {}).get(task_type, 0)
+        if count == 0:
+            return None
+        return self.agent_baselines[agent][task_type], count
+
     def get_statistics(self) -> Dict[str, Any]:
         """Get grouped learning statistics."""
         return {
@@ -341,6 +397,10 @@ class GroupedValueBaseline:
             "group_counts": dict(self.group_counts),
             "domain_baselines": dict(self.domain_baselines),
             "ema_alpha": self.ema_alpha,
+            "tier_baselines": {k: dict(v) for k, v in self.tier_baselines.items()},
+            "tier_counts": {k: dict(v) for k, v in self.tier_counts.items()},
+            "agent_baselines": {k: dict(v) for k, v in self.agent_baselines.items()},
+            "agent_counts": {k: dict(v) for k, v in self.agent_counts.items()},
         }
 
     @classmethod
@@ -350,6 +410,10 @@ class GroupedValueBaseline:
         instance.group_baselines = dict(data.get("group_baselines", {}))
         instance.group_counts = dict(data.get("group_counts", {}))
         instance.domain_baselines = dict(data.get("domain_baselines", {}))
+        instance.tier_baselines = {k: dict(v) for k, v in data.get("tier_baselines", {}).items()}
+        instance.tier_counts = {k: dict(v) for k, v in data.get("tier_counts", {}).items()}
+        instance.agent_baselines = {k: dict(v) for k, v in data.get("agent_baselines", {}).items()}
+        instance.agent_counts = {k: dict(v) for k, v in data.get("agent_counts", {}).items()}
         return instance
 
 
@@ -395,6 +459,9 @@ class TDLambdaLearner:
         # DrZero HRPO-style grouped learning
         self.grouped_baseline = GroupedValueBaseline(config)
 
+        # Try to restore persisted baseline from SQLite
+        self._try_restore_baseline()
+
         # =====================================================================
         # PREDICTIVE MAINTENANCE: Tool Reliability Tracking
         # =====================================================================
@@ -405,6 +472,50 @@ class TDLambdaLearner:
         self.tool_failure_threshold = 0.75  # Alert if success rate < 75%
         self.tool_degraded_threshold = 0.85  # Warning if success rate < 85%
         self.min_tool_samples = 5  # Need 5+ samples before making judgements
+
+    def _try_restore_baseline(self) -> None:
+        """Restore GroupedValueBaseline from SQLite (non-fatal)."""
+        try:
+            import json
+
+            from .learning_store import LearningStore
+
+            store = LearningStore.get_instance()
+            ve = store.get_value("__grouped_baseline__", "td_lambda", "__meta__")
+            if ve and ve.lessons:
+                data = (
+                    json.loads(ve.lessons[0]) if isinstance(ve.lessons[0], str) else ve.lessons[0]
+                )
+                self.grouped_baseline = GroupedValueBaseline.from_dict(data, self.config)
+                logger.debug(
+                    f"Restored GroupedValueBaseline: "
+                    f"{len(self.grouped_baseline.group_baselines)} groups"
+                )
+        except Exception as e:
+            logger.debug(f"Baseline restore skipped: {e}")
+
+    def _persist_baseline(self) -> None:
+        """Persist GroupedValueBaseline to SQLite (non-fatal, ~0.1ms)."""
+        try:
+            import json
+
+            from .learning_store import LearningStore, ValueEstimate
+
+            store = LearningStore.get_instance()
+            baseline_data = self.grouped_baseline.to_dict()
+            store.save_value(
+                ValueEstimate(
+                    state_key="__grouped_baseline__",
+                    action_key="td_lambda",
+                    domain="__meta__",
+                    value=0.0,
+                    td_error=0.0,
+                    update_count=sum(self.grouped_baseline.group_counts.values()),
+                    lessons=[json.dumps(baseline_data)],
+                )
+            )
+        except Exception:
+            pass
 
     def start_episode(self, goal: str, task_type: str = "", domain: str = "") -> None:
         """

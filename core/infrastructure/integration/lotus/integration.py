@@ -126,10 +126,12 @@ def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple: 
 
     # Import ValidationResult for creating skip results
     try:
-        from ..foundation.data_structures import (  # type: ignore[import-not-found]
+        from Jotty.core.infrastructure.foundation.types.enums import (  # type: ignore[import-not-found]
             OutputTag,
-            ValidationResult,
             ValidationRound,
+        )
+        from Jotty.core.infrastructure.foundation.types.validation_types import (  # type: ignore[import-not-found]
+            ValidationResult,
         )
     except ImportError:
         logger.warning(

@@ -779,6 +779,7 @@ class LearningService:
 
         # Background LLM judge tasks (fire-and-forget)
         self._judge_tasks: set = set()
+        self._judged_episodes: set = set()  # Dedup: episode IDs already judged or in-flight
 
         logger.info("LearningService initialized")
 
@@ -1477,7 +1478,9 @@ class LearningService:
     # BUILD CONTEXT — Generate learning context string for agent prompts
     # =========================================================================
 
-    def build_context_string(self, domain: str, task_type: str = "", unit_name: str = "") -> str:
+    def build_context_string(
+        self, domain: str, task_type: str = "", unit_name: str = "", goal: str = ""
+    ) -> str:
         """
         Build learning context — ADAPTIVE: only inject when there's
         a real signal to give. Silence when the model is already succeeding.
@@ -1501,16 +1504,20 @@ class LearningService:
                     related_guidance.get("has_learning")
                     and related_guidance.get("total_episodes", 0) >= 2
                 ):
-                    # Borrow patterns from related domain
+                    # Borrow patterns from related domain, adapting language
                     related_patterns = related_guidance.get("patterns", [])
                     if related_patterns:
-                        hints = [
-                            p["recommendation"]
-                            for p in related_patterns[:3]
-                            if p.get("recommendation")
-                        ]
+                        hints = []
+                        for p in related_patterns[:3]:
+                            rec = p.get("recommendation", "")
+                            if not rec:
+                                continue
+                            # Adapt "For X tasks:" to target domain
+                            if rec.startswith(f"For {related} tasks:"):
+                                rec = f"For {domain} tasks:" + rec[len(f"For {related} tasks:") :]
+                            hints.append(rec)
                         if hints:
-                            return f"[Cross-domain guidance from {related}]\n" + "\n".join(
+                            return f"[Guidance adapted from {related} experience]\n" + "\n".join(
                                 f"  - {h}" for h in hints
                             )
                     break
@@ -1527,100 +1534,83 @@ class LearningService:
         if not has_failures and not is_cold_start:
             return self._maintenance_guidance(domain, task_type)
 
+        # ── Strategy ──────────────────────────────────────────────
+        # Prioritise CONCRETE examples (few-shot retrieval) over abstract
+        # patterns.  Abstract guidance is cheap filler that eats the token
+        # budget; a real excerpt of a high-quality prior response is what
+        # actually shifts model behaviour.
+        #
+        # Budget: 1500 chars total (~375 tokens).  Retrieval gets up to
+        # 1200 chars; abstract guidance + failure hints share the rest.
+
+        MAX_TOTAL = 1500
+        MAX_RETRIEVAL = 1200
+        MAX_ABSTRACT = MAX_TOTAL - MAX_RETRIEVAL  # 300 chars
+
+        # ── 1. Concrete few-shot retrieval (highest-impact signal) ────
+        retrieval = ""
+        try:
+            retrieval = self.build_retrieval_context(domain, task_type, goal=goal) or ""
+            if retrieval and len(retrieval) < 100:
+                retrieval = ""
+        except Exception:
+            pass
+
+        # ── 2. Abstract guidance (compact) ────────────────────────────
         parts: List[str] = []
+        best = self.get_best_approach_for_domain(domain, task_type)
 
-        if has_early_failures:
-            # We have failures during cold start — provide corrective guidance
-            # from the failures themselves, not just from successes.
+        if best:
+            feats = best.get("structural_features", [])
+            if feats:
+                parts.append(f"[Proven {domain} approach: {', '.join(feats[:5])}]")
+
+        if has_failures or has_early_failures:
             failures = guidance.get("failure_analysis", [])
             if failures:
-                parts.append(
-                    f"[IMPORTANT — Prior attempts at similar {domain} tasks "
-                    f"scored poorly ({rate:.0%} success across {total} attempts). "
-                    f"Common issues:]"
-                )
-                for f in failures[:3]:
+                seen_descs: set = set()
+                unique_failures: list = []
+                for f in failures:
                     desc = f.get("description", f.get("error_type", ""))
-                    if desc:
-                        parts.append(f"  - {desc}")
-                parts.append(
-                    "Ensure your response is comprehensive with detailed "
-                    "implementations, formal proofs, and thorough test cases."
-                )
-
-            # Also include best approach if any successes exist
-            best = self.get_best_approach_for_domain(domain, task_type)
-            if best:
-                feats = best.get("structural_features", [])
-                wc = (best.get("action") or {}).get("output_length", 0)
-                if feats or wc:
-                    hint_parts = []
-                    if feats:
-                        hint_parts.append(f"Include: {', '.join(feats[:5])}")
-                    if wc:
-                        hint_parts.append(f"Target ~{wc} chars")
-                    parts.append(f"[Successful approach: {'; '.join(hint_parts)}]")
-
-        elif is_cold_start:
-            best = self.get_best_approach_for_domain(domain, task_type)
-            if best:
-                hints = []
-                if best.get("outline"):
-                    hints.append(best["outline"][:300])
-                feats = best.get("structural_features", [])
-                if feats:
-                    hints.append(f"Include: {', '.join(feats[:5])}")
-                q = best.get("quality", 0)
-                wc = (best.get("action") or {}).get("output_length", 0)
-                if wc:
-                    hints.append(f"Target ~{wc} chars (prior best was Q={q:.2f})")
-                elif q > 0:
-                    hints.append(f"Prior best quality: {q:.2f}")
-                if hints:
-                    parts.append(f"[{domain} guidance: {'; '.join(hints)}]")
-
-        if has_failures:
-            parts.append(f"[{domain}: {rate:.0%} success across {total} tasks]")
-
-            # Corrective: what failed
-            failures = guidance.get("failure_analysis", [])
-            if failures:
-                parts.append("Common failure modes:")
-                for f in failures[:3]:
-                    desc = f.get("description", f.get("error_type", ""))
-                    if desc:
+                    if desc and desc not in seen_descs:
+                        seen_descs.add(desc)
+                        unique_failures.append(desc[:100])
+                if unique_failures:
+                    parts.append(f"Gaps to address ({rate:.0%} success, {total} tasks):")
+                    for desc in unique_failures[:2]:
                         parts.append(f"  - {desc}")
 
-            # Positive: what worked (concrete template from best episode)
-            best = self.get_best_approach_for_domain(domain, task_type)
-            if best and best.get("quality", 0) >= 0.5:
-                hints = []
-                feats = best.get("structural_features", [])
-                if feats:
-                    hints.append(f"Use: {', '.join(feats[:6])}")
-                wc = (best.get("action") or {}).get("output_length", 0)
-                if wc:
-                    hints.append(f"Aim for ~{wc} chars")
-                if hints:
-                    parts.append(f"Successful approach: {'; '.join(hints)}")
-
-        # Include per-(state,action) lessons from value estimates
+        # Per-(state,action) lessons
         try:
             lessons = self._store.get_lessons(
                 domain=domain,
                 unit_name=unit_name if unit_name else None,
-                limit=5,
+                limit=3,
             )
             if lessons:
-                parts.append("Prior lessons:")
-                for lesson in lessons:
-                    parts.append(f"  {lesson}")
+                for lesson in lessons[:2]:
+                    parts.append(f"  - {lesson}")
         except Exception:
             pass
 
-        if not parts:
+        abstract = "\n".join(parts)
+        if len(abstract) > MAX_ABSTRACT:
+            abstract = abstract[:MAX_ABSTRACT]
+
+        # ── 3. Assemble: retrieval first, then abstract ───────────────
+        sections = []
+        if retrieval:
+            sections.append(retrieval[:MAX_RETRIEVAL])
+        if abstract:
+            sections.append(abstract)
+
+        if not sections:
             return ""
-        return "\n".join(parts)
+
+        result = "\n".join(sections)
+        if len(result) > MAX_TOTAL:
+            result = result[:MAX_TOTAL]
+        return result
 
     @staticmethod
     def _bootstrap_guidance(domain: str, task_type: str = "") -> str:
@@ -1746,7 +1736,11 @@ class LearningService:
                 approach["structural_features"].append("section headings")
             if outcome.get("has_citations"):
                 approach["structural_features"].append("cited references")
-            if outcome.get("has_math"):
+            if outcome.get("has_math") and domain not in (
+                "coding",
+                "algorithms",
+                "compiler_design",
+            ):
                 approach["structural_features"].append("math formulations")
             if outcome.get("has_table"):
                 approach["structural_features"].append("comparison tables")
@@ -1777,17 +1771,10 @@ class LearningService:
         except RuntimeError:
             return  # No event loop — skip
 
-        # Dedup: skip if already judged
-        try:
-            conn = self._store._get_conn()
-            row = conn.execute(
-                "SELECT 1 FROM episodes WHERE episode_id=? AND outcome LIKE '%llm_judged%'",
-                (episode_id,),
-            ).fetchone()
-            if row:
-                return
-        except Exception:
-            pass
+        # Dedup: skip if already judged or in-flight
+        if episode_id in self._judged_episodes:
+            return
+        self._judged_episodes.add(episode_id)
 
         async def _judge_and_update() -> None:
             try:
@@ -1796,12 +1783,11 @@ class LearningService:
                     # Blend: 60% LLM judge, 40% heuristic
                     blended = 0.6 * score + 0.4 * heuristic_quality
                     try:
-                        conn = self._store._get_conn()
-                        conn.execute(
-                            "UPDATE episodes SET quality=?, outcome=json_set(outcome, '$.llm_judged', 1, '$.llm_score', ?) WHERE episode_id=?",
-                            (blended, score, episode_id),
+                        self._store.update_episode_quality(
+                            episode_id,
+                            blended,
+                            outcome_patch={"llm_judged": True, "llm_score": score},
                         )
-                        conn.commit()
                         logger.debug(
                             f"LLM judge updated episode {episode_id}: "
                             f"heuristic={heuristic_quality:.2f} → blended={blended:.2f}"
@@ -1857,7 +1843,7 @@ class LearningService:
 
                 client = anthropic.Anthropic()
                 resp = client.messages.create(
-                    model="claude-3-5-haiku-20241022",
+                    model="claude-3-haiku-20240307",
                     max_tokens=64,
                     messages=[{"role": "user", "content": p}],
                 )
@@ -2265,10 +2251,30 @@ class LearningService:
         if not episodes:
             return []
 
-        # Score episodes by quality and TF-IDF cosine relevance to goal
+        # Pre-filter: only keep episodes that have retrievable content.
+        # Old episodes without stored content are useless for few-shot learning.
+        episodes = [
+            ep
+            for ep in episodes
+            if ep.outcome
+            and (
+                any(
+                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 100
+                    for k in ("content", "response", "response_excerpt")
+                )
+                or (ep.context.get("goal") or ep.context.get("message"))
+            )
+        ]
+
+        if not episodes:
+            return []
+
+        # Score episodes by quality, TF-IDF cosine relevance, and recency
+        import time as _time
+
+        now = _time.time()
         scored = []
         if goal:
-            # Build TF-IDF vectors for better semantic matching
             import math as _math
             from collections import Counter as _Counter
 
@@ -2370,31 +2376,49 @@ class LearningService:
                 doc_tf = _Counter(doc_tokens_list[i])
                 doc_vec = _tfidf_vec(doc_tf)
                 relevance = _cosine(goal_vec, doc_vec)
-                score = ep.quality * 0.5 + relevance * 0.5
+                # Recency bonus: episodes from last hour get +0.15, decaying over 24h
+                age_h = max((now - ep.timestamp) / 3600, 0.01)
+                recency = 0.15 * _math.exp(-age_h / 6)
+                # Has-content bonus: episodes with actual stored content get +0.1
+                has_content = any(
+                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
+                    for k in ("content", "response_excerpt")
+                )
+                content_bonus = 0.1 if has_content else 0.0
+                score = ep.quality * 0.4 + relevance * 0.4 + recency + content_bonus
                 scored.append((score, ep))
         else:
             for ep in episodes:
                 if ep.quality <= 0:
                     continue
-                scored.append((ep.quality, ep))
+                age_h = max((now - ep.timestamp) / 3600, 0.01)
+                recency = 0.15 * _math.exp(-age_h / 6)
+                has_content = any(
+                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
+                    for k in ("content", "response_excerpt")
+                )
+                content_bonus = 0.1 if has_content else 0.0
+                scored.append((ep.quality * 0.75 + recency + content_bonus, ep))
 
         scored.sort(key=lambda x: x[0], reverse=True)
 
         results = []
         for score, ep in scored[:top_k]:
             outcome = ep.outcome or {}
-            # Try multiple keys where callers store response content
-            excerpt = (
-                outcome.get("response_excerpt", "")
-                or outcome.get("content", "")
-                or outcome.get("response", "")
-                or outcome.get("result", "")
-            )
-            # Truncate long content to a useful excerpt
-            if isinstance(excerpt, str) and len(excerpt) > 500:
-                excerpt = excerpt[:500] + "..."
+            # Try multiple keys where callers store response content.
+            # Prefer actual response content over structural digest.
+            actual_content = ""
+            for _ck in ("content", "response", "result"):
+                _cv = outcome.get(_ck, "")
+                if isinstance(_cv, str) and len(_cv) > 200:
+                    actual_content = _cv[:1200]
+                    break
+
+            excerpt = outcome.get("response_excerpt", "") or actual_content
+            if isinstance(excerpt, str) and len(excerpt) > 1000:
+                excerpt = excerpt[:1000] + "..."
+
             if not excerpt:
-                # Fall back: build excerpt from context goal if no response stored
                 goal_text = str(ep.context.get("goal", ep.context.get("message", "")))
                 if not goal_text:
                     continue
@@ -2407,25 +2431,7 @@ class LearningService:
                     "quality": ep.quality,
                     "relevance_score": round(score, 3),
                     "excerpt": excerpt,
-                    "structural_features": {
-                        k: outcome.get(k)
-                        for k in [
-                            "has_code",
-                            "code_block_count",
-                            "has_class",
-                            "has_tests",
-                            "assertion_count",
-                            "has_headings",
-                            "has_citations",
-                            "has_math",
-                            "has_conclusion",
-                            "word_count",
-                            "goal_coverage",
-                            "reasoning_density",
-                            "example_count",
-                        ]
-                        if outcome.get(k)
-                    },
+                    "actual_content": actual_content[:1200] if actual_content else "",
                     "goal_preview": str(ep.context.get("goal", ep.context.get("message", "")))[
                         :100
                     ],
@@ -2444,7 +2450,7 @@ class LearningService:
 
         Gate: fires when there are episodes to learn from (any success).
         """
-        similar = self.retrieve_similar_responses(domain, task_type, goal, top_k=2)
+        similar = self.retrieve_similar_responses(domain, task_type, goal, top_k=3)
         if not similar:
             return ""
 
@@ -2453,57 +2459,27 @@ class LearningService:
         if not good:
             return ""
 
-        parts: List[str] = []
-        for i, resp in enumerate(good, 1):
-            excerpt = resp.get("excerpt", "")
-            if not excerpt or len(excerpt) < 50:
-                continue
-
-            # Build structural description from features
-            feats = resp.get("structural_features", {})
-            feat_list = []
-            if feats.get("has_code"):
-                n_blocks = feats.get("code_block_count", 0)
-                feat_list.append(f"{n_blocks} code blocks" if n_blocks else "code blocks")
-            if feats.get("has_class"):
-                feat_list.append("class definitions")
-            if feats.get("has_tests"):
-                n_asserts = feats.get("assertion_count", 0)
-                feat_list.append(
-                    f"test functions ({n_asserts} assertions)" if n_asserts else "test functions"
-                )
-            if feats.get("has_math"):
-                feat_list.append("math formulas")
-            if feats.get("has_headings"):
-                feat_list.append("section headings")
-            if feats.get("has_citations"):
-                feat_list.append("citations")
-            if feats.get("has_conclusion"):
-                feat_list.append("summary/conclusion")
-            if feats.get("reasoning_density", 0) >= 1.0:
-                feat_list.append("detailed reasoning")
-            if feats.get("example_count", 0) >= 2:
-                feat_list.append("concrete examples")
-            if feats.get("word_count"):
-                feat_list.append(f"~{feats['word_count']} words")
-
-            parts.append(f"[EXAMPLE OF A HIGH-QUALITY RESPONSE (Q={resp['quality']:.2f})]")
-            if resp.get("goal_preview"):
-                parts.append(f"Task: {resp['goal_preview']}")
-            if feat_list:
-                parts.append(f"Structure: {', '.join(feat_list)}")
-            # Inject actual excerpt as concrete few-shot example
-            parts.append(f"Response excerpt:\n{excerpt[:1200]}")
-            if len(excerpt) > 1200:
-                parts.append("(...)")
-            parts.append("")  # blank line between examples
-
-        if not parts:
+        # Pick the single best by combined quality + relevance.
+        best_resp = max(good, key=lambda r: r.get("relevance_score", r["quality"]))
+        excerpt = best_resp.get("excerpt", "")
+        if not excerpt or len(excerpt) < 50:
             return ""
 
-        # Add instruction to use the example as a template
-        header = "[LEARN FROM PRIOR SUCCESS — match or exceed this quality and structure]"
-        return header + "\n" + "\n".join(parts)
+        parts: List[str] = []
+        parts.append(f"[HIGH-QUALITY PRIOR RESPONSE (Q={best_resp['quality']:.2f})]")
+
+        if best_resp.get("goal_preview"):
+            parts.append(f"Task: {best_resp['goal_preview']}")
+
+        # Prefer actual response content over metadata digest.
+        # If excerpt starts with "[" it's a digest — try to find real content.
+        actual_content = best_resp.get("actual_content", "")
+        if actual_content and len(actual_content) > len(excerpt):
+            parts.append(f"Response:\n{actual_content[:1000]}")
+        else:
+            parts.append(f"Excerpt:\n{excerpt[:1000]}")
+
+        return "\n".join(parts)
 
     # =========================================================================
     # ADAPTIVE JUDGE SCHEDULING
@@ -2639,7 +2615,7 @@ class LearningService:
 
             client = anthropic.Anthropic()
             resp = client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-3-haiku-20240307",
                 max_tokens=len(uncached) * 10,
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -2690,7 +2666,14 @@ class LearningService:
         """Fast fallback when LLM is unavailable."""
         rec_lower = recommendation.lower()
         obvious = {
-            "coding": ["include code", "code examples", "use headings", "section heading"],
+            "coding": [
+                "include code",
+                "code examples",
+                "use headings",
+                "section heading",
+                "mathematical formul",
+                "include math",
+            ],
             "research": ["cite sources", "cite papers", "use headings", "references"],
             "system_design": ["use headings", "include code", "use diagrams", "code examples"],
             "economics": ["cite sources", "include math", "mathematical formul"],
@@ -3321,7 +3304,14 @@ class LearningService:
                     total_assertions += out.get("assertion_count", 0)
                 if out.get("has_headings"):
                     struct_counts["use section headings to organize"] += 1
-                if out.get("has_math"):
+                if out.get("has_math") and domain not in (
+                    "coding",
+                    "algorithms",
+                    "compiler_design",
+                ):
+                    # Skip has_math for code-heavy domains — O(n) notation triggers it
+                    # but "include mathematical formulations" is not actionable advice
+                    # for programmers.  Keep it for research/economics/data_science.
                     struct_counts["include mathematical formulations"] += 1
                 if out.get("has_citations"):
                     struct_counts["cite sources and references"] += 1

@@ -535,7 +535,7 @@ Perfect for review before test.""",
                 # Create swarms
                 swarms = SwarmAdapter.quick_swarms(
                     [(agent_name, prompt)],
-                    model=stage_config.get("model", "claude-3-5-haiku-20241022"),
+                    model=stage_config.get("model", "claude-3-haiku-20240307"),
                     max_tokens=stage_config.get(
                         "max_tokens", 2500
                     ),  # Higher default for educational content

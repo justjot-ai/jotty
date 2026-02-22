@@ -78,6 +78,48 @@ def simple_truncate(text: str, target_tokens: int, chars_per_token: int = 4) -> 
     return text[: target_chars - 50] + "\n... (content truncated to fit context) ..."
 
 
+def hierarchical_compress(
+    text: str,
+    chunk_id: str,
+    content_store: Dict[str, str],
+) -> str:
+    """LCM-inspired hierarchical compression with lossless pointers.
+
+    Instead of destroying the middle of content, generates a 1-line summary
+    (first meaningful line + stats) and stores the full original in
+    *content_store* keyed by *chunk_id*.  The summary includes a retrieval
+    pointer so the original can be recovered on demand.
+
+    Two levels only (summary ↔ original) — no recursive DAG (KISS).
+
+    Args:
+        text: Full text to compress.
+        chunk_id: Unique ID for this chunk (used as store key).
+        content_store: Mutable dict where the original is stored.
+
+    Returns:
+        A short summary string containing a retrieval pointer.
+    """
+    if not text:
+        return text
+
+    # Store original
+    content_store[chunk_id] = text
+
+    # Build 1-line summary: first non-empty line + stats
+    lines = text.split("\n")
+    first_line = ""
+    for line in lines:
+        stripped = line.strip()
+        if stripped:
+            first_line = stripped[:120]
+            break
+
+    total_lines = len(lines)
+    token_est = estimate_tokens(text)
+    return f"{first_line} " f"[{total_lines} lines, ~{token_est} tokens | retrieve:{chunk_id}]"
+
+
 def prefix_suffix_compress(text: str, target_tokens: int, chars_per_token: int = 4) -> str:
     """
     Keep start + end, compress middle.
@@ -499,6 +541,7 @@ def strip_enrichment_context(task: str) -> str:
 __all__ = [
     "estimate_tokens",
     "simple_truncate",
+    "hierarchical_compress",
     "prefix_suffix_compress",
     "structured_extract",
     "intelligent_compress",
