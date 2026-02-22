@@ -32,6 +32,7 @@ Date: February 2026
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import re
@@ -377,7 +378,9 @@ _STRUCTURE_MARKERS = re.compile(
     re.MULTILINE,
 )
 
-_CODE_BLOCK_RE = re.compile(r"```\w*\n.*?```", re.DOTALL)
+# Match fenced code blocks — also handle unclosed blocks (LLMs sometimes omit
+# the closing ```) by making the closing fence optional at end-of-string.
+_CODE_BLOCK_RE = re.compile(r"```\w*\n.*?(?:```|$)", re.DOTALL)
 _CITATION_RE = re.compile(r"\b(?:et al\.?|(?:19|20)\d{2}[a-z]?)\b")
 
 
@@ -774,6 +777,9 @@ class LearningService:
         self._auto_reflect_interval = 10  # reflect every N episodes
         self._auto_reflect_quality_threshold = 0.75  # reflect on high-quality successes too
 
+        # Background LLM judge tasks (fire-and-forget)
+        self._judge_tasks: set = set()
+
         logger.info("LearningService initialized")
 
     @classmethod
@@ -952,6 +958,12 @@ class LearningService:
                 )
             except Exception as e:
                 logger.debug(f"Auto-reflect failed: {e}")
+
+        # Fire-and-forget LLM judge for successful episodes with rich content
+        _content = outcome.get("content", "") or outcome.get("response_excerpt", "")
+        if isinstance(_content, str) and len(_content) > 500 and success:
+            _goal = str(context.get("goal", context.get("message", task_type)))
+            self.schedule_background_judge(episode_id, _goal, _content, domain, quality)
 
         logger.debug(
             f"Recorded: {unit_name} ({unit_type}) domain={domain} "
@@ -1508,13 +1520,12 @@ class LearningService:
             return self._bootstrap_guidance(domain, task_type)
 
         # ADAPTIVE GATE: if the model is already performing well in this domain,
-        # don't inject anything. Context injection hurts more than it helps
-        # when baseline quality is high.
+        # provide lightweight maintenance guidance instead of full corrective context.
         has_failures = rate < 0.90 and total >= 3
         is_cold_start = total < 3
         has_early_failures = is_cold_start and total > 0 and rate < 0.90
         if not has_failures and not is_cold_start:
-            return ""
+            return self._maintenance_guidance(domain, task_type)
 
         parts: List[str] = []
 
@@ -1674,6 +1685,21 @@ class LearningService:
         }
         return _DOMAIN_BOOTSTRAP.get(domain, "")
 
+    def _maintenance_guidance(self, domain: str, task_type: str) -> str:
+        """Lightweight hint for high-performing domains.
+
+        When the adaptive gate would have silenced all context (model already
+        performing well), provide a short structural hint from the best
+        historical episode. ~200-400 chars max.
+        """
+        best = self.get_best_approach_for_domain(domain, task_type)
+        if not best:
+            return ""
+        feats = best.get("structural_features", [])
+        if not feats:
+            return ""
+        return f"[Proven approach for {domain}: {', '.join(feats[:5])}]"[:400]
+
     # =========================================================================
     # IMPROVEMENT REPORT
     # =========================================================================
@@ -1733,6 +1759,62 @@ class LearningService:
             logger.debug(f"get_best_approach_for_domain failed: {e}")
             return None
 
+    def schedule_background_judge(
+        self,
+        episode_id: str,
+        goal: str,
+        content: str,
+        domain: str,
+        heuristic_quality: float,
+    ) -> None:
+        """Fire-and-forget LLM judge for a recorded episode.
+
+        Runs the Haiku judge in the background and updates the episode's
+        quality score + marks it as llm_judged. Deduplicates via DB check.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return  # No event loop — skip
+
+        # Dedup: skip if already judged
+        try:
+            conn = self._store._get_conn()
+            row = conn.execute(
+                "SELECT 1 FROM episodes WHERE episode_id=? AND outcome LIKE '%llm_judged%'",
+                (episode_id,),
+            ).fetchone()
+            if row:
+                return
+        except Exception:
+            pass
+
+        async def _judge_and_update() -> None:
+            try:
+                score = await self.llm_judge_quality(goal, content, domain, heuristic_quality)
+                if abs(score - heuristic_quality) > 0.01:
+                    # Blend: 60% LLM judge, 40% heuristic
+                    blended = 0.6 * score + 0.4 * heuristic_quality
+                    try:
+                        conn = self._store._get_conn()
+                        conn.execute(
+                            "UPDATE episodes SET quality=?, outcome=json_set(outcome, '$.llm_judged', 1, '$.llm_score', ?) WHERE episode_id=?",
+                            (blended, score, episode_id),
+                        )
+                        conn.commit()
+                        logger.debug(
+                            f"LLM judge updated episode {episode_id}: "
+                            f"heuristic={heuristic_quality:.2f} → blended={blended:.2f}"
+                        )
+                    except Exception as e:
+                        logger.debug(f"LLM judge DB update failed: {e}")
+            except Exception as e:
+                logger.debug(f"Background judge failed: {e}")
+
+        task = loop.create_task(_judge_and_update())
+        self._judge_tasks.add(task)
+        task.add_done_callback(self._judge_tasks.discard)
+
     async def llm_judge_quality(
         self,
         goal: str,
@@ -1752,13 +1834,8 @@ class LearningService:
             return heuristic_score
 
         try:
-            from Jotty.core.intelligence.orchestration.execution.unified_executor import (
-                ChatExecutor,
-            )
-
-            judge = ChatExecutor(
-                provider="anthropic", model="claude-sonnet-4-20250514", max_steps=1
-            )
+            import asyncio as _aio
+            import json as _json
 
             digest = self._build_judge_digest(content, goal, domain)
 
@@ -1775,10 +1852,19 @@ class LearningService:
                 f'Reply with ONLY a JSON object: {{"score": 0.XX, "reason": "one sentence"}}'
             )
 
-            result = await judge.execute(prompt)
-            text = getattr(result, "content", "")
+            def _sync_judge_call(p: str) -> str:
+                import anthropic
 
-            import json as _json
+                client = anthropic.Anthropic()
+                resp = client.messages.create(
+                    model="claude-3-5-haiku-20241022",
+                    max_tokens=64,
+                    messages=[{"role": "user", "content": p}],
+                )
+                return getattr(resp.content[0], "text", "").strip()
+
+            loop = _aio.get_running_loop()
+            text = await loop.run_in_executor(None, _sync_judge_call, prompt)
 
             # Extract JSON from response
             for line in text.split("\n"):
