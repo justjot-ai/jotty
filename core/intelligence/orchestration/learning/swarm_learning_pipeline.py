@@ -273,7 +273,7 @@ class SwarmLearningPipeline:
 
             self.mas_learning = MASLearning()
         except Exception:
-            self.mas_learning = None  # Fallback: injected from Orchestrator later
+            self.mas_learning = None  # type: ignore[assignment]  # Fallback: injected from Orchestrator later
 
         # Curriculum: self-generated training tasks (DrZero-inspired)
         self.curriculum_generator = CurriculumGenerator(
@@ -1034,43 +1034,15 @@ class SwarmLearningPipeline:
                     if isinstance(step, dict) and step.get("tool"):
                         tools_used.append(step["tool"])
 
-            # Extract actual text content from the result, handling nested
-            # AgenticExecutionResult inside EpisodeResult.output.
+            # Extract actual text content via EpisodeResult.final_output
+            # (handles str, dict, and nested output types uniformly).
             output_str = ""
-            raw_output = result.output if result.output else None
-            if isinstance(raw_output, str):
-                output_str = raw_output
-            elif raw_output is not None:
-                # AgenticExecutionResult: final_output may be dict with 'text'
-                for _attr in ("final_output", "output", "content"):
-                    _val = getattr(raw_output, _attr, None)
-                    if isinstance(_val, str) and len(_val) > len(output_str):
-                        output_str = _val
-                    elif isinstance(_val, dict):
-                        _txt = (
-                            _val.get("response", "")
-                            or _val.get("text", "")
-                            or _val.get("content", "")
-                            or _val.get("output", "")
-                        )
-                        if isinstance(_txt, str) and len(_txt) > len(output_str):
-                            output_str = _txt
-                # Check outputs dict
-                _outputs = getattr(raw_output, "outputs", None)
-                if isinstance(_outputs, dict) and not output_str:
-                    for _v in _outputs.values():
-                        if isinstance(_v, dict):
-                            _txt = (
-                                _v.get("response", "")
-                                or _v.get("text", "")
-                                or _v.get("content", "")
-                            )
-                            if isinstance(_txt, str) and len(_txt) > len(output_str):
-                                output_str = _txt
-                        elif isinstance(_v, str) and len(_v) > len(output_str):
-                            output_str = _v
-            if not output_str and raw_output is not None:
-                output_str = str(raw_output)[:2000]
+            if hasattr(result, "final_output"):
+                output_str = result.final_output
+            elif isinstance(result.output, str):
+                output_str = result.output
+            elif result.output is not None:
+                output_str = str(result.output)[:2000]
 
             pipeline_outcome: dict = {
                 "output_length": len(output_str),
