@@ -1084,6 +1084,7 @@ class Orchestrator:
         trace: bool = False,
         report_dir: str = "reports",
         status_callback: Optional[Callable] = None,
+        domain_hint: str = "",
         **kwargs: Any,
     ) -> Any:
         """
@@ -1110,6 +1111,9 @@ class Orchestrator:
                    planning document to report_dir.
             report_dir: Directory for trace reports (default: "reports")
             status_callback: Optional progress callback(stage, detail)
+            domain_hint: Override the auto-detected domain for learning.
+                         Used by probation to ensure lessons are stored under
+                         the correct domain (e.g. "mermaid", "travel").
             **kwargs: Additional arguments passed to the execution engine
 
         Returns:
@@ -1143,6 +1147,8 @@ class Orchestrator:
             status_callback = _tracer_inst.callback
 
         # Lane queue: serialize requests for the same session
+        if domain_hint:
+            kwargs["domain_hint"] = domain_hint
         session_id = kwargs.get("session_id", "")
         if session_id:
             lock = await self._session_locks.get_lock(session_id)
@@ -1215,6 +1221,9 @@ class Orchestrator:
 
         # ── PRE-EXECUTION: classify domain + learning-steered params ──
         detected_domain, detected_task_type = classify_domain(goal)
+        _domain_hint = kwargs.pop("domain_hint", "")
+        if _domain_hint:
+            detected_domain = _domain_hint
         optimal_params: Dict[str, Any] = {}
 
         if learn:

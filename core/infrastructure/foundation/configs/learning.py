@@ -1,7 +1,7 @@
 """Learning configuration — RL, exploration, credit, consolidation, protection."""
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -87,6 +87,33 @@ class LearningConfig:
     suspicion_threshold: float = 0.95
     min_rejection_rate: float = 0.05
 
+    # ── Score blending (LLM judge vs heuristic) ──
+    judge_llm_weight: float = 0.6
+    judge_heuristic_weight: float = 0.4
+    judge_blend_overrides: Optional[Dict[str, Tuple[float, float]]] = None
+
+    # ── Quality thresholds ──
+    reflexion_quality_threshold: float = 0.4
+    pattern_extract_quality_threshold: float = 0.8
+    auto_reflect_quality_threshold: float = 0.75
+
+    # ── Context budget (chars) ──
+    context_max_total: int = 2000
+    context_max_retrieval: int = 1200
+    context_max_abstract: int = 400
+
+    # ── Q-table management ──
+    plan_history_max: int = 100
+    q_staleness_halflife: int = 50
+
+    # ── Crystallization ──
+    crystal_min_episodes: int = 25
+    crystal_min_success_rate: float = 0.85
+    crystal_min_plan_consistency: float = 0.60
+    crystal_min_role_q: float = 0.65
+    crystal_min_plans: int = 8
+    crystal_staleness_failures: int = 3
+
     def __post_init__(self) -> None:
         # --- Probability / ratio fields: must be in [0, 1] ---
         _unit_fields = {
@@ -120,6 +147,14 @@ class LearningConfig:
             "min_rejection_rate": self.min_rejection_rate,
             "stall_threshold": self.stall_threshold,
             "exploration_boost_on_stall": self.exploration_boost_on_stall,
+            "judge_llm_weight": self.judge_llm_weight,
+            "judge_heuristic_weight": self.judge_heuristic_weight,
+            "reflexion_quality_threshold": self.reflexion_quality_threshold,
+            "pattern_extract_quality_threshold": self.pattern_extract_quality_threshold,
+            "auto_reflect_quality_threshold": self.auto_reflect_quality_threshold,
+            "crystal_min_success_rate": self.crystal_min_success_rate,
+            "crystal_min_plan_consistency": self.crystal_min_plan_consistency,
+            "crystal_min_role_q": self.crystal_min_role_q,
         }
         for name, val in _unit_fields.items():
             if not (0.0 <= val <= 1.0):
@@ -141,6 +176,14 @@ class LearningConfig:
             "counterfactual_samples": self.counterfactual_samples,
             "stall_detection_window": self.stall_detection_window,
             "causal_min_support": self.causal_min_support,
+            "context_max_total": self.context_max_total,
+            "context_max_retrieval": self.context_max_retrieval,
+            "context_max_abstract": self.context_max_abstract,
+            "plan_history_max": self.plan_history_max,
+            "q_staleness_halflife": self.q_staleness_halflife,
+            "crystal_min_episodes": self.crystal_min_episodes,
+            "crystal_min_plans": self.crystal_min_plans,
+            "crystal_staleness_failures": self.crystal_staleness_failures,
         }
         for name, val in _pos_int_fields.items():
             if val < 1:
@@ -159,4 +202,12 @@ class LearningConfig:
             raise ValueError(
                 f"replay_batch_size ({self.replay_batch_size}) must be "
                 f"<= episode_buffer_size ({self.episode_buffer_size})"
+            )
+
+        # --- Judge weight sum check ---
+        _weight_sum = self.judge_llm_weight + self.judge_heuristic_weight
+        if abs(_weight_sum - 1.0) > 0.01:
+            raise ValueError(
+                f"judge_llm_weight + judge_heuristic_weight must ≈ 1.0, "
+                f"got {self.judge_llm_weight} + {self.judge_heuristic_weight} = {_weight_sum}"
             )

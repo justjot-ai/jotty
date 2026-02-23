@@ -1112,6 +1112,21 @@ class AutonomousAgent(BaseAgent):
         except Exception:
             pass
 
+        # Staleness canary: track consecutive failures for crystallized configs
+        try:
+            from Jotty.core.intelligence.learning.crystallization import (
+                load as _load_crystal,
+            )
+            from Jotty.core.intelligence.learning.crystallization import (
+                record_crystallized_outcome,
+            )
+
+            if _load_crystal(task_type) is not None:
+                _plan_reward = min(len(outputs) / max(len(steps), 1), 1.0)
+                record_crystallized_outcome(task_type, success=_plan_reward > 0.5)
+        except Exception:
+            pass
+
         return outputs, skills_used, errors, warnings, execution_stopped
 
     def _verify_output_files(self, task: str, outputs: Dict[str, Any]) -> Any:

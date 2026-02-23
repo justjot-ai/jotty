@@ -49,6 +49,8 @@ class CrystallizedConfig:
     success_rate: float = 0.0
     total_episodes: int = 0
     created_at: str = ""
+    role_confidence: Dict[str, float] = field(default_factory=dict)  # role → confidence [0,1]
+    consecutive_failures: int = 0  # staleness canary counter
 
     def to_plan_hint(self) -> str:
         """Format as a planner-consumable instruction string."""
@@ -65,6 +67,10 @@ class CrystallizedConfig:
             parts.append(f"SKILL BINDINGS:\n{bindings}")
         if self.prompt_guidance:
             parts.append(f"DOMAIN LESSONS:\n{self.prompt_guidance[:800]}")
+        if self.role_confidence:
+            low = [r for r, c in self.role_confidence.items() if c < 0.7]
+            if low:
+                parts.append(f"LOW-CONFIDENCE ROLES (explore alternatives): {', '.join(low)}")
         return "\n\n".join(parts)
 
 
@@ -72,14 +78,31 @@ class CrystallizedConfig:
 # Convergence check — should we crystallize?
 # =============================================================================
 
-# Default thresholds (conservative — only crystallize when truly confident)
-DEFAULT_THRESHOLDS: Dict[str, float] = {
-    "min_episodes": 25,  # skill observations; ~5-6 real tasks
-    "min_success_rate": 0.85,
-    "min_plan_consistency": 0.60,  # top template ≥ 60% of recent plans
-    "min_role_q": 0.65,  # best skill per role Q ≥ this
-    "min_plans": 8,  # plan history entries needed
-}
+
+# Default thresholds (derived from LearningConfig — single source of truth)
+def _build_default_thresholds() -> Dict[str, float]:
+    try:
+        from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+
+        cfg = LearningConfig()
+        return {
+            "min_episodes": cfg.crystal_min_episodes,
+            "min_success_rate": cfg.crystal_min_success_rate,
+            "min_plan_consistency": cfg.crystal_min_plan_consistency,
+            "min_role_q": cfg.crystal_min_role_q,
+            "min_plans": cfg.crystal_min_plans,
+        }
+    except Exception:
+        return {
+            "min_episodes": 25,
+            "min_success_rate": 0.85,
+            "min_plan_consistency": 0.60,
+            "min_role_q": 0.65,
+            "min_plans": 8,
+        }
+
+
+DEFAULT_THRESHOLDS: Dict[str, float] = _build_default_thresholds()
 
 # Module-level aliases for backward compat
 MIN_EPISODES = int(DEFAULT_THRESHOLDS["min_episodes"])
@@ -239,9 +262,13 @@ def crystallize(
     # Extract best plan template (role sequence)
     sop_roles = stats.get("top_template", ())
 
-    # Extract role → best skill bindings
+    # Extract role → best skill bindings + confidence scores
     role_guidance = td.step_q.get_role_guidance(task_type, domain=domain)
     role_skill_map = {g["role"]: g["best_skill"] for g in role_guidance}
+    role_confidence = {}
+    for g in role_guidance:
+        q, visits = g["best_q"], g["total_visits"]
+        role_confidence[g["role"]] = round(q * min(1.0, visits / 10), 3)
 
     # Extract prompt guidance from learning service
     prompt = ""
@@ -267,6 +294,7 @@ def crystallize(
         success_rate=stats.get("success_rate", 0),
         total_episodes=stats.get("total_obs", 0),
         created_at=datetime.now().isoformat(),
+        role_confidence=role_confidence,
     )
 
     _save(config)
@@ -331,6 +359,59 @@ def decrystallize(task_type: str, domain: str = "") -> bool:
         logger.info(f"Decrystallized {key}")
         return True
     return False
+
+
+def record_crystallized_outcome(
+    task_type: str,
+    domain: str = "",
+    success: bool = True,
+    max_failures: Optional[int] = None,
+) -> Optional[str]:
+    """Record execution outcome for a crystallized config (staleness canary).
+
+    On success: resets consecutive_failures to 0.
+    On failure: increments counter. If >= max_failures, decrystallizes
+    and returns "decrystallized". Otherwise returns None.
+
+    Args:
+        task_type: The task type
+        domain: Business domain
+        success: Whether the execution succeeded
+        max_failures: Override for max consecutive failures before decrystallize.
+            Defaults to LearningConfig.crystal_staleness_failures (3).
+
+    Returns:
+        "decrystallized" if config was removed, None otherwise.
+    """
+    config = load(task_type, domain)
+    if config is None:
+        return None
+
+    if max_failures is None:
+        try:
+            from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+
+            max_failures = LearningConfig().crystal_staleness_failures
+        except Exception:
+            max_failures = 3
+
+    if success:
+        if config.consecutive_failures != 0:
+            config.consecutive_failures = 0
+            _save(config)
+        return None
+
+    config.consecutive_failures += 1
+    if config.consecutive_failures >= max_failures:
+        decrystallize(task_type, domain)
+        logger.warning(
+            f"Staleness canary: decrystallized {config.domain_key} after "
+            f"{config.consecutive_failures} consecutive failures"
+        )
+        return "decrystallized"
+
+    _save(config)
+    return None
 
 
 def list_crystallized() -> List[CrystallizedConfig]:
@@ -430,6 +511,35 @@ async def run_probation(
 
     # If user supplied explicit goals, use those; otherwise generate
     goal_queue: List[str] = list(goals) if goals else []
+
+    # Curriculum ordering: sort goals by estimated complexity (easy → hard)
+    if len(goal_queue) > 2:
+
+        def _complexity_score(goal: str) -> float:
+            score = 0.0
+            score += min(len(goal) / 500, 1.0) * 0.3
+            tech_terms = {
+                "implement",
+                "architect",
+                "optimize",
+                "distributed",
+                "concurrent",
+                "algorithm",
+                "benchmark",
+                "migrate",
+                "refactor",
+                "security",
+                "scale",
+                "integrate",
+            }
+            words = goal.lower().split()
+            score += min(sum(1 for w in words if w in tech_terms) / 3, 1.0) * 0.4
+            for phrase in ("and then", "followed by", "after that", "finally"):
+                if phrase in goal.lower():
+                    score += 0.1
+            return min(score, 1.0)
+
+        goal_queue.sort(key=_complexity_score)
 
     results: List[Dict[str, Any]] = []
     graduated_config: Optional[CrystallizedConfig] = None

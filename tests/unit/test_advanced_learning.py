@@ -119,8 +119,9 @@ class TestLLMJudge:
             verdict = judge.judge("Build API", "Here is a REST API..." * 100, 0.6)
 
         assert verdict.source == "llm"
-        # Blended: 0.7 * 0.85 + 0.3 * 0.6 = 0.775
-        assert abs(verdict.quality - 0.775) < 0.01
+        # Blended: config-driven weights (default 0.6/0.4)
+        # 0.6 * 0.85 + 0.4 * 0.6 = 0.75
+        assert abs(verdict.quality - 0.75) < 0.01
 
     @pytest.mark.unit
     def test_singleton_pattern(self):

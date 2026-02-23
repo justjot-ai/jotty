@@ -56,10 +56,18 @@ class LLMJudge:
 
     _instance: Optional["LLMJudge"] = None
 
-    def __init__(self) -> None:
+    def __init__(self, config: Any = None) -> None:
         self._lm: Any = None
         self._judge_module: Any = None
         self._init_attempts = 0
+        self._config = config
+        if self._config is None:
+            try:
+                from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+
+                self._config = LearningConfig()
+            except Exception:
+                self._config = None
 
     @classmethod
     def get_instance(cls) -> "LLMJudge":
@@ -129,8 +137,13 @@ class LLMJudge:
             llm_score = float(result.quality_score)
             llm_score = max(0.0, min(1.0, llm_score))
 
-            # Blend: 70% LLM + 30% heuristic for robustness
-            blended = 0.7 * llm_score + 0.3 * heuristic_score
+            # Blend LLM + heuristic for robustness (config-driven)
+            _w_llm = 0.7
+            _w_heur = 0.3
+            if self._config is not None:
+                _w_llm = getattr(self._config, "judge_llm_weight", 0.7)
+                _w_heur = getattr(self._config, "judge_heuristic_weight", 0.3)
+            blended = _w_llm * llm_score + _w_heur * heuristic_score
             return JudgeVerdict(
                 quality=round(blended, 3),
                 reasoning=str(result.reasoning)[:300],

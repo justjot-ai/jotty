@@ -162,6 +162,9 @@ class LearningService:
     _instance: Optional["LearningService"] = None
 
     def __init__(self, store: Optional[LearningStore] = None) -> None:
+        from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+
+        self._config = LearningConfig()
         self._store = store or LearningStore.get_instance()
         self._active_episodes: Dict[str, ActiveEpisode] = {}
 
@@ -184,11 +187,19 @@ class LearningService:
 
         # Auto-reflect: trigger post-execution reflection on significant outcomes
         self._auto_reflect_interval = 10  # reflect every N episodes
-        self._auto_reflect_quality_threshold = 0.75  # reflect on high-quality successes too
+        self._auto_reflect_quality_threshold = self._config.auto_reflect_quality_threshold
 
         # Background LLM judge tasks (fire-and-forget)
         self._judge_tasks: set = set()
         self._judged_episodes: set = set()  # Dedup: episode IDs already judged or in-flight
+
+        # Domain-aware score blending overrides
+        _DEFAULT_BLEND_OVERRIDES = {
+            "coding": (0.85, 0.15),
+            "algorithms": (0.85, 0.15),
+            "math": (0.80, 0.20),
+        }
+        self._blend_overrides = self._config.judge_blend_overrides or _DEFAULT_BLEND_OVERRIDES
 
         # Extracted subsystems
         self._pattern_extractor = PatternExtractor(self._store, self._min_episodes_for_pattern)
@@ -375,8 +386,10 @@ class LearningService:
             except Exception as e:
                 logger.debug(f"Auto-reflect failed: {e}")
 
-        # Fire-and-forget LLM judge for successful episodes with rich content.
+        # Fire-and-forget LLM judge for successful episodes.
         # The judge also triggers judge-informed distillation when it completes.
+        # Gate: success + any non-trivial content (no char-count floor — short
+        # outputs like code/diagrams are perfectly valid).
         _content = (
             outcome.get("content", "")
             or outcome.get("response_excerpt", "")
@@ -384,7 +397,7 @@ class LearningService:
             or outcome.get("result", "")
         )
         _judge_will_distill = False
-        if isinstance(_content, str) and len(_content) > 500 and success:
+        if isinstance(_content, str) and len(_content) > 50 and success:
             _goal = str(context.get("goal", context.get("message", task_type)))
             self.schedule_background_judge(
                 episode_id, _goal, _content, domain, quality, unit_name=unit_name
@@ -409,24 +422,15 @@ class LearningService:
 
         # ── Schedule fact distillation for good episodes (mem0 pattern) ──
         # Skip if the judge is already handling distillation (with its feedback).
-        # Only run standalone distillation for episodes the judge won't cover
-        # (shorter content or failed episodes that still have useful content).
+        # Only run standalone distillation for episodes the judge won't cover.
         _content_len = len(_content) if isinstance(_content, str) else 0
-        if not _judge_will_distill and _content_len > 300 and success and quality >= 0.2:
+        if not _judge_will_distill and _content_len > 50 and success:
             self._schedule_fact_distillation(
                 episode_id, _goal_text or task_type, _content, domain, unit_name
             )
-        elif not _judge_will_distill and _content_len > 100:
-            logger.warning(
-                "Distillation gate BLOCKED for %s: content=%d success=%s quality=%.2f",
-                episode_id,
-                _content_len,
-                success,
-                quality,
-            )
 
         # ── Reflexion: generate reflection on failures (Shinn et al.) ──
-        if not success or quality < 0.4:
+        if not success or quality < self._config.reflexion_quality_threshold:
             try:
                 from .advanced_learning import Reflexion
 
@@ -444,7 +448,7 @@ class LearningService:
                 logger.debug(f"Reflexion generation failed: {e}")
 
         # ── VoyagerSkillLib: extract reusable patterns from high-quality successes ──
-        if success and quality >= 0.8:
+        if success and quality >= self._config.pattern_extract_quality_threshold:
             try:
                 from .advanced_learning import VoyagerSkillLib
 
@@ -888,9 +892,9 @@ class LearningService:
         # Full context: distilled lessons + retrieval + failure hints.
         # Budget: 2000 chars total.
 
-        MAX_TOTAL = 2000
-        MAX_RETRIEVAL = 1200
-        MAX_ABSTRACT = 400
+        MAX_TOTAL = self._config.context_max_total
+        MAX_RETRIEVAL = self._config.context_max_retrieval
+        MAX_ABSTRACT = self._config.context_max_abstract
 
         # ── 1. Concrete few-shot retrieval (for failing domains) ────
         retrieval = ""
@@ -966,11 +970,28 @@ class LearningService:
         except Exception:
             pass
 
-        # ── 4. Assemble: distilled → retrieval → abstract ────────────────
+        # ── 3b. Reflexion retrieval (past failure insights) ─────────────
+        reflections_str = ""
+        if has_failures or has_early_failures:
+            try:
+                from .advanced_learning import Reflexion
+
+                reflexion = Reflexion.get_instance()
+                past = reflexion.get_relevant_reflections(unit_name=unit_name or "auto", limit=2)
+                if past:
+                    reflections_str = "[Past failure insights]\n" + "\n".join(
+                        f"  - {r}" for r in past[:2]
+                    )
+            except Exception:
+                pass
+
+        # ── 4. Assemble: distilled → reflections → retrieval → abstract ───
         MAX_TOTAL_EXPANDED = 2000  # more budget now that we have richer signals
         sections = []
         if distilled:
             sections.append(distilled[:400])
+        if reflections_str:
+            sections.append(reflections_str[:400])
         if retrieval:
             sections.append(retrieval[:MAX_RETRIEVAL])
         if abstract:
@@ -1169,7 +1190,7 @@ class LearningService:
             "strengths": [],
             "improvements": [],
         }
-        if len(content) < 500:
+        if len(content) < 20:
             return fallback
 
         try:
@@ -2000,7 +2021,10 @@ class LearningService:
                     heuristic_score=heuristic_quality,
                 )
                 llm_score = feedback.get("score", heuristic_quality)
-                blended = llm_score * 0.6 + heuristic_quality * 0.4
+                w_llm, w_heur = self._blend_overrides.get(
+                    domain, (self._config.judge_llm_weight, self._config.judge_heuristic_weight)
+                )
+                blended = llm_score * w_llm + heuristic_quality * w_heur
 
                 self._store.update_episode_quality(
                     episode_id=episode_id,

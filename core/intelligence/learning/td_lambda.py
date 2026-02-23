@@ -1487,6 +1487,9 @@ class SkillQTable(_DomainKeyMixin):
         self.ucb_c = ucb_c
         self._q: Dict[str, Dict[str, float]] = {}
         self._counts: Dict[str, Dict[str, int]] = {}
+        # Recency tracking for staleness-aware updates
+        self._last_updated: Dict[str, Dict[str, int]] = {}
+        self._global_counter: int = 0
 
     def get_q(self, task_type: str, skill: str, domain: str = "") -> float:
         """Get Q-value with domain fallback. Default 0.5 (optimistic)."""
@@ -1504,7 +1507,21 @@ class SkillQTable(_DomainKeyMixin):
 
         Updates BOTH the domain-specific key and the base task_type key
         so that base-level learning accumulates even when domain is provided.
+
+        Uses recency-aware alpha: stale entries update faster (higher
+        effective alpha) so degraded skills don't retain high Q-values.
         """
+        import math as _math
+
+        try:
+            from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+
+            halflife = LearningConfig().q_staleness_halflife
+        except Exception:
+            halflife = 50
+
+        self._global_counter += 1
+
         keys_to_update = [self._make_key(task_type, domain)]
         base = self._base_key(keys_to_update[0])
         if base != keys_to_update[0]:
@@ -1515,11 +1532,21 @@ class SkillQTable(_DomainKeyMixin):
             if key not in self._q:
                 self._q[key] = {}
                 self._counts[key] = {}
+
+            # Recency-aware alpha
+            staleness = self._global_counter - (
+                self._last_updated.get(key, {}).get(skill, self._global_counter)
+            )
+            effective_alpha = min(0.5, self.alpha * (1 + _math.log1p(staleness / halflife)))
+
             old_q = self._q[key].get(skill, 0.5)
             td_error = reward - old_q
-            new_q = old_q + self.alpha * td_error
+            new_q = old_q + effective_alpha * td_error
             self._q[key][skill] = max(0.0, min(1.0, new_q))
             self._counts[key][skill] = self._counts[key].get(skill, 0) + 1
+
+            # Track last update
+            self._last_updated.setdefault(key, {})[skill] = self._global_counter
 
         logger.debug(f"Q-update: ({keys_to_update[0]}, {skill}): TD={td_error:.3f}")
         return td_error
@@ -1578,6 +1605,8 @@ class SkillQTable(_DomainKeyMixin):
             "gamma": self.gamma,
             "epsilon": self.epsilon,
             "ucb_c": self.ucb_c,
+            "last_updated": self._last_updated,
+            "global_counter": self._global_counter,
         }
 
     @classmethod
@@ -1590,6 +1619,8 @@ class SkillQTable(_DomainKeyMixin):
         )
         obj._q = data.get("q", {})
         obj._counts = data.get("counts", {})
+        obj._last_updated = data.get("last_updated", {})
+        obj._global_counter = data.get("global_counter", 0)
         return obj
 
 
@@ -1704,6 +1735,12 @@ class StepQTable(_DomainKeyMixin):
         self._role_counts: Dict[str, Dict[str, Dict[str, int]]] = {}
         # ── Plan history: task_type → [(plan_roles_tuple, reward)] ──
         self._plan_history: Dict[str, List[Tuple[Tuple[str, ...], float]]] = {}
+        # ── Raw plan history (preserves consecutive duplicate roles) ──
+        self._raw_plan_history: Dict[str, List[Tuple[Tuple[str, ...], float]]] = {}
+        # ── Recency tracking for staleness-aware updates ──
+        self._last_updated_pos: Dict[str, Dict[int, Dict[str, int]]] = {}
+        self._last_updated_role: Dict[str, Dict[str, Dict[str, int]]] = {}
+        self._global_counter: int = 0
         # ── Revision stats ──
         self._revision_count: int = 0
         self._last_pruned: int = 0
@@ -1732,7 +1769,21 @@ class StepQTable(_DomainKeyMixin):
 
         Updates BOTH the domain-specific key and the base task_type key
         so aggregate learning always accumulates.
+
+        Uses recency-aware alpha: stale entries update faster (higher
+        effective alpha) so degraded skills don't retain high Q-values.
         """
+        import math as _math
+
+        try:
+            from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+
+            halflife = LearningConfig().q_staleness_halflife
+        except Exception:
+            halflife = 50
+
+        self._global_counter += 1
+
         keys = [self._make_key(task_type, domain)]
         base = self._base_key(keys[0])
         if base != keys[0]:
@@ -1750,11 +1801,24 @@ class StepQTable(_DomainKeyMixin):
                 self._q[key][step_pos] = {}
                 self._counts[key][step_pos] = {}
 
+            # Recency-aware alpha for position Q
+            pos_staleness = self._global_counter - (
+                self._last_updated_pos.get(key, {})
+                .get(step_pos, {})
+                .get(skill, self._global_counter)
+            )
+            pos_alpha = min(0.5, self.alpha * (1 + _math.log1p(pos_staleness / halflife)))
+
             old_q = self._q[key][step_pos].get(skill, 0.5)
             td_error = reward - old_q
-            new_q = max(0.0, min(1.0, old_q + self.alpha * td_error))
+            new_q = max(0.0, min(1.0, old_q + pos_alpha * td_error))
             self._q[key][step_pos][skill] = new_q
             self._counts[key][step_pos][skill] = self._counts[key][step_pos].get(skill, 0) + 1
+
+            # Track last update for position
+            self._last_updated_pos.setdefault(key, {}).setdefault(step_pos, {})[
+                skill
+            ] = self._global_counter
 
             # ── Role Q ──
             if key not in self._role_q:
@@ -1764,10 +1828,21 @@ class StepQTable(_DomainKeyMixin):
                 self._role_q[key][role] = {}
                 self._role_counts[key][role] = {}
 
+            # Recency-aware alpha for role Q
+            role_staleness = self._global_counter - (
+                self._last_updated_role.get(key, {}).get(role, {}).get(skill, self._global_counter)
+            )
+            role_alpha = min(0.5, self.alpha * (1 + _math.log1p(role_staleness / halflife)))
+
             old_rq = self._role_q[key][role].get(skill, 0.5)
-            new_rq = max(0.0, min(1.0, old_rq + self.alpha * (reward - old_rq)))
+            new_rq = max(0.0, min(1.0, old_rq + role_alpha * (reward - old_rq)))
             self._role_q[key][role][skill] = new_rq
             self._role_counts[key][role][skill] = self._role_counts[key][role].get(skill, 0) + 1
+
+            # Track last update for role
+            self._last_updated_role.setdefault(key, {}).setdefault(role, {})[
+                skill
+            ] = self._global_counter
 
         return td_error
 
@@ -1795,6 +1870,13 @@ class StepQTable(_DomainKeyMixin):
         domain: str = "",
     ) -> None:
         """Record a complete plan outcome with roles (domain-aware)."""
+        try:
+            from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+
+            max_history = LearningConfig().plan_history_max
+        except Exception:
+            max_history = 100
+
         keys = [self._make_key(task_type, domain)]
         base = self._base_key(keys[0])
         if base != keys[0]:
@@ -1805,14 +1887,22 @@ class StepQTable(_DomainKeyMixin):
             desc = descriptions[i] if descriptions and i < len(descriptions) else ""
             roles.append(self.infer_role(skill, desc))
 
-        normalized = self._normalize_roles(tuple(roles))
+        raw_roles = tuple(roles)
+        normalized = self._normalize_roles(raw_roles)
 
         for key in keys:
             if key not in self._plan_history:
                 self._plan_history[key] = []
             self._plan_history[key].append((normalized, reward))
-            if len(self._plan_history[key]) > 100:
-                self._plan_history[key] = self._plan_history[key][-100:]
+            if len(self._plan_history[key]) > max_history:
+                self._plan_history[key] = self._plan_history[key][-max_history:]
+
+            # Raw plan history (preserves duplicate consecutive roles)
+            if key not in self._raw_plan_history:
+                self._raw_plan_history[key] = []
+            self._raw_plan_history[key].append((raw_roles, reward))
+            if len(self._raw_plan_history[key]) > max_history:
+                self._raw_plan_history[key] = self._raw_plan_history[key][-max_history:]
 
     def get_best_plan(
         self, task_type: str, top_n: int = 3, domain: str = ""
@@ -1825,6 +1915,30 @@ class StepQTable(_DomainKeyMixin):
             base_plans = self._plan_history.get(self._base_key(key), [])
             plans.extend(base_plans)
         # Deduplicate by role tuple
+        seen: set = set()
+        unique = []
+        for roles, reward in sorted(plans, key=lambda x: -x[1]):
+            if roles not in seen:
+                seen.add(roles)
+                unique.append((roles, reward))
+        return unique[:top_n]
+
+    def get_best_raw_plan(
+        self, task_type: str, top_n: int = 3, domain: str = ""
+    ) -> List[Tuple[Tuple[str, ...], float]]:
+        """Get highest-reward raw (un-normalized) role sequences.
+
+        Unlike get_best_plan() which returns deduplicated normalized plans,
+        this returns the original role sequences preserving consecutive
+        duplicate roles (e.g. research, research, synthesize, save).
+        Useful for plan recommendation where step count matters.
+        """
+        key = self._make_key(task_type, domain)
+        plans = list(self._raw_plan_history.get(key, []))
+        if ":" in key:
+            base_plans = self._raw_plan_history.get(self._base_key(key), [])
+            plans.extend(base_plans)
+        # Deduplicate by role tuple, keep highest reward
         seen: set = set()
         unique = []
         for roles, reward in sorted(plans, key=lambda x: -x[1]):
@@ -1919,6 +2033,7 @@ class StepQTable(_DomainKeyMixin):
         keys.update(self._q.keys())
         keys.update(self._role_q.keys())
         keys.update(self._plan_history.keys())
+        keys.update(self._raw_plan_history.keys())
         return sorted(keys)
 
     # =====================================================================
@@ -2048,14 +2163,22 @@ class StepQTable(_DomainKeyMixin):
         plans_ser = {
             tt: [(list(roles), r) for roles, r in plans] for tt, plans in self._plan_history.items()
         }
+        raw_plans_ser = {
+            tt: [(list(roles), r) for roles, r in plans]
+            for tt, plans in self._raw_plan_history.items()
+        }
         return {
             "q": q_ser,
             "counts": counts_ser,
             "role_q": self._role_q,
             "role_counts": self._role_counts,
             "plans": plans_ser,
+            "raw_plans": raw_plans_ser,
             "alpha": self.alpha,
             "revision_count": self._revision_count,
+            "last_updated_pos": self._last_updated_pos,
+            "last_updated_role": self._last_updated_role,
+            "global_counter": self._global_counter,
         }
 
     @classmethod
@@ -2069,7 +2192,12 @@ class StepQTable(_DomainKeyMixin):
         obj._role_counts = data.get("role_counts", {})
         for tt, plans in data.get("plans", {}).items():
             obj._plan_history[tt] = [(tuple(roles), r) for roles, r in plans]
+        for tt, plans in data.get("raw_plans", {}).items():
+            obj._raw_plan_history[tt] = [(tuple(roles), r) for roles, r in plans]
         obj._revision_count = data.get("revision_count", 0)
+        obj._last_updated_pos = data.get("last_updated_pos", {})
+        obj._last_updated_role = data.get("last_updated_role", {})
+        obj._global_counter = data.get("global_counter", 0)
         return obj
 
 
