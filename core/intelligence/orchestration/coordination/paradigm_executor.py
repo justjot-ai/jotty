@@ -13,6 +13,7 @@ Usage:
 
 import asyncio
 import logging
+import re
 import time
 from typing import Any, Dict
 
@@ -26,6 +27,68 @@ from Jotty.core.infrastructure.utils.async_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+_CODE_START_RE = re.compile(r"^(class |def |import |from \w+ import |@\w+)", re.MULTILINE)
+
+
+def _ensure_code_fences(text: str) -> str:
+    """Wrap unfenced code regions in markdown fenced blocks.
+
+    Many agents produce inline code without ``` fences. This detects
+    contiguous code regions (class/def/import lines + indented body)
+    and wraps them in ```python blocks for proper rendering.
+    """
+    if not text or "```" in text:
+        return text
+
+    _code_line = re.compile(
+        r"^\s*(class |def |import |from \w+ import |if |for |while |return |"
+        r"self\.|raise |except |try:|with |@\w|assert |elif |else:|yield |"
+        r"pass$|break$|continue$|#\s)",
+    )
+    lines = text.split("\n")
+    result: list[str] = []
+    code_buf: list[str] = []
+    gap = 0
+
+    def flush_code() -> None:
+        nonlocal code_buf
+        if not code_buf:
+            return
+        code_lines_count = sum(1 for l in code_buf if _code_line.match(l))
+        if code_lines_count >= 5:
+            while code_buf and code_buf[-1].strip() == "":
+                code_buf.pop()
+            result.append("```python")
+            result.extend(code_buf)
+            result.append("```")
+        else:
+            result.extend(code_buf)
+        code_buf = []
+
+    for line in lines:
+        stripped = line.strip()
+        if _code_line.match(line) or (code_buf and stripped and line[0] in " \t"):
+            if gap > 0:
+                code_buf.extend([""] * gap)
+                gap = 0
+            code_buf.append(line)
+        elif stripped == "" and code_buf:
+            gap += 1
+            if gap > 2:
+                flush_code()
+                result.extend([""] * gap)
+                gap = 0
+        else:
+            if code_buf:
+                flush_code()
+            if gap > 0:
+                result.extend([""] * gap)
+                gap = 0
+            result.append(line)
+
+    flush_code()
+    return "\n".join(result)
 
 
 def _extract_output_text(output: Any) -> str:
@@ -645,6 +708,8 @@ class ParadigmExecutor:
                 if agent_text:
                     parts.append(f"## {name}\n\n{agent_text}")
             combined_output = "\n\n---\n\n".join(parts) if parts else ""
+
+        combined_output = _ensure_code_fences(combined_output)
 
         all_success = all(r.success for r in results.values())
 

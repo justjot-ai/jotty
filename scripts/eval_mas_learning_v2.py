@@ -73,24 +73,16 @@ def code_blocks(content: str, n: int = 2, min_lines: int = 5) -> bool:
     fenced_count = len([b for b in fenced if len(b.strip().split("\n")) >= min_lines])
     if fenced_count >= n:
         return True
-    # 2. Inline code: consecutive lines with class/def/import patterns
-    code_line_re = re.compile(
-        r"^\s*(class |def |import |from .+ import |if |for |while |return |"
-        r"self\.|raise |except |try:|with |@\w|assert )",
+    # 2. Count total code-like lines (class/def/import/self/assert/return)
+    code_line_count = len(
+        re.findall(
+            r"^\s*(class |def |import |from .+ import |self\.|assert |return )",
+            content,
+            re.MULTILINE,
+        )
     )
-    lines = content.split("\n")
-    run_len = 0
-    code_runs = 0
-    for line in lines:
-        if code_line_re.match(line):
-            run_len += 1
-        else:
-            if run_len >= min_lines:
-                code_runs += 1
-            run_len = 0
-    if run_len >= min_lines:
-        code_runs += 1
-    return (fenced_count + code_runs) >= n
+    threshold = n * min_lines
+    return code_line_count >= threshold
 
 
 def has_func(content: str, name: str) -> bool:
@@ -284,6 +276,16 @@ class MASEvalV2:
         content = ""
         error = None
 
+        # Clear DSPy cache before each run so fresh prompts hit the API
+        try:
+            import dspy as _dspy
+
+            _dspy.cache.enable_disk_cache = False
+            _dspy.cache.enable_memory_cache = False
+            _dspy.cache.memory_cache.clear()
+        except Exception:
+            pass
+
         try:
             orch = self._get_orchestrator()
             result = await orch.run(
@@ -322,7 +324,8 @@ class MASEvalV2:
         passed = sum(1 for v in checks.values() if v)
         total = len(checks)
         ratio = passed / max(total, 1)
-        n_code = len(re.findall(r"```[\w]*\n.+?```", content, re.DOTALL))
+        n_fenced = len(re.findall(r"```[\w]*\n.+?```", content, re.DOTALL))
+        n_code = n_fenced or (1 if code_blocks(content, 1, 5) else 0)
         quality = ratio * 0.5 + min(1.0, len(content) / 6000) * 0.25 + min(1.0, n_code / 3) * 0.25
 
         snap_after = self._snapshot(domain, task["goal"])
