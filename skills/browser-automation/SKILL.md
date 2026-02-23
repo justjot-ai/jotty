@@ -29,6 +29,12 @@ For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 - "automate browser"
 - "navigate to"
 - "click on page"
+- "live prices"
+- "book flights"
+- "check fares"
+- "fill booking form"
+- "scrape dynamic page"
+- "interactive website"
 
 ## Category
 workflow-automation

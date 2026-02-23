@@ -359,10 +359,26 @@ class AutonomousAgent(BaseAgent):
         # Steps 1+2: Infer task type AND discover skills in parallel
         task_type, all_skills = await self._discover_and_classify(task, _status)
 
+        # Step 2b: Check for crystallized config (auto-promoted domain knowledge).
+        # If the domain's learning has converged, override skill selection and
+        # inject proven SOP into the planner.  Agent can decline if skills missing.
+        _crystal = self._try_crystallized(task_type, all_skills, _status)
+        if _crystal and _crystal.get("decline"):
+            _status("Decline", _crystal["reason"])
+            return _crystal["result"]
+
         # Step 3: Select and optimize skills
-        skills = await self._select_and_optimize_skills(
-            task, task_type, all_skills, learning_context, _status
-        )
+        if _crystal and _crystal.get("skills"):
+            skills = _crystal["skills"]
+            _status("Skills selected", f"crystallized: {', '.join(s['name'] for s in skills[:5])}")
+            if _crystal.get("sop_hint"):
+                learning_context = (
+                    (learning_context or "") + "\n\n" + _crystal["sop_hint"]
+                ).strip()
+        else:
+            skills = await self._select_and_optimize_skills(
+                task, task_type, all_skills, learning_context, _status
+            )
 
         # Enrich system context with VVP when visual skills are present
         sys_context = self._get_system_context(all_skills)
@@ -529,6 +545,56 @@ class AutonomousAgent(BaseAgent):
                 logger.warning(f"Failed skills: {failed}")
 
         return task_type, all_skills
+
+    def _try_crystallized(
+        self,
+        task_type: str,
+        all_skills: List[Dict],
+        status: StatusReporter,
+    ) -> Optional[Dict[str, Any]]:
+        """Check for a crystallized config and apply overrides.
+
+        Returns None (no crystallization) or a dict with:
+          - skills: filtered skill dicts matching the crystallized whitelist
+          - sop_hint: plan guidance string for the planner
+          - decline/reason/result: if crystallized skills aren't available
+        """
+        try:
+            from Jotty.core.intelligence.learning.crystallization import load
+
+            config = load(task_type)
+        except Exception:
+            return None
+
+        if not config:
+            return None
+
+        status("Crystallized", f"using proven SOP for {config.domain_key}")
+        available_names = {s["name"] for s in all_skills}
+        matched = [s for s in all_skills if s["name"] in set(config.skills)]
+
+        if not matched:
+            # Decline: none of the proven skills are available
+            logger.info(
+                f"Crystallized agent declining: skills {config.skills} "
+                f"not in available {list(available_names)[:10]}"
+            )
+            return {
+                "decline": True,
+                "reason": f"crystallized skills unavailable for {config.domain_key}",
+                "result": {
+                    "success": False,
+                    "declined": True,
+                    "domain_key": config.domain_key,
+                    "required_skills": config.skills,
+                    "reason": "Crystallized skills not available — route to autonomous",
+                },
+            }
+
+        return {
+            "skills": matched,
+            "sop_hint": config.to_plan_hint(),
+        }
 
     async def _select_and_optimize_skills(
         self,
@@ -718,6 +784,44 @@ class AutonomousAgent(BaseAgent):
             prev_outputs = {}
             if learning_context:
                 prev_outputs["_learning_guidance"] = learning_context[:2000]
+
+            # Inject Q-table role guidance and plan templates into planner context.
+            # This closes the feedback loop: execution outcomes → Q-table → planner.
+            try:
+                from Jotty.core.intelligence.learning.facade import get_td_lambda
+
+                _td = get_td_lambda()
+                _role_g = _td.step_q.get_role_guidance(task_type)
+                _best_plans = _td.step_q.get_best_plan(task_type, top_n=2)
+                _q_guidance_parts = []
+                if _role_g:
+                    _q_guidance_parts.append(
+                        "LEARNED ROLE PREFERENCES:\n"
+                        + "\n".join(
+                            f"- For '{g['role']}' steps: prefer {g['best_skill']} "
+                            f"(Q={g['best_q']}, {g['total_visits']} obs)"
+                            for g in _role_g[:6]
+                        )
+                    )
+                if _best_plans:
+                    _q_guidance_parts.append(
+                        "PROVEN PLAN TEMPLATES:\n"
+                        + "\n".join(
+                            f"- {' → '.join(roles)} (reward={r:.0%})" for roles, r in _best_plans
+                        )
+                    )
+                if _q_guidance_parts:
+                    existing = prev_outputs.get("_learning_guidance", "")
+                    prev_outputs["_learning_guidance"] = (
+                        (existing + "\n\n" if existing else "") + "\n\n".join(_q_guidance_parts)
+                    )[:3000]
+                    logger.info(
+                        f"Q-table guidance injected: {len(_role_g)} roles, "
+                        f"{len(_best_plans)} plan templates for task_type={task_type}"
+                    )
+            except Exception:
+                pass
+
             if workspace_dir:
                 try:
                     from Jotty.core.capabilities.prompts.rules import (
@@ -884,6 +988,12 @@ class AutonomousAgent(BaseAgent):
 
                 if step.optional:
                     status("Continuing", "optional step failed, skipping")
+                    # Store stub so downstream step references resolve
+                    stub = {"success": False, "error": error_msg, "content": ""}
+                    key = step.output_key or f"step_{i}"
+                    outputs[key] = stub
+                    if key != f"step_{i}":
+                        outputs[f"step_{i}"] = stub
                     i += 1
                     continue
 
@@ -939,6 +1049,34 @@ class AutonomousAgent(BaseAgent):
                 status("Stopped", f"execution halted: {error_msg[:80]}")
                 execution_stopped = True
                 break
+
+        # Record step and plan outcomes into Q-tables for learning.
+        # This mirrors what plan_and_execute does, closing the loop for
+        # AutonomousAgent's own execution path.
+        try:
+            from Jotty.core.intelligence.learning.facade import get_td_lambda
+
+            td = get_td_lambda()
+            for idx, step in enumerate(steps):
+                reward = (
+                    1.0
+                    if f"step_{idx}" in outputs or (step.output_key and step.output_key in outputs)
+                    else 0.0
+                )
+                td.record_step_outcome(
+                    task_type,
+                    idx,
+                    step.skill_name,
+                    reward,
+                    description=getattr(step, "description", ""),
+                )
+                td.record_skill_outcome(task_type, step.skill_name, reward)
+            plan_skills = [s.skill_name for s in steps if s.skill_name]
+            plan_descs = [getattr(s, "description", "") or "" for s in steps if s.skill_name]
+            plan_reward = min(len(outputs) / max(len(steps), 1), 1.0)
+            td.record_plan_outcome(task_type, plan_skills, plan_reward, descriptions=plan_descs)
+        except Exception:
+            pass
 
         return outputs, skills_used, errors, warnings, execution_stopped
 

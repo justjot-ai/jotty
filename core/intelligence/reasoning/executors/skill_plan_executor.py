@@ -1562,6 +1562,7 @@ class SkillPlanExecutor:
         task: str,
         discovered_skills: List[Dict[str, Any]],
         status_callback: Optional[Callable] = None,
+        domain: str = "",
     ) -> Dict[str, Any]:
         """
         Full planning and execution pipeline entry point.
@@ -1573,9 +1574,12 @@ class SkillPlanExecutor:
             task: Task description
             discovered_skills: Pre-discovered skills (from BaseAgent.discover_skills)
             status_callback: Optional callback(stage, detail) for progress
+            domain: Optional domain context (e.g., "finance", "devops") for
+                    domain-specific Q-table entries. When provided, learning
+                    records to both "task_type:domain" and base "task_type".
 
         Returns:
-            Dict with success, task, task_type, skills_used, steps_executed,
+            Dict with success, task, task_type, domain, skills_used, steps_executed,
             outputs, final_output, errors, execution_time
         """
         start_time = time.time()
@@ -1598,17 +1602,76 @@ class SkillPlanExecutor:
         skills = await self.select_skills(task, discovered_skills, task_type=task_type)
 
         # Step 2b: Inject essential skills the planner may have missed.
-        # The LLM skill selector can't always anticipate which tools are
-        # needed (e.g. "execute the script" requires shell-exec).
         essential_before = {s.get("name", "") for s in skills}
         skills = self._inject_essential_skills(task, skills, discovered_skills)
         essential_names = {s.get("name", "") for s in skills} - essential_before
         skills = self._enforce_skill_cap(skills, essential_names)
+
+        # Step 2c: Re-rank selected skills by SkillQTable UCB Q-values.
+        # This puts skills with better historical success rates first,
+        # so the planner creates plans using proven skills preferentially.
+        td_learner = None
+        try:
+            from Jotty.core.intelligence.learning.facade import get_td_lambda
+
+            td_learner = get_td_lambda()
+            skill_names = [s.get("name", "") for s in skills if s.get("name")]
+            ranked_names = td_learner.select_skills(task_type, skill_names, domain=domain)
+            name_to_skill = {s.get("name"): s for s in skills}
+            reranked = [name_to_skill[n] for n in ranked_names if n in name_to_skill]
+            # Append any skills not in ranking (essential injected ones)
+            seen = set(ranked_names)
+            reranked.extend(s for s in skills if s.get("name") not in seen)
+            skills = reranked
+        except Exception as e:
+            logger.debug(f"SkillQTable re-ranking skipped: {e}")
         _status("Skills selected", ", ".join(s["name"] for s in skills[:5]))
+
+        # Step 2d: Build learning guidance for the planner from Q-tables.
+        # Injected via previous_outputs["_learning_guidance"] which the planner
+        # signature already expects. This closes the feedback loop:
+        # record_step/plan_outcome → Q-table → planner prompt → better plans.
+        plan_guidance: Optional[Dict[str, Any]] = None
+        if td_learner:
+            try:
+                guidance_parts = []
+
+                # Role guidance: "for 'generate' role, claude-cli-llm works best"
+                role_g = td_learner.step_q.get_role_guidance(task_type, domain=domain)
+                if role_g:
+                    role_lines = [
+                        f"- For '{g['role']}' steps: prefer {g['best_skill']} "
+                        f"(Q={g['best_q']}, {g['total_visits']} observations)"
+                        for g in role_g[:6]
+                    ]
+                    guidance_parts.append(
+                        "LEARNED ROLE PREFERENCES (from past executions):\n" + "\n".join(role_lines)
+                    )
+
+                # Best plan templates: "for coding tasks, generate→save→execute works best"
+                best_plans = td_learner.step_q.get_best_plan(task_type, top_n=2, domain=domain)
+                if best_plans:
+                    plan_lines = [
+                        f"- {' → '.join(roles)} (reward={reward:.0%})"
+                        for roles, reward in best_plans
+                    ]
+                    guidance_parts.append(
+                        "PROVEN PLAN TEMPLATES (high-reward role sequences):\n"
+                        + "\n".join(plan_lines)
+                    )
+
+                if guidance_parts:
+                    plan_guidance = {"_learning_guidance": "\n\n".join(guidance_parts)}
+                    logger.info(
+                        f"Injected plan guidance: {len(role_g)} roles, "
+                        f"{len(best_plans)} templates"
+                    )
+            except Exception as e:
+                logger.debug(f"Plan guidance injection skipped: {e}")
 
         # Step 3: Create plan
         _status("Planning", "creating execution plan")
-        steps = await self.create_plan(task, task_type, skills)
+        steps = await self.create_plan(task, task_type, skills, previous_outputs=plan_guidance)
         _status("Plan ready", f"{len(steps)} steps")
 
         # Step 3b: Auto-correct plan (fix skill→tool mismatches, inject
@@ -1678,10 +1741,42 @@ class SkillPlanExecutor:
                 outputs[step.output_key or f"step_{i}"] = result
                 skills_used.append(step.skill_name)
                 _status(f"Step {i + 1}", "completed")
+                # Record success in SkillQTable + StepQTable (domain-aware, with role inference)
+                if td_learner and step.skill_name:
+                    try:
+                        td_learner.record_skill_outcome(
+                            task_type, step.skill_name, 1.0, domain=domain
+                        )
+                        td_learner.record_step_outcome(
+                            task_type,
+                            i,
+                            step.skill_name,
+                            1.0,
+                            description=getattr(step, "description", "") or "",
+                            domain=domain,
+                        )
+                    except Exception:
+                        pass
             else:
                 error_msg = result.get("error", "Unknown error")
                 errors.append(f"Step {i + 1}: {error_msg}")
                 _status(f"Step {i + 1}", f"failed: {error_msg}")
+                # Record failure in SkillQTable + StepQTable (domain-aware, with role inference)
+                if td_learner and step.skill_name:
+                    try:
+                        td_learner.record_skill_outcome(
+                            task_type, step.skill_name, 0.0, domain=domain
+                        )
+                        td_learner.record_step_outcome(
+                            task_type,
+                            i,
+                            step.skill_name,
+                            0.0,
+                            description=getattr(step, "description", "") or "",
+                            domain=domain,
+                        )
+                    except Exception:
+                        pass
 
                 # Replan on failure with intelligent skill exclusion
                 if (
@@ -1757,10 +1852,33 @@ class SkillPlanExecutor:
 
         final_output = list(outputs.values())[-1] if outputs else None
 
+        # Record full plan outcome for plan-level learning (domain-aware, with role inference)
+        plan_success = len(outputs) > 0
+        if td_learner and skills_used:
+            try:
+                plan_reward = len(outputs) / max(len(steps), 1)
+                plan_skills = [s.skill_name for s in steps if s.skill_name]
+                plan_descs = [getattr(s, "description", "") or "" for s in steps if s.skill_name]
+                td_learner.record_plan_outcome(
+                    task_type, plan_skills, plan_reward, descriptions=plan_descs, domain=domain
+                )
+            except Exception:
+                pass
+
+        # Auto-crystallize check: if learning has converged, save a crystallized config
+        if plan_success:
+            try:
+                from Jotty.core.intelligence.learning.crystallization import maybe_crystallize
+
+                maybe_crystallize(task_type, domain)
+            except Exception:
+                pass
+
         return {
-            "success": len(outputs) > 0,
+            "success": plan_success,
             "task": task,
             "task_type": task_type,
+            "domain": domain,
             "skills_used": list(set(skills_used)),
             "steps_executed": len(outputs),
             "outputs": outputs,
@@ -1768,6 +1886,10 @@ class SkillPlanExecutor:
             "errors": errors,
             "budget_exhausted": budget_exhausted,
             "execution_time": time.time() - start_time,
+            "plan_steps": [
+                {"step": i, "skill": s.skill_name, "description": s.description[:100]}
+                for i, s in enumerate(steps)
+            ],
         }
 
     # =========================================================================

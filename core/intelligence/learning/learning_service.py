@@ -975,7 +975,12 @@ class LearningService:
                 logger.debug(f"Auto-reflect failed: {e}")
 
         # Fire-and-forget LLM judge for successful episodes with rich content
-        _content = outcome.get("content", "") or outcome.get("response_excerpt", "")
+        _content = (
+            outcome.get("content", "")
+            or outcome.get("response_excerpt", "")
+            or outcome.get("output", "")
+            or outcome.get("result", "")
+        )
         if isinstance(_content, str) and len(_content) > 500 and success:
             _goal = str(context.get("goal", context.get("message", task_type)))
             self.schedule_background_judge(episode_id, _goal, _content, domain, quality)
@@ -999,9 +1004,18 @@ class LearningService:
         # ── Schedule fact distillation for good episodes (mem0 pattern) ──
         # Gate: success + quality >= 0.2 (MAS episodes have lower computed quality
         # due to execution time, but their content is still distill-worthy).
-        if isinstance(_content, str) and len(_content) > 300 and success and quality >= 0.2:
+        _content_len = len(_content) if isinstance(_content, str) else 0
+        if _content_len > 300 and success and quality >= 0.2:
             self._schedule_fact_distillation(
                 episode_id, _goal_text or task_type, _content, domain, unit_name
+            )
+        elif _content_len > 100:
+            logger.warning(
+                "Distillation gate BLOCKED for %s: content=%d success=%s quality=%.2f",
+                episode_id,
+                _content_len,
+                success,
+                quality,
             )
 
         # ── Reflexion: generate reflection on failures (Shinn et al.) ──
@@ -2859,39 +2873,66 @@ class LearningService:
         agent_name: str,
     ) -> None:
         """Synchronous fact distillation — blocks calling thread."""
-        try:
-            import json as _json
+        import json as _json
 
-            import anthropic
+        import anthropic
 
-            prompt = self._build_distillation_prompt(goal, content, domain)
-            client = anthropic.Anthropic()
-            response = client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=500,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            text = response.content[0].text.strip()  # type: ignore[union-attr]
-            if "```" in text:
-                text = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`")
-            lessons = _json.loads(text)
-            if isinstance(lessons, list):
-                parsed = [
-                    {
-                        "lesson": str(l.get("lesson", ""))[:200],
-                        "type": str(l.get("type", "pattern")),
-                        "applies_to": str(l.get("applies_to", ""))[:100],
-                        "confidence": min(1.0, max(0.0, float(l.get("confidence", 0.6)))),
-                    }
-                    for l in lessons[:3]
-                    if l.get("lesson")
-                ]
-                self._store_distilled_lessons(parsed, episode_id, domain, agent_name)
-                logger.debug(
-                    "Sync-distilled %d lessons for %s (cold start)", len(parsed), episode_id
+        prompt = self._build_distillation_prompt(goal, content, domain)
+        client = anthropic.Anthropic()
+
+        # Retry once on empty/invalid response
+        for attempt in range(2):
+            try:
+                response = client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=500,
+                    messages=[{"role": "user", "content": prompt}],
                 )
-        except Exception as exc:
-            logger.debug("Sync distillation failed: %s", exc)
+                text = response.content[0].text.strip()  # type: ignore[union-attr]
+                if not text:
+                    logger.debug("Distillation returned empty response (attempt %d)", attempt + 1)
+                    continue
+                if "```" in text:
+                    text = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`")
+                lessons = _json.loads(text)
+                if isinstance(lessons, list):
+                    parsed = [
+                        {
+                            "lesson": str(l.get("lesson", ""))[:200],
+                            "type": str(l.get("type", "pattern")),
+                            "applies_to": str(l.get("applies_to", ""))[:100],
+                            "confidence": min(1.0, max(0.0, float(l.get("confidence", 0.6)))),
+                        }
+                        for l in lessons[:3]
+                        if l.get("lesson")
+                    ]
+                    if parsed:
+                        self._store_distilled_lessons(parsed, episode_id, domain, agent_name)
+                        logger.debug(
+                            "Sync-distilled %d lessons for %s (cold start)",
+                            len(parsed),
+                            episode_id,
+                        )
+                        return
+                elif isinstance(lessons, dict) and lessons.get("lesson"):
+                    # Single lesson returned as dict instead of list
+                    parsed = [
+                        {
+                            "lesson": str(lessons["lesson"])[:200],
+                            "type": str(lessons.get("type", "pattern")),
+                            "applies_to": str(lessons.get("applies_to", ""))[:100],
+                            "confidence": min(1.0, max(0.0, float(lessons.get("confidence", 0.6)))),
+                        }
+                    ]
+                    self._store_distilled_lessons(parsed, episode_id, domain, agent_name)
+                    return
+            except _json.JSONDecodeError:
+                logger.debug("Distillation JSON parse failed (attempt %d)", attempt + 1)
+                continue
+            except Exception as exc:
+                logger.warning("Sync distillation failed for %s: %s", episode_id, exc)
+                return
+        logger.debug("Distillation failed after retries for %s", episode_id)
 
     def _build_distillation_prompt(self, goal: str, content: str, domain: str) -> str:
         return (

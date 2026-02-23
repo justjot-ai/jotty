@@ -1260,10 +1260,12 @@ class ExecutionEngine:
             if task_eff and task_eff.get("trend") is not None:
                 trend = task_eff["trend"]
                 if trend < -0.1:
+                    _recent = task_eff.get("recent_success_rate", 0)
+                    _hist = task_eff.get("historical_success_rate", 0)
                     learned_hints.append(
                         f"[Learned] Performance DECLINING on '{task_type}' "
-                        f"(recent={task_eff['recent_rate']:.0%} vs "
-                        f"historical={task_eff['historical_rate']:.0%}). "
+                        f"(recent={_recent:.0%} vs "
+                        f"historical={_hist:.0%}). "
                         f"Consider a different approach."
                     )
                 elif trend > 0.1:
@@ -2991,6 +2993,8 @@ class Orchestrator:
         swarm: Optional[Any] = None,
         agent: Optional[Any] = None,
         learn: bool = True,
+        trace: bool = False,
+        report_dir: str = "reports",
         status_callback: Optional[Callable] = None,
         **kwargs: Any,
     ) -> Any:
@@ -3014,27 +3018,23 @@ class Orchestrator:
             agent: BaseAgent instance (triggers single-agent mode)
             learn: If True (default), record outcomes + run post-episode learning.
                    Set False for tests, benchmarks, or latency-critical paths.
+            trace: If True, capture full execution trace and save a markdown
+                   planning document to report_dir.
+            report_dir: Directory for trace reports (default: "reports")
             status_callback: Optional progress callback(stage, detail)
             **kwargs: Additional arguments passed to the execution engine
 
         Returns:
-            ExecutionResult (or AsyncIterator[StreamEvent] if stream=True)
+            ExecutionResult (or AsyncIterator[StreamEvent] if stream=True).
+            When trace=True, result has .trace_report_path attribute set.
 
         Examples:
             # Auto-detect with learning (default)
             result = await orchestrator.run("What is GDP?")
 
-            # Skip learning (tests / benchmarks)
-            result = await orchestrator.run("Quick test", learn=False)
-
-            # Explicit swarm
-            result = await orchestrator.run("Analyze data", swarm=DataAnalysisSwarm)
-
-            # Pipeline
-            result = await orchestrator.run("Build and test API", stages=[
-                {"name": "design", "swarm": CodingSwarm},
-                {"name": "test", "swarm": TestingSwarm, "depends_on": ["design"]},
-            ])
+            # With tracing — generates a markdown report
+            result = await orchestrator.run("Research AI", trace=True)
+            print(result.trace_report_path)  # reports/20260222_..._research_ai.md
 
             # Streaming (await first, then iterate)
             stream = await orchestrator.run("Research AI", stream=True)
@@ -3042,11 +3042,23 @@ class Orchestrator:
                 print(event)
         """
 
+        # ── TRACING: wrap status_callback to capture all events ──
+        _tracer_inst = None
+        if trace and not stream:
+            from Jotty.core.infrastructure.monitoring.execution_tracer import ExecutionTracer
+
+            _tracer_inst = ExecutionTracer()
+            _tracer_inst.goal = goal
+            _tracer_inst.mode = "run"
+            _tracer_inst._user_callback = status_callback
+            _tracer_inst.take_pre_snapshot()
+            status_callback = _tracer_inst.callback
+
         # Lane queue: serialize requests for the same session
         session_id = kwargs.get("session_id", "")
         if session_id:
             lock = await self._session_locks.get_lock(session_id)
-            return await self._run_with_lock(
+            result = await self._run_with_lock(
                 lock,
                 goal,
                 stream=stream,
@@ -3057,16 +3069,34 @@ class Orchestrator:
                 status_callback=status_callback,
                 **kwargs,
             )
-        return await self._run_inner(
-            goal,
-            stream=stream,
-            stages=stages,
-            swarm=swarm,
-            agent=agent,
-            learn=learn,
-            status_callback=status_callback,
-            **kwargs,
-        )
+        else:
+            result = await self._run_inner(
+                goal,
+                stream=stream,
+                stages=stages,
+                swarm=swarm,
+                agent=agent,
+                learn=learn,
+                status_callback=status_callback,
+                **kwargs,
+            )
+
+        # ── TRACING: generate and save report ──
+        if _tracer_inst is not None and result is not None:
+            _tracer_inst.take_post_snapshot()
+            from datetime import datetime as _dt
+
+            report = _tracer_inst.generate_report(result, goal=goal, mode="run")
+            ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+            slug = goal[:40].lower().replace(" ", "_").replace("/", "_")
+            report_path = _tracer_inst.save_report(report, f"{report_dir}/{ts}_{slug}.md")
+            try:
+                result.trace_report_path = report_path
+            except (AttributeError, TypeError):
+                pass
+            logger.info(f"Execution trace saved: {report_path}")
+
+        return result
 
     async def _run_with_lock(self, lock: asyncio.Lock, goal: str, **kwargs: Any) -> Any:
         """Execute run() under a per-session lock."""
@@ -3381,6 +3411,8 @@ class Orchestrator:
         history: Optional[List[Dict[str, Any]]] = None,
         stream: bool = False,
         learn: bool = True,
+        trace: bool = False,
+        report_dir: str = "reports",
         provider: Optional[str] = None,
         model: Optional[str] = None,
         status_callback: Optional[Callable[[str, str], None]] = None,
@@ -3403,6 +3435,9 @@ class Orchestrator:
             stream: If True, returns AsyncIterator[StreamEvent]
             learn: If True (default), record outcomes to LearningService.
                    Set False for tests, benchmarks, or latency-critical paths.
+            trace: If True, capture full execution trace and save a markdown
+                   planning document to report_dir.
+            report_dir: Directory for trace reports (default: "reports")
             provider: LLM provider ('anthropic', 'openai', etc.). Auto-detects if None.
             model: Model name (uses provider default if not specified)
             status_callback: Progress callback(stage, detail)
@@ -3413,20 +3448,31 @@ class Orchestrator:
             **kwargs: Additional arguments
 
         Returns:
-            LLMExecutionResult (or AsyncIterator[StreamEvent] if stream=True)
+            LLMExecutionResult (or AsyncIterator[StreamEvent] if stream=True).
+            When trace=True, result has .trace_report_path attribute set.
 
         Examples:
-            # Simple chat (learning on by default)
-            result = await orchestrator.chat("Hello!")
-
-            # Skip learning (tests / benchmarks)
-            result = await orchestrator.chat("Quick test", learn=False)
+            # Simple chat with tracing
+            result = await orchestrator.chat("Hello!", trace=True)
+            print(result.trace_report_path)
 
             # Streaming (await first, then iterate)
             stream = await orchestrator.chat("Explain quantum physics", stream=True)
             async for event in stream:
                 print(event)
         """
+        # ── TRACING: wrap status_callback ──
+        _tracer_inst = None
+        if trace and not stream:
+            from Jotty.core.infrastructure.monitoring.execution_tracer import ExecutionTracer
+
+            _tracer_inst = ExecutionTracer()
+            _tracer_inst.goal = message
+            _tracer_inst.mode = "chat"
+            _tracer_inst._user_callback = status_callback
+            _tracer_inst.take_pre_snapshot()
+            status_callback = _tracer_inst.callback
+
         import time as _time
 
         from Jotty.core.intelligence.learning.learning_service import (
@@ -3698,6 +3744,21 @@ class Orchestrator:
                     learning.analyze_exploration_results(detected_domain)
                 except Exception as e:
                     logger.debug(f"LLM judge failed: {e}")
+
+        # ── TRACING: generate and save report ──
+        if _tracer_inst is not None:
+            _tracer_inst.take_post_snapshot()
+            from datetime import datetime as _dt
+
+            report = _tracer_inst.generate_report(result, goal=message, mode="chat")
+            ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+            slug = message[:40].lower().replace(" ", "_").replace("/", "_")
+            report_path = _tracer_inst.save_report(report, f"{report_dir}/{ts}_chat_{slug}.md")
+            try:
+                result.trace_report_path = report_path
+            except (AttributeError, TypeError):
+                pass
+            logger.info(f"Chat trace saved: {report_path}")
 
         return result
 

@@ -38,7 +38,11 @@ def _ensure_code_fences(text: str) -> str:
     contiguous code regions (class/def/import lines + indented body)
     and wraps them in ```python blocks for proper rendering.
     """
-    if not text or "```" in text:
+    if not text:
+        return text
+    # If there are already well-formed fenced blocks, skip post-processing
+    existing_fenced = re.findall(r"```[\w]*\n.+?```", text, re.DOTALL)
+    if len(existing_fenced) >= 2:
         return text
 
     _code_line = re.compile(

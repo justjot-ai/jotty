@@ -20,8 +20,8 @@ _env_loaded = False
 
 def get_jotty_root() -> Path:
     """Get the Jotty root directory."""
-    # Navigate from this file: core/utils/env_loader.py -> core/utils -> core -> Jotty
-    return Path(__file__).resolve().parent.parent.parent
+    # core/infrastructure/utils/env_loader.py → utils → infrastructure → core → Jotty
+    return Path(__file__).resolve().parent.parent.parent.parent
 
 
 def load_jotty_env(env_file: Optional[str] = None, override: bool = False) -> bool:

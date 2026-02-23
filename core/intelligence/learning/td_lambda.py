@@ -459,8 +459,15 @@ class TDLambdaLearner:
         # DrZero HRPO-style grouped learning
         self.grouped_baseline = GroupedValueBaseline(config)
 
-        # Try to restore persisted baseline from SQLite
+        # Skill Q-table for UCB1 skill selection (persisted to SQLite)
+        self.skill_q = SkillQTable()
+        # Step Q-table for plan structure quality (persisted to SQLite)
+        self.step_q = StepQTable()
+
+        # Restore persisted state from SQLite
         self._try_restore_baseline()
+        self._try_restore_skill_q()
+        self._try_restore_step_q()
 
         # =====================================================================
         # PREDICTIVE MAINTENANCE: Tool Reliability Tracking
@@ -516,6 +523,162 @@ class TDLambdaLearner:
             )
         except Exception:
             pass
+
+    def _try_restore_skill_q(self) -> None:
+        """Restore SkillQTable from SQLite (non-fatal)."""
+        try:
+            import json
+
+            from .learning_store import LearningStore
+
+            store = LearningStore.get_instance()
+            ve = store.get_value("__skill_q_table__", "skill_q", "__meta__")
+            if ve and ve.lessons:
+                data = (
+                    json.loads(ve.lessons[0]) if isinstance(ve.lessons[0], str) else ve.lessons[0]
+                )
+                self.skill_q = SkillQTable.from_dict(data)
+                total_entries = sum(len(v) for v in self.skill_q._q.values())
+                logger.debug(
+                    f"Restored SkillQTable: {len(self.skill_q._q)} task types, "
+                    f"{total_entries} entries"
+                )
+        except Exception as e:
+            logger.debug(f"SkillQTable restore skipped: {e}")
+
+    def _persist_skill_q(self) -> None:
+        """Persist SkillQTable to SQLite (non-fatal, ~0.1ms)."""
+        try:
+            import json
+
+            from .learning_store import LearningStore, ValueEstimate
+
+            store = LearningStore.get_instance()
+            q_data = self.skill_q.to_dict()
+            total_entries = sum(len(v) for v in self.skill_q._counts.values())
+            store.save_value(
+                ValueEstimate(
+                    state_key="__skill_q_table__",
+                    action_key="skill_q",
+                    domain="__meta__",
+                    value=0.0,
+                    td_error=0.0,
+                    update_count=total_entries,
+                    lessons=[json.dumps(q_data)],
+                )
+            )
+        except Exception:
+            pass
+
+    def _try_restore_step_q(self) -> None:
+        """Restore StepQTable from SQLite (non-fatal)."""
+        try:
+            import json
+
+            from .learning_store import LearningStore
+
+            store = LearningStore.get_instance()
+            ve = store.get_value("__step_q_table__", "step_q", "__meta__")
+            if ve and ve.lessons:
+                data = (
+                    json.loads(ve.lessons[0]) if isinstance(ve.lessons[0], str) else ve.lessons[0]
+                )
+                self.step_q = StepQTable.from_dict(data)
+                total_types = len(self.step_q._q)
+                logger.debug(f"Restored StepQTable: {total_types} task types")
+        except Exception as e:
+            logger.debug(f"StepQTable restore skipped: {e}")
+
+    def _persist_step_q(self) -> None:
+        """Persist StepQTable to SQLite (non-fatal)."""
+        try:
+            import json
+
+            from .learning_store import LearningStore, ValueEstimate
+
+            store = LearningStore.get_instance()
+            q_data = self.step_q.to_dict()
+            total_plans = sum(len(v) for v in self.step_q._plan_history.values())
+            store.save_value(
+                ValueEstimate(
+                    state_key="__step_q_table__",
+                    action_key="step_q",
+                    domain="__meta__",
+                    value=0.0,
+                    td_error=0.0,
+                    update_count=total_plans,
+                    lessons=[json.dumps(q_data)],
+                )
+            )
+        except Exception:
+            pass
+
+    def record_step_outcome(
+        self,
+        task_type: str,
+        step_pos: int,
+        skill: str,
+        reward: float,
+        description: str = "",
+        domain: str = "",
+    ) -> float:
+        """Record a step execution outcome and persist.
+
+        Args:
+            task_type: Type of task (e.g., "coding", "research")
+            step_pos: Position in the plan (0-indexed)
+            skill: Skill name used at this step
+            reward: Outcome (0.0 = failure, 1.0 = success)
+            description: Step description (used for role inference)
+            domain: Optional domain (e.g., "finance") for composite key
+
+        Returns:
+            TD error from the Q-value update
+        """
+        td_error = self.step_q.update(
+            task_type, step_pos, skill, reward, description=description, domain=domain
+        )
+        self._persist_step_q()
+        return td_error
+
+    def record_plan_outcome(
+        self,
+        task_type: str,
+        skills: List[str],
+        reward: float,
+        descriptions: Optional[List[str]] = None,
+        domain: str = "",
+    ) -> None:
+        """Record a complete plan execution outcome."""
+        self.step_q.record_plan(task_type, skills, reward, descriptions=descriptions, domain=domain)
+        self._persist_step_q()
+
+    def revise_step_q(self, min_visits: int = 2, decay_factor: float = 0.95) -> Dict[str, int]:
+        """Revise the step Q-table (prune, decay, merge) and persist."""
+        stats = self.step_q.revise(min_visits=min_visits, decay_factor=decay_factor)
+        self._persist_step_q()
+        logger.info(f"Step Q-table revised: {stats}")
+        return stats
+
+    def record_skill_outcome(
+        self, task_type: str, skill: str, reward: float, domain: str = ""
+    ) -> float:
+        """Record a skill execution outcome and persist to SQLite.
+
+        Updates both domain-specific and base task_type Q-values.
+
+        Returns:
+            TD error from the Q-value update
+        """
+        td_error = self.skill_q.update(task_type, skill, reward, domain=domain)
+        self._persist_skill_q()
+        return td_error
+
+    def select_skills(
+        self, task_type: str, available_skills: List[str], domain: str = ""
+    ) -> List[str]:
+        """Select skills ranked by UCB1 Q-values (domain-aware)."""
+        return self.skill_q.select(task_type, available_skills, domain=domain)
 
     def start_episode(self, goal: str, task_type: str = "", domain: str = "") -> None:
         """
@@ -1268,70 +1431,144 @@ class TDLambdaLearner:
 # =============================================================================
 
 
-class SkillQTable:
-    """Q-value table for skill selection: Q(task_type, skill) → expected reward.
+class _DomainKeyMixin:
+    """Shared domain-aware composite key logic for all Q-tables.
 
-    Used by planners to prefer skills with higher historical success rates
-    for a given task type. Updated after each skill execution.
+    Produces keys like "coding:finance" when domain is provided,
+    or plain "coding" when it's not. On lookup, queries the specific
+    composite key first; if it has too few observations (< min_obs),
+    falls back to the base task_type key.
+    """
+
+    DOMAIN_FALLBACK_MIN_OBS: int = 5
+
+    @staticmethod
+    def _make_key(task_type: str, domain: str = "") -> str:
+        if domain and domain != task_type:
+            return f"{task_type}:{domain}"
+        return task_type
+
+    @staticmethod
+    def _base_key(composite_key: str) -> str:
+        return composite_key.split(":")[0] if ":" in composite_key else composite_key
+
+    @staticmethod
+    def _split_key(composite_key: str) -> Tuple[str, str]:
+        """Split 'coding:finance' → ('coding', 'finance'). Plain key → (key, '')."""
+        if ":" in composite_key:
+            parts = composite_key.split(":", 1)
+            return parts[0], parts[1]
+        return composite_key, ""
+
+
+class SkillQTable(_DomainKeyMixin):
+    """Q-value table for skill selection: Q(task_type[:domain], skill) → expected reward.
+
+    Supports optional domain enrichment: Q("coding:finance", "web-search") tracks
+    web-search performance specifically for coding tasks in the finance domain.
+    Falls back to Q("coding", "web-search") when domain-specific data is sparse.
 
     Usage:
         q = SkillQTable()
-        best = q.select("research", ["web-search", "math-toolkit", "pdf-gen"])
-        # ... execute skill ...
-        q.update("research", "web-search", reward=0.9)
+        best = q.select("research", ["web-search", "math-toolkit"], domain="finance")
+        q.update("research", "web-search", reward=0.9, domain="finance")
     """
 
-    def __init__(self, alpha: float = 0.1, gamma: float = 0.9, epsilon: float = 0.15) -> None:
-        self.alpha = alpha  # Learning rate
-        self.gamma = gamma  # Discount factor
-        self.epsilon = epsilon  # Exploration rate (epsilon-greedy)
-        self._q: Dict[str, Dict[str, float]] = {}  # task_type → {skill → Q-value}
-        self._counts: Dict[str, Dict[str, int]] = {}  # task_type → {skill → count}
+    def __init__(
+        self,
+        alpha: float = 0.1,
+        gamma: float = 0.9,
+        epsilon: float = 0.15,
+        ucb_c: float = 1.41,
+    ) -> None:
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.ucb_c = ucb_c
+        self._q: Dict[str, Dict[str, float]] = {}
+        self._counts: Dict[str, Dict[str, int]] = {}
 
-    def get_q(self, task_type: str, skill: str) -> float:
-        """Get Q-value for a (task_type, skill) pair. Default 0.5 (optimistic)."""
-        return self._q.get(task_type, {}).get(skill, 0.5)
+    def get_q(self, task_type: str, skill: str, domain: str = "") -> float:
+        """Get Q-value with domain fallback. Default 0.5 (optimistic)."""
+        key = self._make_key(task_type, domain)
+        q = self._q.get(key, {}).get(skill)
+        if q is not None:
+            return q
+        # Fallback to base task_type if domain-specific key has no data
+        if ":" in key:
+            return self._q.get(self._base_key(key), {}).get(skill, 0.5)
+        return 0.5
 
-    def update(self, task_type: str, skill: str, reward: float) -> float:
-        """Update Q-value after skill execution. Returns TD error."""
-        if task_type not in self._q:
-            self._q[task_type] = {}
-            self._counts[task_type] = {}
+    def update(self, task_type: str, skill: str, reward: float, domain: str = "") -> float:
+        """Update Q-value after skill execution. Returns TD error.
 
-        old_q = self._q[task_type].get(skill, 0.5)
-        td_error = reward - old_q
-        new_q = old_q + self.alpha * td_error
-        self._q[task_type][skill] = max(0.0, min(1.0, new_q))
-        self._counts[task_type][skill] = self._counts[task_type].get(skill, 0) + 1
+        Updates BOTH the domain-specific key and the base task_type key
+        so that base-level learning accumulates even when domain is provided.
+        """
+        keys_to_update = [self._make_key(task_type, domain)]
+        base = self._base_key(keys_to_update[0])
+        if base != keys_to_update[0]:
+            keys_to_update.append(base)
 
-        logger.debug(f"Q-update: ({task_type}, {skill}): {old_q:.3f} → {new_q:.3f}")
+        td_error = 0.0
+        for key in keys_to_update:
+            if key not in self._q:
+                self._q[key] = {}
+                self._counts[key] = {}
+            old_q = self._q[key].get(skill, 0.5)
+            td_error = reward - old_q
+            new_q = old_q + self.alpha * td_error
+            self._q[key][skill] = max(0.0, min(1.0, new_q))
+            self._counts[key][skill] = self._counts[key].get(skill, 0) + 1
+
+        logger.debug(f"Q-update: ({keys_to_update[0]}, {skill}): TD={td_error:.3f}")
         return td_error
 
-    def select(self, task_type: str, available_skills: List[str]) -> List[str]:
-        """Rank skills by Q-value with epsilon-greedy exploration.
-
-        Returns skills sorted by Q-value (highest first). With probability
-        epsilon, shuffles to encourage exploration.
-        """
+    def select(self, task_type: str, available_skills: List[str], domain: str = "") -> List[str]:
+        """Rank skills by UCB1 score with domain-aware fallback."""
+        import math
         import random
 
         if not available_skills:
             return []
 
-        if random.random() < self.epsilon:
-            # Explore: random shuffle
+        key = self._make_key(task_type, domain)
+        # Use domain-specific counts if enough data, else base
+        counts = self._counts.get(key, {})
+        total_n = sum(counts.get(s, 0) for s in available_skills)
+        if total_n < self.DOMAIN_FALLBACK_MIN_OBS and ":" in key:
+            key = self._base_key(key)
+            counts = self._counts.get(key, {})
+            total_n = sum(counts.get(s, 0) for s in available_skills)
+
+        if total_n == 0:
             shuffled = list(available_skills)
             random.shuffle(shuffled)
             return shuffled
 
-        # Exploit: sort by Q-value descending
-        return sorted(available_skills, key=lambda s: self.get_q(task_type, s), reverse=True)
+        def _ucb_score(skill: str) -> float:
+            q = self.get_q(task_type, skill, domain)
+            n = counts.get(skill, 0)
+            if n == 0:
+                return float("inf")
+            return q + self.ucb_c * math.sqrt(math.log(total_n) / n)
 
-    def get_top_skills(self, task_type: str, n: int = 5) -> List[Tuple[str, float]]:
-        """Get top N skills by Q-value for a task type."""
-        skills = self._q.get(task_type, {})
+        return sorted(available_skills, key=_ucb_score, reverse=True)
+
+    def get_top_skills(
+        self, task_type: str, n: int = 5, domain: str = ""
+    ) -> List[Tuple[str, float]]:
+        """Get top N skills by Q-value for a task type (with domain fallback)."""
+        key = self._make_key(task_type, domain)
+        skills = self._q.get(key, {})
+        if not skills and ":" in key:
+            skills = self._q.get(self._base_key(key), {})
         sorted_skills = sorted(skills.items(), key=lambda x: x[1], reverse=True)
         return sorted_skills[:n]
+
+    def get_all_domains(self) -> List[str]:
+        """Return all unique composite keys (task_type or task_type:domain)."""
+        return sorted(self._q.keys())
 
     def to_dict(self) -> Dict:
         return {
@@ -1340,6 +1577,7 @@ class SkillQTable:
             "alpha": self.alpha,
             "gamma": self.gamma,
             "epsilon": self.epsilon,
+            "ucb_c": self.ucb_c,
         }
 
     @classmethod
@@ -1348,9 +1586,473 @@ class SkillQTable:
             alpha=data.get("alpha", 0.1),
             gamma=data.get("gamma", 0.9),
             epsilon=data.get("epsilon", 0.15),
+            ucb_c=data.get("ucb_c", 1.41),
         )
         obj._q = data.get("q", {})
         obj._counts = data.get("counts", {})
+        return obj
+
+
+# =============================================================================
+# STEP-LEVEL Q-TABLE — Tracks plan structure quality
+# =============================================================================
+
+
+class StepQTable(_DomainKeyMixin):
+    """Plan structure Q-table with dual tracking: position AND role, domain-aware.
+
+    Three orthogonal dimensions:
+    - **Domain**: Composite key `task_type:domain` (e.g., "coding:finance").
+      Falls back to base `task_type` when domain-specific data is sparse.
+    - **Position Q**: Q(domain_key, step_pos, skill) — "at step 2, which skill?"
+      Rigid but captures ordering within same-length plans.
+    - **Role Q**: Q(domain_key, role, skill) — "for 'generate' role, which skill?"
+      Flexible and transferable across plan lengths. Roles are inferred
+      from skill name + step description.
+
+    The role dimension is the primary one for plan construction guidance.
+    Position data is auxiliary. Domain enriches both.
+
+    revise() prunes stale data, decays low-visit entries, and merges
+    redundant position entries that map to the same role.
+
+    Usage:
+        sq = StepQTable()
+        sq.update("coding", 0, "claude-cli-llm", 1.0, description="Generate code", domain="finance")
+        sq.get_role_guidance("coding", domain="finance")  # domain-specific + fallback
+        sq.revise()
+    """
+
+    # Role inference rules: checked top-to-bottom, first match wins.
+    # More specific rules (research, save) before broader ones (execute).
+    # Keywords must be specific enough to avoid false positives
+    # (e.g. "search" alone matches "binary search" → use "web search" / "search for").
+    ROLE_RULES: List[Tuple[List[str], str]] = [
+        # Order matters: intent-based rules first, then skill-name anchors.
+        # Use multi-word phrases where single words cause substring collisions
+        # (e.g. "format" in "information", "search" in "binary search").
+        (["verify", "validate", "confirm", "check the", "review the"], "verify"),
+        (
+            [
+                "file-operations",
+                "write_file",
+                "write file",
+                "save to",
+                "save the",
+                "store the",
+                "write to",
+            ],
+            "save",
+        ),
+        (
+            [
+                "web-search",
+                "web search",
+                "web-scraper",
+                "fetch url",
+                "scrape",
+                "search for",
+                "search the web",
+                "find online",
+                "lookup online",
+            ],
+            "research",
+        ),
+        (["shell-exec", "terminal", "run the", "run test", "pytest", "unittest"], "execute"),
+        (
+            [
+                "synthesize",
+                "summarize",
+                "aggregate",
+                "consolidate",
+                "distill",
+                "compile the",
+                "combine the",
+                "merge the",
+            ],
+            "synthesize",
+        ),
+        (
+            [
+                "generate",
+                "create",
+                "write code",
+                "write a",
+                "implement",
+                "build a",
+                "compose",
+                "draft",
+                "produce",
+            ],
+            "generate",
+        ),
+        (
+            ["to pdf", "to html", "render", "convert to", "transform to", "format to", "format as"],
+            "format",
+        ),
+        (["plan", "decompose", "design", "architect", "analyze"], "plan"),
+        (["research", "investigate", "study", "explore"], "research"),
+    ]
+
+    def __init__(self, alpha: float = 0.1) -> None:
+        self.alpha = alpha
+        # ── Position-based: task_type → {step_pos → {skill → Q}} ──
+        self._q: Dict[str, Dict[int, Dict[str, float]]] = {}
+        self._counts: Dict[str, Dict[int, Dict[str, int]]] = {}
+        # ── Role-based: task_type → {role → {skill → Q}} ──
+        self._role_q: Dict[str, Dict[str, Dict[str, float]]] = {}
+        self._role_counts: Dict[str, Dict[str, Dict[str, int]]] = {}
+        # ── Plan history: task_type → [(plan_roles_tuple, reward)] ──
+        self._plan_history: Dict[str, List[Tuple[Tuple[str, ...], float]]] = {}
+        # ── Revision stats ──
+        self._revision_count: int = 0
+        self._last_pruned: int = 0
+        self._last_decayed: int = 0
+
+    @classmethod
+    def infer_role(cls, skill: str, description: str = "") -> str:
+        """Infer the semantic role of a step from its skill and description."""
+        combined = f"{skill} {description}".lower()
+        for keywords, role in cls.ROLE_RULES:
+            if any(kw in combined for kw in keywords):
+                return role
+        # Fallback: use the skill name itself as the role
+        return skill.split("-")[0] if "-" in skill else "other"
+
+    def update(
+        self,
+        task_type: str,
+        step_pos: int,
+        skill: str,
+        reward: float,
+        description: str = "",
+        domain: str = "",
+    ) -> float:
+        """Update position Q and role Q for a step.
+
+        Updates BOTH the domain-specific key and the base task_type key
+        so aggregate learning always accumulates.
+        """
+        keys = [self._make_key(task_type, domain)]
+        base = self._base_key(keys[0])
+        if base != keys[0]:
+            keys.append(base)
+
+        role = self.infer_role(skill, description)
+        td_error = 0.0
+
+        for key in keys:
+            # ── Position Q ──
+            if key not in self._q:
+                self._q[key] = {}
+                self._counts[key] = {}
+            if step_pos not in self._q[key]:
+                self._q[key][step_pos] = {}
+                self._counts[key][step_pos] = {}
+
+            old_q = self._q[key][step_pos].get(skill, 0.5)
+            td_error = reward - old_q
+            new_q = max(0.0, min(1.0, old_q + self.alpha * td_error))
+            self._q[key][step_pos][skill] = new_q
+            self._counts[key][step_pos][skill] = self._counts[key][step_pos].get(skill, 0) + 1
+
+            # ── Role Q ──
+            if key not in self._role_q:
+                self._role_q[key] = {}
+                self._role_counts[key] = {}
+            if role not in self._role_q[key]:
+                self._role_q[key][role] = {}
+                self._role_counts[key][role] = {}
+
+            old_rq = self._role_q[key][role].get(skill, 0.5)
+            new_rq = max(0.0, min(1.0, old_rq + self.alpha * (reward - old_rq)))
+            self._role_q[key][role][skill] = new_rq
+            self._role_counts[key][role][skill] = self._role_counts[key][role].get(skill, 0) + 1
+
+        return td_error
+
+    def record_plan(
+        self,
+        task_type: str,
+        skills: List[str],
+        reward: float,
+        descriptions: Optional[List[str]] = None,
+        domain: str = "",
+    ) -> None:
+        """Record a complete plan outcome with roles (domain-aware)."""
+        keys = [self._make_key(task_type, domain)]
+        base = self._base_key(keys[0])
+        if base != keys[0]:
+            keys.append(base)
+
+        roles = []
+        for i, skill in enumerate(skills):
+            desc = descriptions[i] if descriptions and i < len(descriptions) else ""
+            roles.append(self.infer_role(skill, desc))
+
+        for key in keys:
+            if key not in self._plan_history:
+                self._plan_history[key] = []
+            self._plan_history[key].append((tuple(roles), reward))
+            if len(self._plan_history[key]) > 100:
+                self._plan_history[key] = self._plan_history[key][-100:]
+
+    def get_best_plan(
+        self, task_type: str, top_n: int = 3, domain: str = ""
+    ) -> List[Tuple[Tuple[str, ...], float]]:
+        """Get highest-reward role sequences (domain-specific + fallback merged)."""
+        key = self._make_key(task_type, domain)
+        plans = list(self._plan_history.get(key, []))
+        # Merge base-level plans if domain-specific is sparse
+        if ":" in key:
+            base_plans = self._plan_history.get(self._base_key(key), [])
+            plans.extend(base_plans)
+        # Deduplicate by role tuple
+        seen: set = set()
+        unique = []
+        for roles, reward in sorted(plans, key=lambda x: -x[1]):
+            if roles not in seen:
+                seen.add(roles)
+                unique.append((roles, reward))
+        return unique[:top_n]
+
+    def get_role_guidance(self, task_type: str, domain: str = "") -> List[Dict[str, Any]]:
+        """Get role-based guidance with domain-aware fallback.
+
+        Queries domain-specific role Q first. If insufficient data,
+        merges with base task_type role Q using weighted average.
+        """
+        key = self._make_key(task_type, domain)
+        roles = dict(self._role_q.get(key, {}))
+        counts_for_key = dict(self._role_counts.get(key, {}))
+
+        # Merge base-level data for roles not covered by domain-specific
+        if ":" in key:
+            base_roles = self._role_q.get(self._base_key(key), {})
+            base_counts = self._role_counts.get(self._base_key(key), {})
+            for role, skills in base_roles.items():
+                if role not in roles:
+                    roles[role] = dict(skills)
+                    counts_for_key[role] = dict(base_counts.get(role, {}))
+
+        if not roles:
+            return []
+        result = []
+        for role in roles:
+            skills = roles[role]
+            counts = counts_for_key.get(role, {})
+            if not skills:
+                continue
+            best_skill = max(skills, key=lambda s: skills[s])
+            total_visits = sum(counts.values())
+            result.append(
+                {
+                    "role": role,
+                    "best_skill": best_skill,
+                    "best_q": round(skills[best_skill], 3),
+                    "total_visits": total_visits,
+                    "all_skills": {
+                        s: {"q": round(q, 3), "n": counts.get(s, 0)}
+                        for s, q in sorted(skills.items(), key=lambda x: -x[1])
+                    },
+                }
+            )
+        return sorted(result, key=lambda x: -x["total_visits"])
+
+    def select(
+        self, task_type: str, step_pos: int, available_skills: List[str], domain: str = ""
+    ) -> List[str]:
+        """Rank skills for a step position with domain fallback."""
+        if not available_skills:
+            return []
+        key = self._make_key(task_type, domain)
+        step_q = self._q.get(key, {}).get(step_pos, {})
+        if not step_q and ":" in key:
+            step_q = self._q.get(self._base_key(key), {}).get(step_pos, {})
+        if step_q:
+            return sorted(available_skills, key=lambda s: step_q.get(s, 0.5), reverse=True)
+        return available_skills
+
+    def get_step_stats(self, task_type: str, domain: str = "") -> Dict[int, Dict[str, Any]]:
+        """Get per-position statistics with domain fallback."""
+        key = self._make_key(task_type, domain)
+        q_data = self._q.get(key, {})
+        if not q_data and ":" in key:
+            q_data = self._q.get(self._base_key(key), {})
+            key = self._base_key(key)
+
+        result: Dict[int, Dict[str, Any]] = {}
+        for step_pos in sorted(q_data):
+            skills = q_data[step_pos]
+            counts = self._counts.get(key, {}).get(step_pos, {})
+            best = max(skills.items(), key=lambda x: x[1]) if skills else ("?", 0)
+            result[step_pos] = {
+                "best_skill": best[0],
+                "best_q": best[1],
+                "skills": {
+                    s: {"q": q, "n": counts.get(s, 0)}
+                    for s, q in sorted(skills.items(), key=lambda x: -x[1])
+                },
+            }
+        return result
+
+    def get_all_domains(self) -> List[str]:
+        """Return all unique composite keys across position Q, role Q, and plan history."""
+        keys: set = set()
+        keys.update(self._q.keys())
+        keys.update(self._role_q.keys())
+        keys.update(self._plan_history.keys())
+        return sorted(keys)
+
+    # =====================================================================
+    # REVISE — Prune, decay, merge
+    # =====================================================================
+
+    def revise(self, min_visits: int = 2, decay_factor: float = 0.95) -> Dict[str, int]:
+        """Revise the Q-table: prune stale entries, decay old values, merge redundant.
+
+        Called periodically (e.g., every 50 episodes) to keep the table healthy.
+
+        Args:
+            min_visits: Prune skill entries with fewer visits than this
+            decay_factor: Multiply all Q-values by this (pulls toward 0.5 baseline)
+
+        Returns:
+            Dict with revision stats: {"pruned", "decayed", "merged"}
+        """
+        stats = {"pruned": 0, "decayed": 0, "merged": 0}
+
+        # ── 1. Prune low-visit position entries ──
+        for task_type in list(self._q.keys()):
+            for step_pos in list(self._q[task_type].keys()):
+                counts = self._counts.get(task_type, {}).get(step_pos, {})
+                for skill in list(self._q[task_type][step_pos].keys()):
+                    if counts.get(skill, 0) < min_visits:
+                        del self._q[task_type][step_pos][skill]
+                        if skill in counts:
+                            del counts[skill]
+                        stats["pruned"] += 1
+                # Remove empty step positions
+                if not self._q[task_type][step_pos]:
+                    del self._q[task_type][step_pos]
+                    if step_pos in self._counts.get(task_type, {}):
+                        del self._counts[task_type][step_pos]
+
+        # ── 2. Prune low-visit role entries ──
+        for task_type in list(self._role_q.keys()):
+            for role in list(self._role_q[task_type].keys()):
+                counts = self._role_counts.get(task_type, {}).get(role, {})
+                for skill in list(self._role_q[task_type][role].keys()):
+                    if counts.get(skill, 0) < min_visits:
+                        del self._role_q[task_type][role][skill]
+                        if skill in counts:
+                            del counts[skill]
+                        stats["pruned"] += 1
+                if not self._role_q[task_type][role]:
+                    del self._role_q[task_type][role]
+
+        # ── 3. Decay all Q-values toward 0.5 (forgetting factor) ──
+        baseline = 0.5
+        for task_type in self._role_q:
+            for role in self._role_q[task_type]:
+                for skill in self._role_q[task_type][role]:
+                    old = self._role_q[task_type][role][skill]
+                    self._role_q[task_type][role][skill] = baseline + decay_factor * (
+                        old - baseline
+                    )
+                    stats["decayed"] += 1
+
+        for task_type in self._q:
+            for step_pos in self._q[task_type]:
+                for skill in self._q[task_type][step_pos]:
+                    old = self._q[task_type][step_pos][skill]
+                    self._q[task_type][step_pos][skill] = baseline + decay_factor * (old - baseline)
+                    stats["decayed"] += 1
+
+        # ── 4. Merge redundant position entries into roles ──
+        # If multiple positions map to the same (role, skill), merge their
+        # counts and Q-values using weighted average.
+        for task_type in self._q:
+            pos_roles: Dict[Tuple[str, str], List[Tuple[int, float, int]]] = {}
+            for step_pos in self._q[task_type]:
+                counts = self._counts.get(task_type, {}).get(step_pos, {})
+                for skill, q in self._q[task_type][step_pos].items():
+                    role = self.infer_role(skill)
+                    key = (role, skill)
+                    n = counts.get(skill, 0)
+                    if key not in pos_roles:
+                        pos_roles[key] = []
+                    pos_roles[key].append((step_pos, q, n))
+            # Merge duplicates: if same (role, skill) appears at 3+ positions,
+            # it's spread too thin — consolidate into role Q.
+            for (role, skill), entries in pos_roles.items():
+                if len(entries) >= 3:
+                    total_n = sum(e[2] for e in entries)
+                    if total_n == 0:
+                        continue
+                    weighted_q = sum(e[1] * e[2] for e in entries) / total_n
+                    # Update role Q with merged value
+                    if task_type not in self._role_q:
+                        self._role_q[task_type] = {}
+                    if role not in self._role_q[task_type]:
+                        self._role_q[task_type][role] = {}
+                        self._role_counts[task_type][role] = {}
+                    self._role_q[task_type][role][skill] = weighted_q
+                    self._role_counts[task_type][role][skill] = total_n
+                    stats["merged"] += 1
+
+        # ── 5. Prune low-reward plans ──
+        for task_type in self._plan_history:
+            before = len(self._plan_history[task_type])
+            self._plan_history[task_type] = [
+                (plan, r)
+                for plan, r in self._plan_history[task_type]
+                if r >= 0.3  # drop plans that mostly failed
+            ]
+            stats["pruned"] += before - len(self._plan_history[task_type])
+
+        self._revision_count += 1
+        self._last_pruned = stats["pruned"]
+        self._last_decayed = stats["decayed"]
+        return stats
+
+    # =====================================================================
+    # SERIALIZATION
+    # =====================================================================
+
+    def to_dict(self) -> Dict:
+        q_ser = {
+            tt: {str(pos): skills for pos, skills in steps.items()} for tt, steps in self._q.items()
+        }
+        counts_ser = {
+            tt: {str(pos): skills for pos, skills in steps.items()}
+            for tt, steps in self._counts.items()
+        }
+        plans_ser = {
+            tt: [(list(roles), r) for roles, r in plans] for tt, plans in self._plan_history.items()
+        }
+        return {
+            "q": q_ser,
+            "counts": counts_ser,
+            "role_q": self._role_q,
+            "role_counts": self._role_counts,
+            "plans": plans_ser,
+            "alpha": self.alpha,
+            "revision_count": self._revision_count,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "StepQTable":
+        obj = cls(alpha=data.get("alpha", 0.1))
+        for tt, steps in data.get("q", {}).items():
+            obj._q[tt] = {int(pos): skills for pos, skills in steps.items()}
+        for tt, steps in data.get("counts", {}).items():
+            obj._counts[tt] = {int(pos): skills for pos, skills in steps.items()}
+        obj._role_q = data.get("role_q", {})
+        obj._role_counts = data.get("role_counts", {})
+        for tt, plans in data.get("plans", {}).items():
+            obj._plan_history[tt] = [(tuple(roles), r) for roles, r in plans]
+        obj._revision_count = data.get("revision_count", 0)
         return obj
 
 

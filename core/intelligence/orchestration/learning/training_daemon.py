@@ -38,7 +38,9 @@ class TrainingDaemon:
         """
         Pop and execute the next queued training task.
 
-        Returns None if no training tasks are pending.
+        Closes two feedback loops:
+        1. CurriculumGenerator.update_from_result() — adapts difficulty
+        2. maybe_crystallize() — checks if domain graduated
         """
         sm = self._manager
         task = sm.learning.pop_training_task()
@@ -55,9 +57,28 @@ class TrainingDaemon:
                 skip_autonomous_setup=True,
                 skip_validation=True,
             )
+            success = result.success if hasattr(result, "success") else result.get("success", False)
+            exec_time = getattr(result, "execution_time", 0.0)
+
+            # Close loop 1: feed result back to curriculum generator
+            try:
+                sm.learning.curriculum_generator.update_from_result(task, success, exec_time)
+            except Exception:
+                pass
+
+            # Close loop 2: check crystallization for task's domain
+            try:
+                from Jotty.core.intelligence.learning.crystallization import maybe_crystallize
+
+                task_type = getattr(task, "task_type", "")
+                domain = (task.metadata or {}).get("domain", "")
+                if task_type:
+                    maybe_crystallize(task_type, domain)
+            except Exception:
+                pass
+
             logger.info(
-                f" Training task {'passed' if result.success else 'failed'}: "
-                f"{task.description[:40]}"
+                f" Training task {'passed' if success else 'failed'}: " f"{task.description[:40]}"
             )
             return result
         except Exception as e:

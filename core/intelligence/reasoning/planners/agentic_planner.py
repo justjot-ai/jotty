@@ -193,7 +193,40 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         self._fast_model = fast_model
         self._init_fast_lm()
 
+        # FewShot optimization: use gold episodes from LearningStore to
+        # optimize the execution planner via DSPy BootstrapFewShot.
+        # Lazy: runs once, only if enough high-quality episodes exist.
+        self._fewshot_applied = False
+
         logger.info(f" TaskPlanner initialized (fast_model={fast_model} for classification)")
+
+    def _try_fewshot_optimize(self) -> None:
+        """One-time attempt to optimize execution_planner with FewShotCurator.
+
+        Runs BootstrapFewShot using high-quality episodes from LearningStore
+        as training data. Requires >= 3 episodes with quality >= 0.75.
+        Non-fatal: if it fails, the planner works normally without optimization.
+        """
+        if self._fewshot_applied:
+            return
+        self._fewshot_applied = True
+        try:
+            from Jotty.core.intelligence.learning.advanced_learning import FewShotCurator
+
+            curator = FewShotCurator.get_instance()
+            optimized = curator.optimize_module(
+                self.execution_planner,
+                domain="",
+                n_examples=10,
+                max_bootstrapped=4,
+            )
+            if optimized is not self.execution_planner:
+                self.execution_planner = optimized
+                logger.info("TaskPlanner: execution_planner optimized via FewShotCurator")
+            else:
+                logger.debug("TaskPlanner: FewShot optimization skipped (not enough data)")
+        except Exception as e:
+            logger.debug(f"TaskPlanner: FewShot optimization failed (non-fatal): {e}")
 
     def _init_fast_lm(self) -> None:
         """Initialize fast LM for routing/classification tasks.
@@ -498,12 +531,14 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             task: Task description
             task_type: Inferred task type
             skills: Available skills (if empty, uses default file-operations)
-            previous_outputs: Outputs from previous steps
+            previous_outputs: Outputs from previous steps (may contain
+                ``_learning_guidance`` with Q-table role/plan insights)
             max_steps: Maximum steps
 
         Returns:
             (execution_steps, reasoning)
         """
+        self._try_fewshot_optimize()
         try:
             # If no skills provided, add default file-operations skill for creation tasks
             if not skills:
@@ -647,6 +682,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
         Shares ALL parsing/fallback logic with the sync version.
         """
+        self._try_fewshot_optimize()
         try:
             # Pre-processing (CPU-only, identical to sync version)
             if not skills:

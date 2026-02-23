@@ -1,7 +1,7 @@
 """
 Web Search Skill
 
-Search the web using Google (Serper API), SearXNG, or DuckDuckGo.
+Search the web using Tavily, Google (Serper API), SearXNG, or DuckDuckGo.
 Refactored to use Jotty core utilities.
 """
 
@@ -21,6 +21,7 @@ load_jotty_env()
 
 logger = logging.getLogger(__name__)
 
+TAVILY_API_KEY = get_env("TAVILY_API_KEY")
 SERPER_API_KEY = get_env("SERPER_API_KEY")
 SEARXNG_URL = get_env("SEARXNG_URL")  # e.g. "http://localhost:8080"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -103,14 +104,48 @@ class SearchCache:
 _search_cache = SearchCache()
 
 
+def _tavily_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
+    """Search using Tavily API (AI-optimised, high quality snippets)."""
+    api_key = TAVILY_API_KEY or get_env("TAVILY_API_KEY")
+    if not api_key:
+        raise ValueError("TAVILY_API_KEY not set")
+
+    # Tavily has a 400-character query limit
+    truncated_query = query[:395] if len(query) > 395 else query
+
+    response = requests.post(
+        "https://api.tavily.com/search",
+        json={
+            "api_key": api_key,
+            "query": truncated_query,
+            "max_results": min(int(num_results), 10),
+            "include_answer": False,
+        },
+        timeout=15,
+    )
+    if response.status_code != 200:
+        logger.warning(f"Tavily {response.status_code}: {response.text[:200]}")
+    response.raise_for_status()
+
+    return [
+        {
+            "title": item.get("title", "Untitled"),
+            "url": item.get("url", ""),
+            "snippet": item.get("content", "")[:500],
+        }
+        for item in response.json().get("results", [])
+    ]
+
+
 def _serper_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
     """Search using Serper API (Google Search)."""
-    if not SERPER_API_KEY:
+    api_key = SERPER_API_KEY or get_env("SERPER_API_KEY")
+    if not api_key:
         raise ValueError("SERPER_API_KEY not set")
 
     response = requests.post(
         "https://google.serper.dev/search",
-        headers={"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"},
+        headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
         json={"q": query, "num": num_results},
         timeout=10,
     )
@@ -133,12 +168,13 @@ def _searxng_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
     from 70+ sources (Google, Bing, DuckDuckGo, etc.) without API keys.
 
     Requires SEARXNG_URL env var pointing to the instance
-    (e.g. http://localhost:8080).
+    (e.g. http://localhost:8888).
     """
-    if not SEARXNG_URL:
+    url = SEARXNG_URL or get_env("SEARXNG_URL")
+    if not url:
         raise ValueError("SEARXNG_URL not set")
 
-    base_url = SEARXNG_URL.rstrip("/")
+    base_url = url.rstrip("/")
     response = requests.get(
         f"{base_url}/search",
         params={
@@ -287,15 +323,15 @@ def _scrape_url(url: str, max_length: int = 10000) -> Dict[str, Any]:
 @tool_wrapper(required_params=["query"])
 def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Search the web using Google (Serper API), SearXNG, or DuckDuckGo.
+    Search the web using Tavily, Serper (Google), SearXNG, or DuckDuckGo.
 
-    Priority: Serper API (Google) > SearXNG > DuckDuckGo library > HTML parsing fallback.
+    Priority: Tavily > Serper API (Google) > SearXNG > DuckDuckGo library > HTML parsing fallback.
 
     Args:
         params: Dictionary containing:
             - query (str, required): Search query
             - max_results (int, optional): Max results (default: 10, max: 20)
-            - provider (str, optional): 'serper', 'searxng', or 'duckduckgo' (default: auto)
+            - provider (str, optional): 'tavily', 'serper', 'searxng', or 'duckduckgo' (default: auto)
 
     Returns:
         Dictionary with success, results, count, query, provider
@@ -303,7 +339,10 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop("_status_callback", None))
 
     query = params["query"]
-    max_results = min(params.get("max_results", 10), 20)
+    if len(query) > 400:
+        query = query[:395]
+        logger.info(f"Query truncated to 395 chars (was {len(params['query'])})")
+    max_results = min(int(params.get("max_results", 10)), 20)
     provider_pref = params.get("provider", "auto")
 
     # Show search query (truncated)
@@ -326,8 +365,35 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     except Exception:
         _health = None
 
-    # Priority 1: Serper API (paid — skip fast when unhealthy)
-    if SERPER_API_KEY and provider_pref in ("auto", "serper"):
+    # Lazy-load keys in case module-level captured None before .env was loaded
+    _tavily_key = TAVILY_API_KEY or get_env("TAVILY_API_KEY")
+    _serper_key = SERPER_API_KEY or get_env("SERPER_API_KEY")
+    _searxng_url = SEARXNG_URL or get_env("SEARXNG_URL")
+
+    # Priority 1: Tavily (AI-optimised search, high quality snippets)
+    if _tavily_key and provider_pref in ("auto", "tavily"):
+        _tavily_healthy = _health.is_healthy("tavily") if _health else True
+
+        if _tavily_healthy:
+            try:
+                results = _tavily_search(query, max_results)
+                if results:
+                    if _health:
+                        _health.record_success("tavily")
+                    response = tool_response(
+                        results=results, count=len(results), query=query, provider="tavily"
+                    )
+                    _search_cache.set(cache_key, response)
+                    return response
+            except Exception as e:
+                if _health:
+                    _health.record_failure("tavily", e)
+                logger.warning(f"Tavily API failed: {e}, falling back")
+        else:
+            logger.info("Tavily deferred (provider unhealthy), skipping to next provider")
+
+    # Priority 2: Serper API (Google — skip fast when unhealthy)
+    if _serper_key and provider_pref in ("auto", "serper"):
         _serper_healthy = _health.is_healthy("serper") if _health else True
 
         if _serper_healthy:
@@ -348,8 +414,8 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             logger.info("Serper deferred (provider unhealthy), skipping to next provider")
 
-    # Priority 2: SearXNG (self-hosted, open-source)
-    if SEARXNG_URL and provider_pref in ("auto", "searxng"):
+    # Priority 3: SearXNG (self-hosted, open-source, unlimited)
+    if _searxng_url and provider_pref in ("auto", "searxng"):
         _searxng_healthy = _health.is_healthy("searxng") if _health else True
 
         if _searxng_healthy:
@@ -370,7 +436,7 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             logger.info("SearXNG deferred (provider unhealthy), skipping to next provider")
 
-    # Priority 3: DuckDuckGo library
+    # Priority 4: DuckDuckGo library
     if DDG_AVAILABLE and provider_pref in ("auto", "duckduckgo"):
         try:
             results = _ddg_search(query, max_results)

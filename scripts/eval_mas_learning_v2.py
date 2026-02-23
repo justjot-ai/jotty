@@ -42,18 +42,23 @@ logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("eval_mas_v2")
 logger.setLevel(logging.INFO)
 
-# Disable ALL DSPy caching (disk + memory + per-LM) so each run hits the API.
-# Three levels: global cache object, per-LM cache flag, and LM __init__ default.
+# Disable ALL DSPy caching so each eval run makes fresh LLM calls.
 try:
     import dspy
 
     dspy.cache.enable_disk_cache = False
     dspy.cache.enable_memory_cache = False
-
+    # Clear existing disk cache to prevent stale results
+    try:
+        dspy.cache.disk_cache.clear()
+        logger.info("DSPy disk cache cleared")
+    except Exception:
+        pass
+    # Monkeypatch LM constructor to disable per-instance caching
     _orig_lm_init = dspy.LM.__init__
 
     def _nocache_init(self: Any, *args: Any, **kwargs: Any) -> None:
-        kwargs.setdefault("cache", False)
+        kwargs["cache"] = False
         _orig_lm_init(self, *args, **kwargs)
 
     dspy.LM.__init__ = _nocache_init  # type: ignore[method-assign]
@@ -304,6 +309,13 @@ class MASEvalV2:
                         content = joined
             if not content:
                 content = str(getattr(result, "output", result))
+            # Debug: dump sample for analysis
+            _has_fences = "```" in content
+            _code_kw = len(re.findall(r"^\s*(class |def |import )", content, re.MULTILINE))
+            logger.info(
+                f"Content: {len(content)} chars, "
+                f"has_fences={_has_fences}, code_keywords={_code_kw}"
+            )
         except Exception as e:
             error = str(e)[:300]
             print(f"  ERROR: {error}")

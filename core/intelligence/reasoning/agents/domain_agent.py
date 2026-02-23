@@ -385,10 +385,13 @@ class DomainAgent(BaseAgent):
             }
 
         status_callback = kwargs.get("status_callback")
+        # Infer domain from agent name / config for domain-specific Q-table learning
+        _domain = getattr(self.config, "domain", "") or getattr(self, "domain_name", "") or ""
         return await self._skill_executor.plan_and_execute(  # type: ignore[attr-defined, no-any-return]
             task=task,
             discovered_skills=discovered,
             status_callback=status_callback,
+            domain=_domain,
         )
 
     def _build_task_from_kwargs(self, kwargs: Dict[str, Any]) -> str:

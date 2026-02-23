@@ -1218,10 +1218,16 @@ class AgentRunner:
         ctx.learning_context_parts = self._gather_learning_context(ctx.goal)
 
         if ctx.learning_context_parts:
-            ctx.kwargs["learning_context"] = "\n\n".join(ctx.learning_context_parts)
+            # Merge with orchestrator's learning context (not overwrite).
+            existing = ctx.kwargs.get("learning_context", "")
+            runner_ctx = "\n\n".join(ctx.learning_context_parts)
+            ctx.kwargs["learning_context"] = (
+                (existing + "\n\n" + runner_ctx).strip() if existing else runner_ctx
+            )
             logger.info(
                 f"Learning context: {len(ctx.learning_context_parts)} sections "
                 f"({sum(len(p) for p in ctx.learning_context_parts)} chars)"
+                + (f" [merged with {len(existing)}ch from orchestrator]" if existing else "")
             )
 
         # Pass workspace_dir so project rules get loaded

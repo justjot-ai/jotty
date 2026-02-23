@@ -726,6 +726,80 @@ class CurriculumGenerator:
         # Last resort: basic template
         return self.generate_training_task(profiles=profiles, target_agent=target_agent)
 
+    # =========================================================================
+    # Domain-specific curriculum (for probation training)
+    # =========================================================================
+
+    # Domain task templates — keyed by task_type, each entry has goals
+    # that exercise the core skills an agent needs to master for that type.
+    DOMAIN_TEMPLATES: Dict[str, List[str]] = {
+        "coding": [
+            "Write a Python function that computes factorial recursively and save to /tmp/factorial.py",
+            "Create a Python script that reads a CSV file and prints summary statistics, save to /tmp/csv_stats.py",
+            "Write a Python class for a stack data structure with push, pop, peek and save to /tmp/stack.py",
+            "Create a Python script that fetches a URL and extracts all links, save to /tmp/link_extractor.py",
+            "Write a Python decorator that caches function results and save to /tmp/memoize.py",
+        ],
+        "creation": [
+            "Write a Python function that checks if a string is an anagram and save to /tmp/anagram.py",
+            "Create a Python script that generates a random password and save to /tmp/password_gen.py",
+            "Write a Python function that converts Roman numerals to integers and save to /tmp/roman.py",
+            "Create a markdown document comparing REST vs GraphQL and save to /tmp/rest_vs_graphql.md",
+            "Write a Python implementation of binary search and save to /tmp/binary_search.py",
+        ],
+        "research": [
+            "Research the top 3 Python web frameworks in 2026 and summarize their pros and cons",
+            "Find the latest developments in quantum computing and create a brief summary",
+            "Research best practices for API rate limiting and write a summary",
+            "Compare the top 3 cloud providers for serverless computing",
+            "Research the current state of WebAssembly adoption and write a summary",
+        ],
+        "analysis": [
+            "Analyze the time complexity of quicksort vs mergesort and explain when to use each",
+            "Compare monolithic vs microservice architecture — list 5 pros and cons of each",
+            "Analyze the CAP theorem and explain with real-world database examples",
+            "Compare SQL vs NoSQL databases for e-commerce applications",
+            "Analyze the trade-offs between consistency and availability in distributed systems",
+        ],
+    }
+
+    def generate_domain_task(
+        self, task_type: str, domain: str = "", difficulty: float = 0.5
+    ) -> "SyntheticTask":
+        """Generate a task specific to a task_type and optional business domain.
+
+        Used by run_probation() to create focused curriculum for a domain.
+        If domain is provided, the LLM enriches the base template with
+        domain context. Otherwise uses templates directly.
+        """
+        import random
+
+        templates = self.DOMAIN_TEMPLATES.get(task_type, self.DOMAIN_TEMPLATES.get("coding", []))
+        base_goal = random.choice(templates)
+
+        # If a business domain is specified, contextualize the goal
+        if domain and domain != task_type:
+            base_goal = f"[Domain: {domain}] {base_goal}"
+
+        task = SyntheticTask(
+            task_id=f"probation_{task_type}_{self.total_generated}_{int(time.time())}",
+            task_type=task_type,
+            description=base_goal,
+            difficulty=difficulty,
+            metadata={
+                "curriculum_type": "probation",
+                "domain": domain,
+                "task_type": task_type,
+            },
+        )
+
+        self.generated_tasks.append(task)
+        if len(self.generated_tasks) > self.max_history:
+            self.generated_tasks = self.generated_tasks[-self.max_history :]
+        self.total_generated += 1
+
+        return task
+
     def to_dict(self) -> Dict:
         """Serialize for persistence - includes full learning history."""
         # Convert tool_success_rates tuples to lists for JSON

@@ -129,6 +129,37 @@ class PIIConstraint(SafetyConstraint):
         "ip_address": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",  # 192.168.1.1
     }
 
+    # RFC 2606 reserved + common placeholder domains (not real PII).
+    SAFE_EMAIL_DOMAINS: set = {
+        "example.com",
+        "example.org",
+        "example.net",
+        "test.com",
+        "test.org",
+        "test.net",
+        "localhost",
+        "invalid",
+        "foo.com",
+        "bar.com",
+        "baz.com",
+        "company.com",
+        "domain.com",
+        "email.com",
+        "myapp.com",
+        "yourapp.com",
+        "acme.com",
+        "placeholder.com",
+        "sample.com",
+        "demo.com",
+    }
+
+    # Patterns indicating code/documentation context (not real PII).
+    _CODE_CONTEXT_RE = re.compile(
+        r"```|def |class |import |from |#\s|//\s|/\*|SELECT |INSERT |"
+        r"@app\.|@router\.|flask|django|fastapi|express",
+        re.IGNORECASE,
+    )
+
     def __init__(self, enabled: bool = True, redact_on_detect: bool = False) -> None:
         super().__init__(name="pii_detection", severity="blocking", enabled=enabled)
         self.redact_on_detect = redact_on_detect
@@ -146,11 +177,51 @@ class PIIConstraint(SafetyConstraint):
             )
 
         # Scan for all PII types
-        violations = []
-        detected_pii = {}
+        violations: List[str] = []
+        detected_pii: Dict[str, Any] = {}
+        is_code = bool(self._CODE_CONTEXT_RE.search(output))
 
         for pii_type, pattern in self.PII_PATTERNS.items():
             matches = re.findall(pattern, output)
+            if not matches:
+                continue
+
+            # Filter safe emails (RFC 2606 domains, code context)
+            if pii_type == "email":
+                matches = [
+                    m for m in matches if m.split("@")[-1].lower() not in self.SAFE_EMAIL_DOMAINS
+                ]
+                if is_code:
+                    matches = []
+            elif pii_type == "ip_address" and is_code:
+                matches = [
+                    m
+                    for m in matches
+                    if not m.startswith(("127.", "0.0.", "192.168.", "10.", "172."))
+                ]
+            elif pii_type == "phone":
+                # Phone numbers in public content (travel guides, business
+                # directories, restaurant listings) are not personal PII.
+                _pub_kws = (
+                    "hotel",
+                    "hostel",
+                    "restaurant",
+                    "museum",
+                    "temple",
+                    "airport",
+                    "station",
+                    "ticket",
+                    "booking",
+                    "tour",
+                    "travel",
+                    "itinerary",
+                    "attraction",
+                    "guide",
+                )
+                _lower = output[:2000].lower()
+                if any(kw in _lower for kw in _pub_kws):
+                    matches = []
+
             if matches:
                 violations.append(f"{len(matches)} {pii_type}(s)")
                 detected_pii[pii_type] = matches

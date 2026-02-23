@@ -277,6 +277,22 @@ def update_registry_with_learning(registry: Any) -> int:
 # =============================================================================
 
 
+def get_crystallized(task_type: str, domain: str = "") -> Any:
+    """Load a crystallized config for a domain if it exists.
+
+    Returns CrystallizedConfig or None.
+
+    Example:
+        from Jotty.core.intelligence.learning.facade import get_crystallized
+        config = get_crystallized("coding", domain="finance")
+        if config:
+            print(config.sop_roles)  # ('generate', 'save', 'verify')
+    """
+    from .crystallization import load
+
+    return load(task_type, domain)
+
+
 def get_learning_service() -> Any:
     """
     Get the unified LearningService singleton.

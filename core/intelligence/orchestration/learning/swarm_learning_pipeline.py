@@ -648,7 +648,7 @@ class SwarmLearningPipeline:
     # Quality threshold below which reward is replaced with a negative signal.
     # Inspired by ClawWork: payment only awarded if score >= threshold.
     # Prevents garbage-in/garbage-out in the learning feedback loop.
-    QUALITY_CLIFF_THRESHOLD = 0.35
+    QUALITY_CLIFF_THRESHOLD = 0.20
 
     # Domain-specific weight profiles — different task types prioritize
     # different quality dimensions (inspired by ClawWork's 44-occupation

@@ -614,3 +614,155 @@ class TestLCMHierarchicalCompression:
         result = mgr.compress_parts(parts, max_total_chars=1000)
         assert result == parts
         assert len(mgr._content_store) == 0
+
+
+# =============================================================================
+# Learning Loop Fixes: Quality cliff, content keys, PII gate, effectiveness key
+# =============================================================================
+
+
+class TestQualityCliffThreshold:
+    """Quality cliff should not create death spiral with success floor."""
+
+    def test_cliff_below_success_floor(self):
+        """Cliff threshold (0.20) must be below success floor (0.30)."""
+        from Jotty.core.intelligence.orchestration.learning.swarm_learning_pipeline import (
+            SwarmLearningPipeline,
+        )
+
+        assert (
+            SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD < 0.30
+        ), "Cliff threshold must be below success floor (0.30) to avoid death spiral"
+
+    def test_failed_episode_not_negative(self):
+        """Failed episode with decent output should get 0.3, not -0.1."""
+        from Jotty.core.intelligence.orchestration.learning.swarm_learning_pipeline import (
+            SwarmLearningPipeline,
+        )
+
+        # Create a mock result that is failed but has good output
+        result = SimpleNamespace(
+            success=False,
+            output="A substantial output with detailed analysis " * 50,
+            final_output="",
+            execution_time=60.0,
+            trajectory=[],
+        )
+        reward = SwarmLearningPipeline._compute_episode_reward(result, "Test task", "general")
+        # Should be capped at 0.3 (success floor) but NOT -0.1 (cliff)
+        assert reward >= 0.0, f"Failed episode reward {reward} should not be negative"
+
+
+class TestContentKeyExpansion:
+    """Learning service should find content from all common outcome keys."""
+
+    def test_outcome_with_output_key(self):
+        """Outcome using 'output' key should still find content."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.intelligence.learning.learning_store import LearningStore
+        import tempfile
+
+        tmpdir = tempfile.mkdtemp()
+        store = LearningStore(db_path=f"{tmpdir}/test.db")
+        ls = LearningService(store=store)
+
+        # Record with 'output' key (not 'content')
+        ep_id = ls.record(
+            unit_name="TestAgent",
+            unit_type="agent",
+            domain="coding",
+            task_type="test",
+            context={"goal": "Build something"},
+            action={"mode": "direct"},
+            outcome={"output": "x" * 600},  # Uses 'output', not 'content'
+            success=True,
+            quality=0.8,
+        )
+        assert ep_id  # Episode was recorded
+
+        import shutil
+
+        shutil.rmtree(tmpdir)
+
+    def test_outcome_with_result_key(self):
+        """Outcome using 'result' key should still find content."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.intelligence.learning.learning_store import LearningStore
+        import tempfile
+
+        tmpdir = tempfile.mkdtemp()
+        store = LearningStore(db_path=f"{tmpdir}/test.db")
+        ls = LearningService(store=store)
+
+        ep_id = ls.record(
+            unit_name="TestAgent",
+            unit_type="agent",
+            domain="coding",
+            task_type="test",
+            context={"goal": "Build something"},
+            action={"mode": "direct"},
+            outcome={"result": "y" * 600},  # Uses 'result', not 'content'
+            success=True,
+            quality=0.8,
+        )
+        assert ep_id
+
+        import shutil
+
+        shutil.rmtree(tmpdir)
+
+
+class TestPIISafetyGateFix:
+    """PII validator should not flag safe/placeholder emails in code."""
+
+    def test_safe_email_domains_not_flagged(self):
+        """Emails in safe domains should not trigger PII detection."""
+        from Jotty.core.infrastructure.monitoring.safety_gates.validators import (
+            PIIConstraint,
+        )
+
+        validator = PIIConstraint()
+        result = validator.validate({"output": "Contact user@example.com for details"})
+        assert result.passed, "example.com email should not be flagged as PII"
+
+    def test_code_context_emails_not_flagged(self):
+        """Emails in code context should not trigger PII detection."""
+        from Jotty.core.infrastructure.monitoring.safety_gates.validators import (
+            PIIConstraint,
+        )
+
+        validator = PIIConstraint()
+        code_output = "```python\ndef send_email(to='admin@company.com'):\n    pass\n```"
+        result = validator.validate({"output": code_output})
+        assert result.passed, "Emails in code blocks should not be flagged"
+
+    def test_real_emails_still_flagged(self):
+        """Real-looking emails should still be flagged."""
+        from Jotty.core.infrastructure.monitoring.safety_gates.validators import (
+            PIIConstraint,
+        )
+
+        validator = PIIConstraint()
+        result = validator.validate({"output": "Send it to john.doe@gmail.com please"})
+        assert not result.passed, "Real email addresses should still be flagged"
+
+
+class TestEffectivenessKeyFix:
+    """Effectiveness tracker should use correct key names."""
+
+    def test_improvement_report_keys(self):
+        """improvement_report returns 'recent_success_rate', not 'recent_rate'."""
+        from Jotty.core.intelligence.orchestration.learning.swarm_learning_pipeline import (
+            EffectivenessTracker,
+        )
+
+        tracker = EffectivenessTracker()
+        tracker.record("coding", success=True, quality=0.8)
+        tracker.record("coding", success=False, quality=0.3)
+
+        report = tracker.improvement_report()
+        coding = report["coding"]
+        assert "recent_success_rate" in coding
+        assert "historical_success_rate" in coding
+        # Old buggy key should NOT exist
+        assert "recent_rate" not in coding
