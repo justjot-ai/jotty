@@ -997,10 +997,48 @@ class LearningService:
                 logger.debug("Embedding computation failed: %s", exc)
 
         # ── Schedule fact distillation for good episodes (mem0 pattern) ──
-        if isinstance(_content, str) and len(_content) > 300 and success and quality >= 0.4:
+        # Gate: success + quality >= 0.2 (MAS episodes have lower computed quality
+        # due to execution time, but their content is still distill-worthy).
+        if isinstance(_content, str) and len(_content) > 300 and success and quality >= 0.2:
             self._schedule_fact_distillation(
                 episode_id, _goal_text or task_type, _content, domain, unit_name
             )
+
+        # ── Reflexion: generate reflection on failures (Shinn et al.) ──
+        if not success or quality < 0.4:
+            try:
+                from .advanced_learning import Reflexion
+
+                reflexion = Reflexion.get_instance()
+                _output = str(_content)[:1500] if isinstance(_content, str) else ""
+                reflexion.reflect_on_failure(
+                    episode_id=episode_id,
+                    unit_name=unit_name,
+                    goal=_goal_text or task_type,
+                    output=_output,
+                    error_type=error_type or "",
+                    error_message=error_message or "",
+                )
+            except Exception as e:
+                logger.debug(f"Reflexion generation failed: {e}")
+
+        # ── VoyagerSkillLib: extract reusable patterns from high-quality successes ──
+        if success and quality >= 0.8:
+            try:
+                from .advanced_learning import VoyagerSkillLib
+
+                skill_lib = VoyagerSkillLib.get_instance()
+                approach = str(action.get("paradigm", action.get("model", "")))
+                skill_lib.extract_skill_pattern(
+                    episode_id=episode_id,
+                    domain=domain,
+                    task_type=task_type,
+                    goal=_goal_text or task_type,
+                    approach=approach,
+                    quality=quality,
+                )
+            except Exception as e:
+                logger.debug(f"VoyagerSkillLib extraction failed: {e}")
 
         logger.debug(
             f"Recorded: {unit_name} ({unit_type}) domain={domain} "
@@ -1883,16 +1921,29 @@ class LearningService:
         heuristic_score: float,
     ) -> float:
         """
-        Use a cheap LLM call to judge response quality. Returns a score 0.0-1.0.
+        Use LLMJudge (DSPy-based) to score response quality. Returns 0.0-1.0.
 
-        Only called for complex tasks (>500 words) where heuristic scoring
-        is insufficient. Uses a fast model to minimize cost.
-
-        Falls back to heuristic_score on any failure.
+        Primary path uses LLMJudge (Haiku via DSPy). Falls back to direct
+        Anthropic API call if DSPy is unavailable, then to heuristic_score.
         """
         if len(content) < 500:
             return heuristic_score
 
+        # Primary: use LLMJudge (DSPy-based, blends LLM + heuristic 70/30)
+        try:
+            import asyncio as _aio
+
+            from .advanced_learning import LLMJudge
+
+            judge = LLMJudge.get_instance()
+            loop = _aio.get_running_loop()
+            verdict = await loop.run_in_executor(None, judge.judge, goal, content, heuristic_score)
+            if verdict.source == "llm":
+                return verdict.quality
+        except Exception as e:
+            logger.debug(f"LLMJudge primary path failed: {e}")
+
+        # Fallback: direct Anthropic call
         try:
             import asyncio as _aio
             import json as _json
@@ -1926,7 +1977,6 @@ class LearningService:
             loop = _aio.get_running_loop()
             text = await loop.run_in_executor(None, _sync_judge_call, prompt)
 
-            # Extract JSON from response
             for line in text.split("\n"):
                 line = line.strip()
                 if line.startswith("{"):
@@ -1940,7 +1990,7 @@ class LearningService:
             return heuristic_score
 
         except Exception as e:
-            logger.debug(f"LLM judge failed, using heuristic: {e}")
+            logger.debug(f"LLM judge fallback failed, using heuristic: {e}")
             return heuristic_score
 
     # =========================================================================
@@ -2335,11 +2385,18 @@ class LearningService:
         for score, ep in scored[:top_k]:
             outcome = ep.outcome or {}
             actual_content = ""
+            full_content_len = 0
             for _ck in ("content", "response", "result"):
                 _cv = outcome.get(_ck, "")
                 if isinstance(_cv, str) and len(_cv) > 200:
+                    full_content_len = len(_cv)
                     actual_content = _cv[:1200]
                     break
+            # content_length from outcome metadata is the TRUE full length
+            # (the content field itself may be truncated to 1500 chars)
+            stored_len = outcome.get("content_length", 0)
+            if stored_len and stored_len > full_content_len:
+                full_content_len = stored_len
 
             excerpt = outcome.get("response_excerpt", "") or actual_content
             if isinstance(excerpt, str) and len(excerpt) > 1000:
@@ -2359,6 +2416,7 @@ class LearningService:
                     "relevance_score": round(score, 3),
                     "excerpt": excerpt,
                     "actual_content": actual_content[:1200] if actual_content else "",
+                    "full_content_len": full_content_len,
                     "goal_preview": str(ep.context.get("goal", ep.context.get("message", "")))[
                         :100
                     ],
@@ -2616,14 +2674,36 @@ class LearningService:
         if not excerpt or len(excerpt) < 50:
             return ""
 
+        relevance = best_resp.get("relevance_score", 0.0)
+        best_quality = best_resp["quality"]
+
+        # ── Same-task detection ──
+        # If relevance > 0.92, the retrieved response is for a nearly identical
+        # task.  Injecting the actual answer makes the LLM copy/abbreviate
+        # instead of thinking fresh (anti-pattern: RAG-as-summarizer).
+        # Instead, inject structural guidance so the LLM aims for equal or
+        # better quality WITHOUT seeing the previous text.
+        if relevance > 0.92:
+            content_len = best_resp.get("full_content_len", 0)
+            if not content_len:
+                actual_content = best_resp.get("actual_content", "")
+                content_len = len(actual_content) if actual_content else len(excerpt)
+            parts: List[str] = [
+                f"[QUALITY BASELINE — your previous response scored Q={best_quality:.2f} "
+                f"and was {content_len} chars]",
+                f"Your response MUST be at least {content_len} characters.",
+                "Cover ALL aspects requested. Do NOT summarize or abbreviate.",
+            ]
+            return "\n".join(parts)
+
+        # ── Different-task: inject as few-shot example (normal RAG) ──
         parts: List[str] = []
-        parts.append(f"[HIGH-QUALITY PRIOR RESPONSE (Q={best_resp['quality']:.2f})]")
+        parts.append(f"[REFERENCE FROM SIMILAR TASK (Q={best_quality:.2f})]")
 
         if best_resp.get("goal_preview"):
             parts.append(f"Task: {best_resp['goal_preview']}")
 
         # Prefer actual response content over metadata digest.
-        # If excerpt starts with "[" it's a digest — try to find real content.
         actual_content = best_resp.get("actual_content", "")
         if actual_content and len(actual_content) > len(excerpt):
             parts.append(f"Response:\n{actual_content[:1000]}")

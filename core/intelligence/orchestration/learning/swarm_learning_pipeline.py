@@ -732,9 +732,11 @@ class SwarmLearningPipeline:
         """
         import math
 
-        # Extract output text
+        # Extract output text (prefer final_output for clean multi-agent text)
         output_text = ""
-        if hasattr(result, "output") and result.output:
+        if hasattr(result, "final_output"):
+            output_text = result.final_output
+        elif hasattr(result, "output") and result.output:
             output_text = str(result.output)
         elif isinstance(result, dict):
             output_text = str(result.get("output", ""))
@@ -763,12 +765,13 @@ class SwarmLearningPipeline:
             substance = length_score * (0.4 + 0.6 * density)
 
         # --- Dimension 2: Efficiency (0-1) ---
-        # Faster execution relative to 120s baseline scores higher.
-        exec_time = getattr(result, "execution_time", 60.0)
+        # Sigmoid-like scoring relative to a baseline.
+        # MAS pipelines legitimately take 3-8 min, so baseline is 300s.
+        # 30s → 0.95, 120s → 0.75, 300s → 0.5, 600s → 0.25
+        exec_time = getattr(result, "execution_time", 120.0)
         if exec_time <= 0:
-            exec_time = 60.0  # Unknown defaults to neutral
-        # Sigmoid-like: 5s → 0.95, 30s → 0.75, 60s → 0.5, 120s → 0.25, 300s → 0.05
-        efficiency = 1.0 / (1.0 + math.exp((exec_time - 60) / 30))
+            exec_time = 120.0
+        efficiency = 1.0 / (1.0 + math.exp((exec_time - 300) / 120))
 
         # --- Dimension 3: Tool usage effectiveness (0-1) ---
         # If the trajectory shows tool calls, check how many produced output.
