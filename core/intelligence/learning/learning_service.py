@@ -1628,8 +1628,15 @@ class LearningService:
                 return f"[Learned patterns for {domain}]\n" + "\n".join(lesson_lines)
             return self._maintenance_guidance(domain, task_type)
 
-        # Cold start succeeding: minimal bootstrap only — no lessons yet
+        # Cold start succeeding: use distilled lessons if available,
+        # otherwise fall back to bootstrap guidance.
         if is_cold_start and is_succeeding and not has_early_failures:
+            cold_lessons = self.retrieve_distilled_lessons(
+                domain, goal=goal, agent_name=unit_name, top_k=3
+            )
+            if cold_lessons:
+                lesson_lines = [f"- {l['lesson']}" for l in cold_lessons[:3]]
+                return f"[Learned patterns for {domain}]\n" + "\n".join(lesson_lines)
             return self._bootstrap_guidance(domain, task_type)
 
         # ── Active correction mode: failures present ─────────────
