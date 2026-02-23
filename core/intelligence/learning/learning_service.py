@@ -194,10 +194,15 @@ class LearningService:
         self._judged_episodes: set = set()  # Dedup: episode IDs already judged or in-flight
 
         # Domain-aware score blending overrides
+        # Code-producing domains: trust LLM more (word-count heuristic penalizes short code)
+        # Prose domains (research, creation, finance): default 0.6/0.4 is correct
         _DEFAULT_BLEND_OVERRIDES = {
             "coding": (0.85, 0.15),
             "algorithms": (0.85, 0.15),
             "math": (0.80, 0.20),
+            "devops": (0.85, 0.15),
+            "testing": (0.85, 0.15),
+            "data_analysis": (0.80, 0.20),
         }
         self._blend_overrides = self._config.judge_blend_overrides or _DEFAULT_BLEND_OVERRIDES
 
@@ -2169,6 +2174,7 @@ class LearningService:
                         {
                             "lesson": str(l.get("lesson", ""))[:200],
                             "type": str(l.get("type", "pattern")),
+                            "sub_domain": str(l.get("sub_domain", "")),
                             "applies_to": str(l.get("applies_to", ""))[:100],
                             "confidence": min(1.0, max(0.0, float(l.get("confidence", 0.6)))),
                         }
@@ -2184,11 +2190,11 @@ class LearningService:
                         )
                         return
                 elif isinstance(lessons, dict) and lessons.get("lesson"):
-                    # Single lesson returned as dict instead of list
                     parsed = [
                         {
                             "lesson": str(lessons["lesson"])[:200],
                             "type": str(lessons.get("type", "pattern")),
+                            "sub_domain": str(lessons.get("sub_domain", "")),
                             "applies_to": str(lessons.get("applies_to", ""))[:100],
                             "confidence": min(1.0, max(0.0, float(lessons.get("confidence", 0.6)))),
                         }
@@ -2250,6 +2256,11 @@ class LearningService:
             f"For each lesson, provide:\n"
             f"- lesson: One sentence, specific and actionable (not generic advice)\n"
             f"- type: 'strategy' | 'mistake' | 'pattern' | 'tool_usage'\n"
+            f"- sub_domain: A short tag for the specific sub-type of this task "
+            f"(e.g. for domain 'mermaid': 'er', 'sequence', 'flowchart', 'state', 'gantt'; "
+            f"for domain 'travel': 'itinerary', 'booking', 'visa'; "
+            f"for domain 'coding': 'python', 'rust', 'frontend'). "
+            f"Use '' (empty) if the lesson is generic to the whole domain.\n"
             f"- applies_to: When this lesson applies\n"
             f"- confidence: 0.0-1.0 how reliable this lesson is\n\n"
             f"CRITICAL: Focus on what the EXPERT JUDGE highlighted — especially the "
@@ -2258,8 +2269,9 @@ class LearningService:
             f"Skip generic advice like 'write tests' or 'handle errors'. "
             f"If this task taught nothing new beyond the known lessons, return an empty array [].\n\n"
             f"Respond as JSON array. Example:\n"
-            f'[{{"lesson": "Using dataclass for Request/Response gives cleaner API than raw dicts", '
-            f'"type": "pattern", "applies_to": "Python API framework tasks", "confidence": 0.8}}]'
+            f'[{{"lesson": "Use ||--o{{ for one-to-many relationships in ER diagrams", '
+            f'"type": "pattern", "sub_domain": "er", '
+            f'"applies_to": "Mermaid ER diagram generation", "confidence": 0.8}}]'
         )
 
     def _store_distilled_lessons(
@@ -2269,13 +2281,20 @@ class LearningService:
         domain: str,
         agent_name: str,
     ) -> None:
-        """Store extracted lessons with embeddings."""
+        """Store extracted lessons with embeddings.
+
+        If a lesson has a ``sub_domain`` field, the domain is stored
+        hierarchically as ``domain:sub_domain`` (e.g. ``mermaid:er``).
+        Lessons with empty sub_domain stay under the parent domain.
+        """
         emb_svc = _get_embeddings()
         for lesson_data in lessons:
+            sub = str(lesson_data.get("sub_domain", "")).strip().lower()
+            effective_domain = f"{domain}:{sub}" if sub else domain
             lesson = DistilledLesson(
                 lesson_id=f"dl_{episode_id}_{uuid.uuid4().hex[:4]}",
                 episode_id=episode_id,
-                domain=domain,
+                domain=effective_domain,
                 agent_name=agent_name,
                 lesson=lesson_data["lesson"],
                 context_type=lesson_data.get("type", "pattern"),
@@ -2328,6 +2347,7 @@ class LearningService:
                     {
                         "lesson": str(l.get("lesson", ""))[:200],
                         "type": str(l.get("type", "pattern")),
+                        "sub_domain": str(l.get("sub_domain", "")),
                         "applies_to": str(l.get("applies_to", ""))[:100],
                         "confidence": min(1.0, max(0.0, float(l.get("confidence", 0.6)))),
                     }
@@ -2349,8 +2369,9 @@ class LearningService:
         """
         Retrieve the most relevant distilled lessons using vector similarity.
 
-        These are concise, actionable facts — the highest signal-to-noise
-        learning context available.
+        Supports hierarchical domains: if domain is "mermaid", retrieves
+        both "mermaid" (shared) and "mermaid:er" / "mermaid:sequence" etc.,
+        ranking sub-domain matches higher when the goal text matches.
         """
         emb_svc = _get_embeddings()
 
@@ -2359,10 +2380,30 @@ class LearningService:
             if goal_vec is not None:
                 return self._embedding_lesson_retrieval(domain, goal_vec, agent_name, top_k)
 
-        # Fallback: return highest-confidence lessons for domain
+        # Fallback: hierarchical retrieval by confidence
         lessons = self._store.get_distilled_lessons(
-            domain=domain, agent_name=agent_name or None, limit=top_k
+            domain=domain,
+            agent_name=agent_name or None,
+            limit=top_k * 3,
+            hierarchical=True,
         )
+
+        # Score: sub-domain match bonus when goal hints at a sub-type
+        goal_lower = goal.lower() if goal else ""
+        scored = []
+        for l in lessons:
+            score = l.confidence
+            # Boost lessons whose sub-domain appears in the goal text
+            if ":" in l.domain:
+                sub = l.domain.split(":", 1)[1]
+                if sub and sub in goal_lower:
+                    score += 0.4  # strong sub-domain match
+                elif sub and sub not in goal_lower:
+                    score -= 0.3  # wrong sub-domain — suppress
+            scored.append((score, l))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
         return [
             {
                 "lesson": l.lesson,
@@ -2370,8 +2411,9 @@ class LearningService:
                 "applies_to": l.applicability,
                 "confidence": l.confidence,
                 "agent": l.agent_name,
+                "domain": l.domain,
             }
-            for l in lessons
+            for _, l in scored[:top_k]
         ]
 
     def _embedding_lesson_retrieval(
@@ -2381,15 +2423,22 @@ class LearningService:
         agent_name: str,
         top_k: int,
     ) -> List[Dict[str, Any]]:
-        """Retrieve distilled lessons using embedding cosine similarity."""
+        """Retrieve distilled lessons using embedding cosine similarity.
+
+        Uses hierarchical domain matching so sub-domain lessons are
+        included but ranked by semantic relevance to the current goal.
+        """
         import numpy as np
 
         from .embeddings import EmbeddingService
 
-        lesson_embs = self._store.get_distilled_lessons_with_embeddings(domain=domain, limit=100)
+        lesson_embs = self._store.get_distilled_lessons_with_embeddings(
+            domain=domain,
+            limit=100,
+            hierarchical=True,
+        )
 
         if not lesson_embs:
-            # Try broader: all domains
             lesson_embs = self._store.get_distilled_lessons_with_embeddings(domain=None, limit=100)
         if not lesson_embs:
             return []
@@ -2411,6 +2460,7 @@ class LearningService:
                 "applies_to": lesson.applicability,
                 "confidence": lesson.confidence,
                 "agent": lesson.agent_name,
+                "domain": lesson.domain,
                 "relevance": round(score, 3),
             }
             for score, lesson in scored[:top_k]

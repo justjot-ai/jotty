@@ -613,7 +613,7 @@ class AutonomousAgent(BaseAgent):
 
         return {
             "skills": matched,
-            "sop_hint": config.to_plan_hint(),
+            "sop_hint": config.to_plan_hint(goal=task),
         }
 
     async def _select_and_optimize_skills(

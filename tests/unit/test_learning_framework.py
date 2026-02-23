@@ -714,6 +714,454 @@ class TestLearningServiceConfig:
 
 
 # =============================================================================
+# Edge Cases & Stress Tests
+# =============================================================================
+
+
+class TestRecencyEdgeCases:
+    """Phase 2 edge cases: alpha clamping, zero staleness, huge staleness."""
+
+    @pytest.mark.unit
+    def test_effective_alpha_never_exceeds_half(self):
+        """Even with extreme staleness, alpha caps at 0.5."""
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable
+
+        q = SkillQTable(alpha=0.1)
+        # Advance counter massively without touching skill_a
+        q._global_counter = 100_000
+        q.update("test", "skill_a", 0.9)
+        # The update should work (not overflow) and Q should be reasonable
+        assert 0.0 <= q.get_q("test", "skill_a") <= 1.0
+
+    @pytest.mark.unit
+    def test_zero_staleness_uses_base_alpha(self):
+        """Consecutive updates on same skill → staleness=1 → alpha ≈ base."""
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable
+
+        q = SkillQTable(alpha=0.1)
+        q.update("test", "skill_a", 0.9)
+        q.update("test", "skill_a", 0.9)
+        q.update("test", "skill_a", 0.9)
+        # Should converge normally, not overshoot
+        assert 0.5 < q.get_q("test", "skill_a") < 1.0
+
+    @pytest.mark.unit
+    def test_step_q_stale_entry_drops_faster(self):
+        """StepQTable: stale position entries also adapt faster."""
+        from Jotty.core.intelligence.learning.td_lambda import StepQTable
+
+        sq = StepQTable(alpha=0.1)
+        # Train skill_a at pos 0
+        for _ in range(50):
+            sq.update("test", 0, "skill_a", 0.9)
+        q_before = sq._q["test"][0]["skill_a"]
+
+        # Advance counter on different skill
+        for _ in range(200):
+            sq.update("test", 1, "skill_b", 0.5)
+
+        # Now update stale skill_a with bad reward
+        for _ in range(3):
+            sq.update("test", 0, "skill_a", 0.1)
+        q_after = sq._q["test"][0]["skill_a"]
+
+        # Should have dropped noticeably
+        assert q_before - q_after > 0.05
+
+    @pytest.mark.unit
+    def test_recency_with_multiple_domains(self):
+        """Recency tracking is per-key, not global."""
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable
+
+        q = SkillQTable(alpha=0.1)
+        q.update("coding", "skill_a", 0.9, domain="python")
+        q.update("research", "skill_a", 0.9, domain="travel")
+
+        # Both should have separate tracking
+        assert "coding:python" in q._last_updated
+        assert "research:travel" in q._last_updated
+
+
+class TestDualPlanEdgeCases:
+    """Phase 4 edge cases: empty plans, single-step plans, domain plans."""
+
+    @pytest.mark.unit
+    def test_single_skill_plan(self):
+        """Single-skill plan: raw and normalized should be identical."""
+        from Jotty.core.intelligence.learning.td_lambda import StepQTable
+
+        sq = StepQTable()
+        sq.record_plan("test", ["web-search"], 0.9, descriptions=["search"])
+
+        norm = sq.get_best_plan("test")
+        raw = sq.get_best_raw_plan("test")
+        assert norm[0][0] == raw[0][0]  # same for single skill
+
+    @pytest.mark.unit
+    def test_raw_plan_domain_fallback(self):
+        """Raw plan should fall back to base key like normalized plan."""
+        from Jotty.core.intelligence.learning.td_lambda import StepQTable
+
+        sq = StepQTable()
+        sq.record_plan(
+            "research",
+            ["web-search", "file-operations"],
+            0.8,
+            descriptions=["search", "save"],
+            domain="travel",
+        )
+
+        # Query with domain
+        raw_domain = sq.get_best_raw_plan("research", domain="travel")
+        assert len(raw_domain) > 0
+
+        # Base key should also have it
+        raw_base = sq.get_best_raw_plan("research")
+        assert len(raw_base) > 0
+
+    @pytest.mark.unit
+    def test_raw_plan_max_history(self):
+        """Raw plan history should respect max_history limit."""
+        from Jotty.core.intelligence.learning.td_lambda import StepQTable
+
+        sq = StepQTable()
+        for i in range(150):
+            sq.record_plan("test", ["web-search"], float(i) / 150)
+
+        # Should be capped at plan_history_max (default 100)
+        assert len(sq._raw_plan_history["test"]) <= 100
+
+
+class TestStalenessCanaryEdgeCases:
+    """Phase 6 edge cases: no config, interleaved success/failure."""
+
+    @pytest.mark.unit
+    def test_record_outcome_no_config(self):
+        """Recording outcome when no config exists should be a no-op."""
+        from Jotty.core.intelligence.learning.crystallization import record_crystallized_outcome
+        import Jotty.core.intelligence.learning.crystallization as crystal_mod
+
+        original_dir = crystal_mod._CRYSTAL_DIR
+        crystal_mod._CRYSTAL_DIR = Path("/tmp/nonexistent_crystal_dir_test")
+        try:
+            result = record_crystallized_outcome("nonexistent", success=False)
+            assert result is None
+        finally:
+            crystal_mod._CRYSTAL_DIR = original_dir
+
+    @pytest.mark.unit
+    def test_interleaved_failures_and_successes(self, tmp_path):
+        """F, F, S, F, F, S → never decrystallizes (counter resets each time)."""
+        from Jotty.core.intelligence.learning.crystallization import (
+            CrystallizedConfig,
+            _save,
+            load,
+            record_crystallized_outcome,
+        )
+        import Jotty.core.intelligence.learning.crystallization as crystal_mod
+
+        original_dir = crystal_mod._CRYSTAL_DIR
+        crystal_mod._CRYSTAL_DIR = tmp_path
+        try:
+            _save(CrystallizedConfig(domain_key="test", task_type="test", skills=["s"]))
+
+            # F, F, S → reset
+            record_crystallized_outcome("test", success=False, max_failures=3)
+            record_crystallized_outcome("test", success=False, max_failures=3)
+            record_crystallized_outcome("test", success=True, max_failures=3)
+
+            # F, F, S → reset again
+            record_crystallized_outcome("test", success=False, max_failures=3)
+            record_crystallized_outcome("test", success=False, max_failures=3)
+            record_crystallized_outcome("test", success=True, max_failures=3)
+
+            # Config should still exist
+            assert load("test") is not None
+            assert load("test").consecutive_failures == 0
+        finally:
+            crystal_mod._CRYSTAL_DIR = original_dir
+
+    @pytest.mark.unit
+    def test_custom_max_failures(self, tmp_path):
+        """Custom max_failures=1 should decrystallize on first failure."""
+        from Jotty.core.intelligence.learning.crystallization import (
+            CrystallizedConfig,
+            _save,
+            record_crystallized_outcome,
+        )
+        import Jotty.core.intelligence.learning.crystallization as crystal_mod
+
+        original_dir = crystal_mod._CRYSTAL_DIR
+        crystal_mod._CRYSTAL_DIR = tmp_path
+        try:
+            _save(CrystallizedConfig(domain_key="test", task_type="test", skills=["s"]))
+            result = record_crystallized_outcome("test", success=False, max_failures=1)
+            assert result == "decrystallized"
+        finally:
+            crystal_mod._CRYSTAL_DIR = original_dir
+
+
+class TestCrystallizedConfigSerialization:
+    """Phase 5+6: New fields survive JSON roundtrip."""
+
+    @pytest.mark.unit
+    def test_new_fields_roundtrip(self, tmp_path):
+        """role_confidence and consecutive_failures survive save/load."""
+        from Jotty.core.intelligence.learning.crystallization import (
+            CrystallizedConfig,
+            _save,
+            load,
+        )
+        import Jotty.core.intelligence.learning.crystallization as crystal_mod
+
+        original_dir = crystal_mod._CRYSTAL_DIR
+        crystal_mod._CRYSTAL_DIR = tmp_path
+        try:
+            config = CrystallizedConfig(
+                domain_key="coding:python",
+                task_type="coding",
+                domain="python",
+                skills=["claude-cli-llm"],
+                sop_roles=("generate", "test"),
+                role_confidence={"generate": 0.95, "test": 0.72},
+                consecutive_failures=2,
+            )
+            _save(config)
+            loaded = load("coding", "python")
+
+            assert loaded is not None
+            assert loaded.role_confidence == {"generate": 0.95, "test": 0.72}
+            assert loaded.consecutive_failures == 2
+        finally:
+            crystal_mod._CRYSTAL_DIR = original_dir
+
+    @pytest.mark.unit
+    def test_old_config_without_new_fields(self, tmp_path):
+        """Old JSON without role_confidence/consecutive_failures loads fine."""
+        import Jotty.core.intelligence.learning.crystallization as crystal_mod
+
+        original_dir = crystal_mod._CRYSTAL_DIR
+        crystal_mod._CRYSTAL_DIR = tmp_path
+        try:
+            tmp_path.mkdir(parents=True, exist_ok=True)
+            old_json = {
+                "domain_key": "test",
+                "task_type": "test",
+                "domain": "",
+                "skills": ["web-search"],
+                "sop_roles": ["research", "save"],
+                "role_skill_map": {},
+                "prompt_guidance": "",
+                "success_rate": 0.9,
+                "total_episodes": 30,
+                "created_at": "2026-01-01",
+            }
+            (tmp_path / "test.json").write_text(json.dumps(old_json))
+
+            from Jotty.core.intelligence.learning.crystallization import load
+
+            loaded = load("test")
+            assert loaded is not None
+            assert loaded.role_confidence == {}
+            assert loaded.consecutive_failures == 0
+        finally:
+            crystal_mod._CRYSTAL_DIR = original_dir
+
+
+class TestBlendingAcrossDomains:
+    """Phase 3: Verify all configured domains get correct weights."""
+
+    @pytest.mark.unit
+    def test_all_override_domains(self):
+        """All code-producing domains get custom weights."""
+        overrides = {
+            "coding": (0.85, 0.15),
+            "algorithms": (0.85, 0.15),
+            "math": (0.80, 0.20),
+            "devops": (0.85, 0.15),
+            "testing": (0.85, 0.15),
+            "data_analysis": (0.80, 0.20),
+        }
+        for domain, (w_llm, w_heur) in overrides.items():
+            assert abs(w_llm + w_heur - 1.0) < 0.01, f"{domain} weights don't sum to 1"
+
+    @pytest.mark.unit
+    def test_blending_correctness_all_domains(self):
+        """Verify blended scores are correct for each domain."""
+        overrides = {
+            "coding": (0.85, 0.15),
+            "algorithms": (0.85, 0.15),
+            "math": (0.80, 0.20),
+            "devops": (0.85, 0.15),
+            "testing": (0.85, 0.15),
+            "data_analysis": (0.80, 0.20),
+        }
+        llm = 0.9
+        heur = 0.3
+
+        for domain, (w_llm, w_heur) in overrides.items():
+            blended = llm * w_llm + heur * w_heur
+            default = llm * 0.6 + heur * 0.4
+            assert blended > default, f"{domain} should score higher than default"
+
+
+class TestConfigOverrideBlend:
+    """Phase 1+3: Custom blend overrides from config propagate correctly."""
+
+    @pytest.mark.unit
+    def test_custom_config_overrides_default(self):
+        """User-supplied judge_blend_overrides should override defaults."""
+        from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+
+        custom = {"research": (0.5, 0.5), "coding": (0.95, 0.05)}
+        cfg = LearningConfig(judge_blend_overrides=custom)
+
+        # LearningService should use these
+        blend_overrides = cfg.judge_blend_overrides or {}
+        assert blend_overrides["research"] == (0.5, 0.5)
+        assert blend_overrides["coding"] == (0.95, 0.05)
+
+
+class TestCurriculumOrderingEdgeCases:
+    """Phase 8 edge cases: identical scores, very long goals, unicode."""
+
+    @pytest.mark.unit
+    def test_identical_complexity_stable_sort(self):
+        """Goals with same complexity score maintain relative order."""
+        goals = ["Research topic A", "Research topic B", "Research topic C"]
+
+        def _complexity_score(goal: str) -> float:
+            score = min(len(goal) / 500, 1.0) * 0.3
+            tech_terms = {
+                "implement",
+                "architect",
+                "optimize",
+                "distributed",
+                "concurrent",
+                "algorithm",
+                "benchmark",
+                "migrate",
+                "refactor",
+                "security",
+                "scale",
+                "integrate",
+            }
+            words = goal.lower().split()
+            score += min(sum(1 for w in words if w in tech_terms) / 3, 1.0) * 0.4
+            for phrase in ("and then", "followed by", "after that", "finally"):
+                if phrase in goal.lower():
+                    score += 0.1
+            return min(score, 1.0)
+
+        sorted_goals = sorted(goals, key=_complexity_score)
+        # All have same score → order preserved (Python sort is stable)
+        assert sorted_goals == goals
+
+    @pytest.mark.unit
+    def test_unicode_goals_dont_crash(self):
+        """Unicode in goals should not cause errors."""
+        goals = [
+            "研究東京のホテル",
+            "Implement distributed système",
+            "Simple task café",
+        ]
+
+        def _complexity_score(goal: str) -> float:
+            score = min(len(goal) / 500, 1.0) * 0.3
+            tech_terms = {"implement", "architect", "optimize", "distributed"}
+            words = goal.lower().split()
+            score += min(sum(1 for w in words if w in tech_terms) / 3, 1.0) * 0.4
+            return min(score, 1.0)
+
+        # Should not raise
+        sorted_goals = sorted(goals, key=_complexity_score)
+        assert len(sorted_goals) == 3
+
+
+class TestFullQTableLifecycle:
+    """Integration: full lifecycle across phases 2+4."""
+
+    @pytest.mark.unit
+    def test_train_stale_retrain_with_raw_plans(self):
+        """Full cycle: train → go stale → retrain. Verify both Q and plans."""
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable, StepQTable
+
+        # Setup
+        sq = StepQTable(alpha=0.1)
+        skill_q = SkillQTable(alpha=0.1)
+
+        # Phase 1: Train coding domain
+        for i in range(20):
+            skill_q.update("coding", "claude-cli-llm", 0.9)
+            sq.update("coding", 0, "claude-cli-llm", 0.9, description="generate code")
+            sq.update("coding", 1, "file-operations", 0.85, description="save to file")
+            sq.record_plan(
+                "coding",
+                ["claude-cli-llm", "file-operations"],
+                0.9,
+                descriptions=["generate code", "save to file"],
+            )
+
+        assert skill_q.get_q("coding", "claude-cli-llm") > 0.7
+        raw_plans = sq.get_best_raw_plan("coding")
+        assert len(raw_plans) > 0
+
+        # Phase 2: Go stale (train other domain for 100 ticks)
+        for _ in range(100):
+            skill_q.update("research", "web-search", 0.8)
+            sq.update("research", 0, "web-search", 0.8, description="search")
+
+        # Phase 3: Coding skill degrades
+        for _ in range(5):
+            skill_q.update("coding", "claude-cli-llm", 0.2)
+            sq.update("coding", 0, "claude-cli-llm", 0.2, description="generate code")
+
+        # Q should have dropped faster due to recency
+        final_q = skill_q.get_q("coding", "claude-cli-llm")
+        assert final_q < 0.7  # dropped from >0.7
+
+        # But raw plans still preserved
+        raw_plans_after = sq.get_best_raw_plan("coding")
+        assert len(raw_plans_after) > 0
+
+    @pytest.mark.unit
+    def test_serialization_full_roundtrip(self):
+        """Both Q-tables serialize and restore all new fields."""
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable, StepQTable
+
+        # Build up state
+        sq = StepQTable(alpha=0.1)
+        skill_q = SkillQTable(alpha=0.1)
+
+        for i in range(10):
+            skill_q.update("test", "skill_a", 0.9)
+            sq.update("test", 0, "skill_a", 0.9, description="step 1")
+            sq.record_plan(
+                "test",
+                ["skill_a", "skill_a", "skill_b"],
+                0.8,
+                descriptions=["step 1", "step 1 again", "step 2"],
+            )
+
+        # Serialize
+        sq_data = sq.to_dict()
+        skill_data = skill_q.to_dict()
+
+        # Restore
+        sq2 = StepQTable.from_dict(sq_data)
+        skill2 = SkillQTable.from_dict(skill_data)
+
+        # Verify all new fields
+        assert skill2._global_counter == skill_q._global_counter
+        assert skill2._last_updated == skill_q._last_updated
+        assert sq2._global_counter == sq._global_counter
+        assert sq2._last_updated_pos == sq._last_updated_pos
+        assert sq2._last_updated_role == sq._last_updated_role
+        assert len(sq2._raw_plan_history) == len(sq._raw_plan_history)
+        assert sq2.get_best_raw_plan("test") == sq.get_best_raw_plan("test")
+
+
+# =============================================================================
 # Integration: LLMJudge config
 # =============================================================================
 

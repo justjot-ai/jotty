@@ -41,6 +41,11 @@ from .agents import (
     SolutionStrategistAgent,
     UnifiedTopicAgent,
 )
+from .research_agents import (
+    ContentCuratorAgent,
+    ContentExtractorAgent,
+    SourceFinderAgent,
+)
 from .swarm import OlympiadLearningSwarm, learn_topic, learn_topic_sync
 from .types import (
     BuildingBlock,
@@ -93,4 +98,8 @@ __all__ = [
     "UnifiedTopicAgent",
     "NarrativeEditorAgent",
     "RankTipsAgent",
+    # Research agents
+    "SourceFinderAgent",
+    "ContentExtractorAgent",
+    "ContentCuratorAgent",
 ]

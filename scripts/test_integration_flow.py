@@ -606,15 +606,6 @@ async def verify_component_wiring():
         ).get_swarm_router,
     )
 
-    # Pipelines
-    check(
-        "AutoPipeline",
-        lambda: __import__(
-            "Jotty.core.intelligence.orchestration.pipelines.auto_pipeline",
-            fromlist=["AutoWorkflow"],
-        ).AutoWorkflow,
-    )
-
     # Infrastructure
     check(
         "UnifiedLMProvider",

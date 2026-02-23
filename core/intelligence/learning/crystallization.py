@@ -52,8 +52,14 @@ class CrystallizedConfig:
     role_confidence: Dict[str, float] = field(default_factory=dict)  # role → confidence [0,1]
     consecutive_failures: int = 0  # staleness canary counter
 
-    def to_plan_hint(self) -> str:
-        """Format as a planner-consumable instruction string."""
+    def to_plan_hint(self, goal: str = "") -> str:
+        """Format as a planner-consumable instruction string.
+
+        Args:
+            goal: Current task goal — used to retrieve sub-domain-specific
+                  lessons instead of dumping all lessons (avoids
+                  cross-contamination between e.g. ER and sequence diagrams).
+        """
         parts = []
         if self.sop_roles:
             parts.append(
@@ -65,8 +71,32 @@ class CrystallizedConfig:
                 f"  - {role}: use {skill}" for role, skill in self.role_skill_map.items()
             )
             parts.append(f"SKILL BINDINGS:\n{bindings}")
-        if self.prompt_guidance:
+
+        # Prefer live hierarchical retrieval over baked-in prompt_guidance
+        # so sub-domain filtering works at runtime.
+        live_lessons = ""
+        if goal and self.domain:
+            try:
+                from .facade import get_learning_service
+
+                svc = get_learning_service()
+                lessons = svc.retrieve_distilled_lessons(
+                    domain=self.domain or self.task_type,
+                    goal=goal,
+                    top_k=5,
+                )
+                if lessons:
+                    live_lessons = "\n".join(
+                        f"- {l['lesson']}" for l in lessons if isinstance(l, dict)
+                    )
+            except Exception:
+                pass
+
+        if live_lessons:
+            parts.append(f"DOMAIN LESSONS (for this specific task):\n{live_lessons}")
+        elif self.prompt_guidance:
             parts.append(f"DOMAIN LESSONS:\n{self.prompt_guidance[:800]}")
+
         if self.role_confidence:
             low = [r for r, c in self.role_confidence.items() if c < 0.7]
             if low:
@@ -270,16 +300,21 @@ def crystallize(
         q, visits = g["best_q"], g["total_visits"]
         role_confidence[g["role"]] = round(q * min(1.0, visits / 10), 3)
 
-    # Extract prompt guidance from learning service
+    # Extract prompt guidance from distilled lessons (hierarchical)
     prompt = ""
     try:
         from .facade import get_learning_service
 
         svc = get_learning_service()
-        prompt = svc.build_context_string(
+        # Pull all lessons for this domain hierarchy
+        lessons = svc.retrieve_distilled_lessons(
             domain=domain or task_type,
-            task_type=task_type,
+            top_k=8,
         )
+        if lessons:
+            parts = [f"- {l['lesson']}" for l in lessons if isinstance(l, dict)]
+            if parts:
+                prompt = "\n".join(parts)
     except Exception:
         pass
 
@@ -566,9 +601,9 @@ async def run_probation(
 
         logger.info(f"Probation [{i+1}/{max_tasks}] {goal[:80]}")
 
-        # 2. Execute
+        # 2. Execute (pass domain_hint so learning records use correct domain)
         try:
-            result = await orch.run(goal=goal)
+            result = await orch.run(goal=goal, domain_hint=domain or "")
             success = (
                 result.get("success", False)
                 if isinstance(result, dict)

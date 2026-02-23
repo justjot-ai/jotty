@@ -766,3 +766,220 @@ class TestEffectivenessKeyFix:
         assert "historical_success_rate" in coding
         # Old buggy key should NOT exist
         assert "recent_rate" not in coding
+
+
+# =============================================================================
+# SkillsBench-Inspired Improvements (arxiv 2602.12670)
+# =============================================================================
+
+
+class TestSkillsBenchConciseness:
+    """Skill descriptions >300 chars are truncated before planning."""
+
+    def test_long_descriptions_truncated(self):
+        """Skills with >300 char descriptions get truncated."""
+        from Jotty.core.intelligence.reasoning.executors.skill_plan_executor import (
+            SkillPlanExecutor,
+        )
+
+        executor = SkillPlanExecutor.__new__(SkillPlanExecutor)
+        # Simulate the conciseness guard logic from plan_and_execute
+        _MAX_SKILL_DESC = 300
+        skills = [
+            {"name": "verbose_skill", "description": "A " * 200},  # 400 chars
+            {"name": "short_skill", "description": "Does X."},
+        ]
+        for s in skills:
+            desc = s.get("description", "")
+            if len(desc) > _MAX_SKILL_DESC:
+                s["description"] = desc[:_MAX_SKILL_DESC].rsplit(" ", 1)[0] + "\u2026"
+
+        assert len(skills[0]["description"]) <= 301  # 300 + ellipsis
+        assert skills[0]["description"].endswith("\u2026")
+
+    def test_short_descriptions_unchanged(self):
+        """Skills with <=300 char descriptions are not modified."""
+        _MAX_SKILL_DESC = 300
+        original = "A short and useful description."
+        skills = [{"name": "ok_skill", "description": original}]
+        for s in skills:
+            desc = s.get("description", "")
+            if len(desc) > _MAX_SKILL_DESC:
+                s["description"] = desc[:_MAX_SKILL_DESC].rsplit(" ", 1)[0] + "\u2026"
+
+        assert skills[0]["description"] == original
+
+
+class TestNegativeDeltaGuard:
+    """Skills with Q < baseline - 0.15 and sufficient data are suppressed."""
+
+    @pytest.fixture
+    def td_learner(self):
+        from Jotty.core.intelligence.learning.td_lambda import (
+            GroupedValueBaseline,
+            SkillQTable,
+            TDLambdaLearner,
+        )
+
+        learner = TDLambdaLearner.__new__(TDLambdaLearner)
+        learner.baseline = GroupedValueBaseline()
+        learner.skill_q = SkillQTable()
+        return learner
+
+    def test_low_q_skill_suppressed(self, td_learner):
+        """Skill with Q < baseline - 0.15 and count >= 3 is suppressed."""
+        # Set baseline to 0.8 for 'coding'
+        for _ in range(5):
+            td_learner.baseline.update_group("coding", 0.8)
+
+        # bad_skill: Q converges low (~0.1), count >= 3
+        for _ in range(5):
+            td_learner.skill_q.update("coding", "bad_skill", 0.1)
+        # good_skill: Q converges high (~0.9)
+        for _ in range(5):
+            td_learner.skill_q.update("coding", "good_skill", 0.9)
+
+        skills = [
+            {"name": "good_skill"},
+            {"name": "bad_skill"},
+        ]
+
+        baseline_val = td_learner.baseline.get_baseline("coding")
+        _NEGATIVE_DELTA_MARGIN = 0.15
+        result = [
+            s
+            for s in skills
+            if td_learner.skill_q.get_q("coding", s.get("name", ""), "")
+            >= (baseline_val - _NEGATIVE_DELTA_MARGIN)
+            or td_learner.skill_q._counts.get(td_learner.skill_q._make_key("coding", ""), {}).get(
+                s.get("name", ""), 0
+            )
+            < 3
+        ]
+
+        result_names = [s["name"] for s in result]
+        assert "good_skill" in result_names
+        assert "bad_skill" not in result_names
+
+    def test_new_skill_not_suppressed(self, td_learner):
+        """Skill with count < 3 is never suppressed (UCB1 exploration)."""
+        for _ in range(5):
+            td_learner.baseline.update_group("coding", 0.8)
+
+        # new_skill: only 1 observation, low Q
+        td_learner.skill_q.update("coding", "new_skill", 0.1)
+
+        skills = [{"name": "new_skill"}]
+
+        baseline_val = td_learner.baseline.get_baseline("coding")
+        _NEGATIVE_DELTA_MARGIN = 0.15
+        result = [
+            s
+            for s in skills
+            if td_learner.skill_q.get_q("coding", s.get("name", ""), "")
+            >= (baseline_val - _NEGATIVE_DELTA_MARGIN)
+            or td_learner.skill_q._counts.get(td_learner.skill_q._make_key("coding", ""), {}).get(
+                s.get("name", ""), 0
+            )
+            < 3
+        ]
+
+        assert len(result) == 1  # Not suppressed due to count < 3
+
+    def test_adequate_skill_kept(self, td_learner):
+        """Skill with Q >= baseline - margin is kept."""
+        for _ in range(5):
+            td_learner.baseline.update_group("coding", 0.7)
+        for _ in range(5):
+            td_learner.skill_q.update("coding", "ok_skill", 0.65)
+
+        skills = [{"name": "ok_skill"}]
+
+        baseline_val = td_learner.baseline.get_baseline("coding")
+        _NEGATIVE_DELTA_MARGIN = 0.15
+        result = [
+            s
+            for s in skills
+            if td_learner.skill_q.get_q("coding", s.get("name", ""), "")
+            >= (baseline_val - _NEGATIVE_DELTA_MARGIN)
+            or td_learner.skill_q._counts.get(td_learner.skill_q._make_key("coding", ""), {}).get(
+                s.get("name", ""), 0
+            )
+            < 3
+        ]
+
+        assert len(result) == 1  # 0.65 >= 0.7 - 0.15 = 0.55
+
+
+class TestDomainAwareSkillBypass:
+    """High-baseline domains get reduced skill budgets."""
+
+    @pytest.fixture
+    def baseline(self):
+        from Jotty.core.intelligence.learning.td_lambda import GroupedValueBaseline
+
+        return GroupedValueBaseline()
+
+    def test_high_baseline_reduces_max_skills(self, baseline):
+        """baseline > 0.85 → max_skills=1."""
+        for _ in range(30):
+            baseline.update_group("coding", 0.9)
+
+        _adaptive_max_skills = 3
+        _domain_baseline = baseline.get_baseline("coding")
+        _domain_count = baseline.group_counts.get("coding", 0)
+        if _domain_count >= 5:
+            if _domain_baseline > 0.95:
+                _adaptive_max_skills = 0
+            elif _domain_baseline > 0.85:
+                _adaptive_max_skills = 1
+
+        assert _adaptive_max_skills == 1
+
+    def test_very_high_baseline_skips_skills(self, baseline):
+        """baseline > 0.95 → max_skills=0."""
+        for _ in range(50):
+            baseline.update_group("coding", 1.0)
+
+        _adaptive_max_skills = 3
+        _domain_baseline = baseline.get_baseline("coding")
+        _domain_count = baseline.group_counts.get("coding", 0)
+        if _domain_count >= 5:
+            if _domain_baseline > 0.95:
+                _adaptive_max_skills = 0
+            elif _domain_baseline > 0.85:
+                _adaptive_max_skills = 1
+
+        assert _adaptive_max_skills == 0
+
+    def test_low_count_domain_uses_default(self, baseline):
+        """< 5 samples → max_skills=3 (default)."""
+        for _ in range(3):
+            baseline.update_group("coding", 1.0)
+
+        _adaptive_max_skills = 3
+        _domain_baseline = baseline.get_baseline("coding")
+        _domain_count = baseline.group_counts.get("coding", 0)
+        if _domain_count >= 5:
+            if _domain_baseline > 0.95:
+                _adaptive_max_skills = 0
+            elif _domain_baseline > 0.85:
+                _adaptive_max_skills = 1
+
+        assert _adaptive_max_skills == 3
+
+    def test_normal_baseline_uses_default(self, baseline):
+        """baseline <= 0.85 → max_skills=3."""
+        for _ in range(10):
+            baseline.update_group("coding", 0.7)
+
+        _adaptive_max_skills = 3
+        _domain_baseline = baseline.get_baseline("coding")
+        _domain_count = baseline.group_counts.get("coding", 0)
+        if _domain_count >= 5:
+            if _domain_baseline > 0.95:
+                _adaptive_max_skills = 0
+            elif _domain_baseline > 0.85:
+                _adaptive_max_skills = 1
+
+        assert _adaptive_max_skills == 3

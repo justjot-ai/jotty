@@ -369,7 +369,6 @@ from Jotty.core.intelligence.reasoning.base.domain_agent import DomainAgent
 from Jotty.core.intelligence.reasoning.autonomous.intent_parser import IntentParser
 
 # WORKFLOW — Workflow execution
-from Jotty.core.intelligence.orchestration.pipelines.auto_pipeline import AutoWorkflow
 from Jotty.core.intelligence.orchestration.pipelines.research_pipeline import ResearchWorkflow
 
 # EXECUTION — Executors
@@ -781,7 +780,7 @@ Jotty/
 │   │   ├── memory/          # 5-level memory system
 │   │   ├── orchestration/   # Swarm coordination, execution, use cases
 │   │   │   ├── execution/   # TierExecutor, agent runner, intent classifier
-│   │   │   ├── pipelines/   # AutoWorkflow, ResearchWorkflow, LearningWorkflow
+│   │   │   ├── pipelines/   # ResearchWorkflow, LearningWorkflow
 │   │   │   ├── swarms/      # 30+ domain swarms
 │   │   │   ├── use_cases/   # ChatUseCase, WorkflowUseCase
 │   │   │   └── ...          # coordination, learning, routing, state

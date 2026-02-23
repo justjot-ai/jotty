@@ -1,26 +1,23 @@
 """
 Pipelines — Intent-based automation and multi-stage orchestration.
 
-Four domain-specific pipelines:
-1. AutoPipeline - General software development (APIs, apps, systems)
-2. ResearchPipeline - Research and analysis (topics, markets, trends)
-3. LearningPipeline - Educational content (K-12 to Olympiad)
-4. AutoMLPipeline - Machine learning pipelines (AutoML)
+Three domain-specific pipelines:
+1. ResearchPipeline - Research and analysis (topics, markets, trends)
+2. LearningPipeline - Educational content (K-12 to Olympiad)
+3. AutoMLPipeline - Machine learning pipelines (AutoML)
 
 Plus:
 - MultiStagePipeline - Chain multiple swarm executions
 - SmartSwarmRegistry - Stage-to-swarm routing
+
+For general-purpose auto-decomposition, use Orchestrator.run(goal) directly.
+It uses the SwarmTaskBoard with RL-based task selection, retry, and iteration.
 """
 
 import importlib as _importlib
 from typing import Any
 
 _LAZY_IMPORTS: dict[str, str] = {
-    # auto_pipeline
-    "AutoWorkflow": ".auto_pipeline",
-    "WorkflowIntent": ".auto_pipeline",
-    "build": ".auto_pipeline",
-    "develop": ".auto_pipeline",
     # research_pipeline
     "ResearchWorkflow": ".research_pipeline",
     "ResearchIntent": ".research_pipeline",
@@ -40,11 +37,6 @@ _LAZY_IMPORTS: dict[str, str] = {
     "SkillCategory": ".automl_pipeline",
     "get_automl_workflow": ".automl_pipeline",
     "reset_automl_workflow": ".automl_pipeline",
-    # registry
-    "SmartSwarmRegistry": ".registry",
-    "StageType": ".registry",
-    "SwarmConfig": ".registry",
-    "get_smart_registry": ".registry",
     # multi_stage
     "MultiStagePipeline": ".multi_stage",
     "StageConfig": ".multi_stage",

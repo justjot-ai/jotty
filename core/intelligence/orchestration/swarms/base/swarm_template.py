@@ -664,6 +664,134 @@ class SwarmTemplate(SwarmLearning):
     has_team_coordination = has_coordination
 
     # =========================================================================
+    # VECTOR STORE + DOCUMENT SEARCH
+    # =========================================================================
+
+    @property
+    def vector_store(self) -> Any:
+        """Lazy-init VectorStore. Returns None if unavailable."""
+        if not hasattr(self, "_vector_store"):
+            try:
+                from Jotty.core.intelligence.memory.vector_store import get_vector_store
+
+                self._vector_store = get_vector_store()
+            except Exception:
+                self._vector_store = None
+        return self._vector_store
+
+    def search_documents(self, query: str, top_k: int = 5, **filters: Any) -> list:
+        """Search vector store for relevant document chunks.
+
+        Returns empty list if vector store is unavailable or has no data.
+
+        Args:
+            query: Search query.
+            top_k: Max results.
+            **filters: Metadata filters (e.g. subject="mathematics").
+
+        Returns:
+            List[RetrievalResult] sorted by similarity.
+        """
+        store = self.vector_store
+        if store is None:
+            return []
+        try:
+            return store.search(query, top_k=top_k, filters=filters if filters else None)
+        except Exception as e:
+            logger.debug(f"search_documents failed: {e}")
+            return []
+
+    # =========================================================================
+    # GENERAL BLACKBOARD / ROUND_ROBIN HELPERS
+    # =========================================================================
+
+    async def run_blackboard(
+        self,
+        agents: List[Tuple[Any, str]],
+        task: Any,
+        context: Optional[Dict[str, Any]] = None,
+        max_rounds: int = 3,
+    ) -> TeamResult:
+        """Run agents in BLACKBOARD pattern via TeamCoordinator.
+
+        Thin wrapper -- no new coordination logic, just convenience for
+        creating a TeamCoordinator inline. Agents must implement contribute().
+
+        Args:
+            agents: List of (agent_instance, "DisplayName") tuples.
+            task: Task input for the blackboard.
+            context: Optional context dict.
+            max_rounds: Maximum blackboard rounds.
+
+        Returns:
+            TeamResult with merged_output = blackboard dict.
+
+        Usage (any swarm):
+            result = await self.run_blackboard(
+                agents=[(self._researcher, "Researcher"), (self._writer, "Writer")],
+                task={"topic": "fractions"},
+                max_rounds=2,
+            )
+        """
+        from .team_coordinator import AgentSpec
+        from .team_coordinator import TeamCoordinator as TC
+
+        specs = {}
+        instances = {}
+        for agent, name in agents:
+            attr = f"_{name.lower().replace(' ', '_')}"
+            specs[attr] = AgentSpec(type(agent), name, attr)
+            instances[attr] = agent
+
+        coord = TC(
+            agents=specs,
+            pattern=CoordinationPattern.BLACKBOARD,
+        )
+        coord.set_instances(instances)
+        return await coord.execute(task=task, context=context or {}, max_rounds=max_rounds)
+
+    async def run_round_robin(
+        self,
+        agents: List[Tuple[Any, str]],
+        tasks: List[Any],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> TeamResult:
+        """Distribute tasks across agents in round-robin via TeamCoordinator.
+
+        Thin wrapper -- no new coordination logic. Agents must implement execute().
+
+        Args:
+            agents: List of (agent_instance, "DisplayName") tuples.
+            tasks: List of subtasks to distribute round-robin.
+            context: Optional context dict.
+
+        Returns:
+            TeamResult with merged_output = list of results.
+
+        Usage (any swarm):
+            result = await self.run_round_robin(
+                agents=[(self._w1, "W1"), (self._w2, "W2")],
+                tasks=[url1, url2, url3, url4],
+            )
+        """
+        from .team_coordinator import AgentSpec
+        from .team_coordinator import TeamCoordinator as TC
+
+        specs = {}
+        instances = {}
+        for agent, name in agents:
+            attr = f"_{name.lower().replace(' ', '_')}"
+            specs[attr] = AgentSpec(type(agent), name, attr)
+            instances[attr] = agent
+
+        coord = TC(
+            agents=specs,
+            pattern=CoordinationPattern.ROUND_ROBIN,
+        )
+        coord.set_instances(instances)
+        return await coord.execute(task=tasks, context=context or {})
+
+    # =========================================================================
     # PHASE EXECUTOR HELPERS
     # =========================================================================
 

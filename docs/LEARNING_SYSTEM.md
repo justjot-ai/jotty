@@ -10,7 +10,15 @@ Jotty agents improve through experience via 5 integrated mechanisms that work **
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                        EXECUTION HAPPENS                                 │
-│    Orchestrator.run()  |  Orchestrator.chat()  |  Swarm.execute()        │
+│         Orchestrator.run()      |      Orchestrator.chat()               │
+│              │                                                           │
+│   ┌──────────┼──────────────┐                                            │
+│   │ auto     │ swarm=X      │                                            │
+│   ▼          ▼              │                                            │
+│  Engine   Swarm.execute()   │  (internal — called by Orchestrator,       │
+│  .run()   ._execute_domain()│   not a separate user-facing entry point)  │
+│   │          │              │                                            │
+│   └──────────┴──────────────┘                                            │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                  │ outcome recorded
                                  ▼
@@ -286,11 +294,16 @@ Reflections are stored in the episode record and inform future attempts.
 
 | Execution Path | Learning Integration |
 |---------------|---------------------|
-| `Orchestrator.run()` | `learning.record()` → judge → distillation → Q-tables |
+| `Orchestrator.run(goal)` | `learning.record()` → judge → distillation → Q-tables |
+| `Orchestrator.run(goal, swarm=X)` | delegates to `Swarm.execute()` internally, same pipeline |
 | `Orchestrator.chat()` (non-streaming) | `end_episode()` → `record()` → same pipeline |
 | `Orchestrator.chat()` (streaming) | `end_episode()` → `record()` → same pipeline |
-| `Swarm.execute()` | `learning.record()` via swarm learning hooks |
 | Agent-level | `record()` via `BaseAgent` / `AgentRunner` |
+
+> **Note:** `Swarm.execute()` is the swarm's internal API, not a user-facing entry point.
+> The Orchestrator calls it via `run(goal, swarm=X)`, wrapping it with domain classification,
+> learning context injection, budget awareness, and post-execution reflection. Calling
+> `swarm.execute()` directly bypasses all of that.
 
 ### No Duplicate Processing
 The `record()` method is the single point of entry. It:

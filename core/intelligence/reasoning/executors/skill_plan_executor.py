@@ -1597,6 +1597,31 @@ class SkillPlanExecutor:
         task_type = self.infer_task_type(task)
         _status("Task type", task_type)
 
+        # Step 1b: Domain-aware skill budget — reduce skills for high-baseline domains.
+        # SkillsBench: SWE +4.5pp vs Healthcare +51.9pp — don't waste tokens on strong domains.
+        _adaptive_max_skills = 3  # default
+        try:
+            from Jotty.core.intelligence.learning.facade import get_td_lambda
+
+            _td_check = get_td_lambda()
+            _domain_baseline = _td_check.baseline.get_baseline(task_type, domain=domain)
+            _domain_count = _td_check.baseline.group_counts.get(task_type, 0)
+            if _domain_count >= 5:  # Enough data to trust
+                if _domain_baseline > 0.95:
+                    _adaptive_max_skills = 0
+                    logger.info(
+                        f"Domain bypass: {task_type}:{domain} baseline="
+                        f"{_domain_baseline:.2f} → no skills"
+                    )
+                elif _domain_baseline > 0.85:
+                    _adaptive_max_skills = 1
+                    logger.info(
+                        f"Domain bypass: {task_type}:{domain} baseline="
+                        f"{_domain_baseline:.2f} → max_skills=1"
+                    )
+        except Exception:
+            pass
+
         # Step 2: Select best skills (pre-filtered by task type capabilities)
         _status("Selecting", "choosing best skills")
         skills = await self.select_skills(task, discovered_skills, task_type=task_type)
@@ -1605,7 +1630,15 @@ class SkillPlanExecutor:
         essential_before = {s.get("name", "") for s in skills}
         skills = self._inject_essential_skills(task, skills, discovered_skills)
         essential_names = {s.get("name", "") for s in skills} - essential_before
-        skills = self._enforce_skill_cap(skills, essential_names)
+        skills = self._enforce_skill_cap(skills, essential_names, max_skills=_adaptive_max_skills)
+
+        # Step 2b': SkillsBench conciseness — truncate verbose skill descriptions.
+        # Finding: "detailed" (+18.8pp) > "comprehensive" (-2.9pp).
+        _MAX_SKILL_DESC = 300
+        for s in skills:
+            desc = s.get("description", "")
+            if len(desc) > _MAX_SKILL_DESC:
+                s["description"] = desc[:_MAX_SKILL_DESC].rsplit(" ", 1)[0] + "…"
 
         # Step 2c: Re-rank selected skills by SkillQTable UCB Q-values.
         # This puts skills with better historical success rates first,
@@ -1625,6 +1658,33 @@ class SkillPlanExecutor:
             skills = reranked
         except Exception as e:
             logger.debug(f"SkillQTable re-ranking skipped: {e}")
+
+        # Step 2c': Negative delta guard — suppress skills that hurt this domain.
+        # SkillsBench finding: 16/84 tasks worse with skills.
+        if td_learner and skills:
+            try:
+                baseline_val = td_learner.baseline.get_baseline(task_type, domain=domain)
+                _NEGATIVE_DELTA_MARGIN = 0.15  # Must be this much below baseline
+                before_count = len(skills)
+                skills = [
+                    s
+                    for s in skills
+                    if td_learner.skill_q.get_q(task_type, s.get("name", ""), domain)
+                    >= (baseline_val - _NEGATIVE_DELTA_MARGIN)
+                    or td_learner.skill_q._counts.get(
+                        td_learner.skill_q._make_key(task_type, domain), {}
+                    ).get(s.get("name", ""), 0)
+                    < 3  # Not enough data — don't suppress
+                ]
+                suppressed = before_count - len(skills)
+                if suppressed:
+                    logger.info(
+                        f"Negative delta guard: suppressed {suppressed} underperforming "
+                        f"skills (baseline={baseline_val:.2f})"
+                    )
+            except Exception as e:
+                logger.debug(f"Negative delta guard skipped: {e}")
+
         _status("Skills selected", ", ".join(s["name"] for s in skills[:5]))
 
         # Step 2d: Build learning guidance for the planner from Q-tables.

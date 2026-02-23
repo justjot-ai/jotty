@@ -968,13 +968,30 @@ class LearningStore:
         agent_name: Optional[str] = None,
         min_confidence: float = 0.3,
         limit: int = 50,
+        hierarchical: bool = False,
     ) -> List["DistilledLesson"]:
-        """Get distilled lessons, optionally filtered by domain/agent."""
+        """Get distilled lessons, optionally filtered by domain/agent.
+
+        Args:
+            hierarchical: If True and domain has no ':', also match
+                sub-domains (e.g. domain='mermaid' matches 'mermaid:er').
+                If domain already contains ':', match exact + parent.
+        """
         conn = self._get_conn()
         conditions = ["confidence >= ?"]
         params: list = [min_confidence]
 
-        if domain:
+        if domain and hierarchical:
+            if ":" in domain:
+                # Specific sub-domain: match exact + parent
+                parent = domain.split(":")[0]
+                conditions.append("(domain = ? OR domain = ?)")
+                params.extend([domain, parent])
+            else:
+                # Parent domain: match parent + all children
+                conditions.append("(domain = ? OR domain LIKE ?)")
+                params.extend([domain, f"{domain}:%"])
+        elif domain:
             conditions.append("domain = ?")
             params.append(domain)
         if agent_name:
@@ -1008,13 +1025,22 @@ class LearningStore:
         agent_name: Optional[str] = None,
         min_confidence: float = 0.3,
         limit: int = 100,
+        hierarchical: bool = False,
     ) -> List[Tuple["DistilledLesson", bytes]]:
         """Get lessons that have embeddings, for vector retrieval."""
         conn = self._get_conn()
         conditions = ["confidence >= ?", "embedding IS NOT NULL"]
         params: list = [min_confidence]
 
-        if domain:
+        if domain and hierarchical:
+            if ":" in domain:
+                parent = domain.split(":")[0]
+                conditions.append("(domain = ? OR domain = ?)")
+                params.extend([domain, parent])
+            else:
+                conditions.append("(domain = ? OR domain LIKE ?)")
+                params.extend([domain, f"{domain}:%"])
+        elif domain:
             conditions.append("domain = ?")
             params.append(domain)
         if agent_name:

@@ -52,6 +52,11 @@ from .agents import (
     SolutionStrategistAgent,
     UnifiedTopicAgent,
 )
+from .research_agents import (
+    ContentCuratorAgent,
+    ContentExtractorAgent,
+    SourceFinderAgent,
+)
 from .types import (
     BuildingBlock,
     ConceptCore,
@@ -109,6 +114,10 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
         (UnifiedTopicAgent, "UnifiedTopic", "_unified_topic"),
         (NarrativeEditorAgent, "NarrativeEditor", "_narrative_editor"),
         (RankTipsAgent, "RankTips", "_rank_tips"),
+        # Research agents (Phase 0)
+        (SourceFinderAgent, "SourceFinder", "_source_finder"),
+        (ContentExtractorAgent, "ContentExtractor", "_content_extractor"),
+        (ContentCuratorAgent, "ContentCurator", "_content_curator"),
     )
     TASK_TYPE = "olympiad_teaching"
     DEFAULT_TOOLS = ["curriculum", "decompose", "intuition", "patterns", "problems"]
@@ -197,6 +206,92 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
     def _build_input_data(self) -> Dict[str, Any]:
         return getattr(self, "_run_input", {})
 
+    async def _execute_research_phase(
+        self,
+        executor: PhaseExecutor,
+        topic: str,
+        subject_str: str,
+        target_str: str,
+        config: OlympiadLearningConfig,
+    ) -> str:
+        """Phase 0: Research external sources and build research context.
+
+        Uses BLACKBOARD pattern (general helper from SwarmTemplate):
+        - SourceFinder searches web for educational content
+        - ContentExtractor downloads and chunks into vector store
+        - ContentCurator scores quality, marks done when satisfied
+
+        After BLACKBOARD, queries vector store for relevant chunks and
+        returns a token-budgeted research context string.
+
+        Returns:
+            Research context string (may be empty if research yields nothing).
+        """
+        logger.info(f"Phase 0: Researching external sources for '{topic}'...")
+
+        # Run BLACKBOARD with research agents
+        try:
+            blackboard_result = await self.run_blackboard(
+                agents=[
+                    (self._source_finder, "SourceFinder"),  # type: ignore[attr-defined]
+                    (self._content_extractor, "ContentExtractor"),  # type: ignore[attr-defined]
+                    (self._content_curator, "ContentCurator"),  # type: ignore[attr-defined]
+                ],
+                task={
+                    "topic": topic,
+                    "subject": subject_str,
+                    "target_level": target_str,
+                    "grade": config.grade,
+                    "max_sources": config.max_research_sources,
+                    "min_quality_sources": 2,
+                },
+                max_rounds=config.research_rounds,
+            )
+
+            # Log results
+            if blackboard_result.success:
+                bb = blackboard_result.merged_output or {}
+                sources_found = len(bb.get("sources", []))
+                extracted = len(bb.get("extracted", set()))
+                logger.info(
+                    f"Phase 0: Research complete - {sources_found} sources found, "
+                    f"{extracted} extracted"
+                )
+            else:
+                logger.warning(f"Phase 0: Research had errors: {blackboard_result.errors}")
+
+        except Exception as e:
+            logger.warning(f"Phase 0: Research phase failed (non-fatal): {e}")
+
+        # Query vector store for relevant chunks
+        research_chunks = self.search_documents(
+            f"{topic} {subject_str} {target_str}",
+            top_k=10,
+            subject=subject_str,
+        )
+
+        if not research_chunks:
+            logger.info("Phase 0: No research content retrieved from vector store")
+            return ""
+
+        # Build research context string, token-budgeted
+        from Jotty.core.infrastructure.context.utils import simple_truncate
+
+        parts = []
+        for r in research_chunks:
+            source_label = r.chunk.source[:60] if r.chunk.source else "unknown"
+            parts.append(f"[Source: {source_label}] {r.chunk.content}")
+
+        raw_context = "\n\n".join(parts)
+        # Budget: ~2000 tokens (~8000 chars) for research context
+        research_context = simple_truncate(raw_context, target_tokens=2000)
+
+        logger.info(
+            f"Phase 0: Research context built ({len(research_context)} chars "
+            f"from {len(research_chunks)} chunks)"
+        )
+        return research_context
+
     async def _execute_phases(
         self,
         executor: PhaseExecutor,
@@ -215,17 +310,49 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
         executor.run_phase() and executor.run_parallel() for consistent
         tracing and error handling.
         """
+        # Phase 0: Research (optional, before mode dispatch)
+        research_context = ""
+        if config.enable_research:
+            try:
+                research_context = await self._execute_research_phase(
+                    executor, topic, subject_str, target_str, config
+                )
+            except Exception as e:
+                logger.warning(f"Research phase failed (non-fatal): {e}")
+                research_context = ""
+
         if self._optimization_mode == "parallel_deep":
             result = await self._execute_parallel_deep(
-                executor, topic, subject_str, student_name, depth, target_str, config
+                executor,
+                topic,
+                subject_str,
+                student_name,
+                depth,
+                target_str,
+                config,
+                research_context=research_context,
             )
         elif self._optimization_mode == "unified":
             result = await self._execute_unified(
-                executor, topic, subject_str, student_name, depth, target_str, config
+                executor,
+                topic,
+                subject_str,
+                student_name,
+                depth,
+                target_str,
+                config,
+                research_context=research_context,
             )
         else:
             result = await self._execute_sequential(
-                executor, topic, subject_str, student_name, depth, target_str, config
+                executor,
+                topic,
+                subject_str,
+                student_name,
+                depth,
+                target_str,
+                config,
+                research_context=research_context,
             )
 
         # Build final result
@@ -376,8 +503,19 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
         depth: LessonDepth,
         target_level: str,
         config: OlympiadLearningConfig,
+        research_context: str = "",
     ) -> Dict[str, Any]:
         """Execute with parallel deep generation - best quality."""
+
+        # Inject grade and research context into curriculum architect input
+        enriched_subject = subject
+        if config.grade:
+            enriched_subject = f"{subject} (Grade level: {config.grade})"
+        if research_context:
+            enriched_subject = (
+                f"{enriched_subject}\n\n--- Research Context (use as source material) ---\n"
+                f"{research_context}"
+            )
 
         # Phase 1: Curriculum design (must be first - defines structure)
         curriculum = await executor.run_phase(
@@ -386,7 +524,7 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
             "CurriculumArchitect",
             AgentRole.PLANNER,
             self._curriculum_architect.design(  # type: ignore[attr-defined]
-                subject=subject,
+                subject=enriched_subject,
                 topic=topic,
                 student_name=student_name,
                 target_level=target_level,
@@ -766,8 +904,19 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
         depth: LessonDepth,
         target_level: str,
         config: OlympiadLearningConfig,
+        research_context: str = "",
     ) -> Dict[str, Any]:
         """Execute with unified single-pass generation."""
+
+        # Inject grade and research context into subject for unified agent
+        enriched_subject = subject
+        if config.grade:
+            enriched_subject = f"{subject} (Grade level: {config.grade})"
+        if research_context:
+            enriched_subject = (
+                f"{enriched_subject}\n\n--- Research Context (use as source material) ---\n"
+                f"{research_context}"
+            )
 
         deep_content = await executor.run_phase(
             1,
@@ -777,7 +926,7 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
             self._unified_topic.generate_deep(  # type: ignore[attr-defined]
                 student_name=student_name,
                 topic=topic,
-                subject=subject,
+                subject=enriched_subject,
                 target_level=target_level,
                 celebration_word=config.celebration_word,
             ),
@@ -877,8 +1026,19 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
         depth: LessonDepth,
         target_level: str,
         config: OlympiadLearningConfig,
+        research_context: str = "",
     ) -> Dict[str, Any]:
         """Execute agents sequentially with full control."""
+
+        # Inject grade and research context
+        enriched_subject = subject
+        if config.grade:
+            enriched_subject = f"{subject} (Grade level: {config.grade})"
+        if research_context:
+            enriched_subject = (
+                f"{enriched_subject}\n\n--- Research Context (use as source material) ---\n"
+                f"{research_context}"
+            )
 
         # Step 1: Curriculum
         curriculum = await executor.run_phase(
@@ -887,7 +1047,7 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
             "CurriculumArchitect",
             AgentRole.PLANNER,
             self._curriculum_architect.design(  # type: ignore[attr-defined]
-                subject=subject,
+                subject=enriched_subject,
                 topic=topic,
                 student_name=student_name,
                 target_level=target_level,
@@ -1653,6 +1813,7 @@ async def learn_topic(
     subject: str = "mathematics",
     topic: str = "Number Theory",
     student_name: str = "Student",
+    grade: str = "",
     depth: str = "standard",
     target: str = "olympiad",
     send_telegram: bool = False,
@@ -1665,6 +1826,9 @@ async def learn_topic(
 
         # Mathematics
         result = await learn_topic("mathematics", "Number Theory", "Aria")
+
+        # 5th grade math olympiad
+        result = await learn_topic("mathematics", "Number Sense", "Aria", grade="5th grade")
 
         # Physics
         result = await learn_topic("physics", "Mechanics - Newton's Laws", "Aria")
@@ -1685,6 +1849,7 @@ async def learn_topic(
     config = OlympiadLearningConfig(
         subject=subject_enum,
         student_name=student_name,
+        grade=grade,
         depth=depth_enum,
         target_tier=target_enum,
     )
@@ -1696,6 +1861,7 @@ def learn_topic_sync(
     subject: str = "mathematics",
     topic: str = "Number Theory",
     student_name: str = "Student",
+    grade: str = "",
     depth: str = "standard",
     target: str = "olympiad",
     send_telegram: bool = False,
@@ -1706,6 +1872,7 @@ def learn_topic_sync(
             subject=subject,
             topic=topic,
             student_name=student_name,
+            grade=grade,
             depth=depth,
             target=target,
             send_telegram=send_telegram,

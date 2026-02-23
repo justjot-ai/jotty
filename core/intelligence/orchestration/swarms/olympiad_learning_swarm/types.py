@@ -74,6 +74,7 @@ class OlympiadLearningConfig(SwarmBaseConfig):
     # Core parameters
     subject: Subject = Subject.MATHEMATICS
     student_name: str = "Student"
+    grade: str = ""  # e.g. "5th grade", "grade 8", "high school"
     depth: LessonDepth = LessonDepth.STANDARD
     mode: TeachingMode = TeachingMode.CONCEPT_BUILD
     target_tier: DifficultyTier = DifficultyTier.OLYMPIAD
@@ -102,6 +103,11 @@ class OlympiadLearningConfig(SwarmBaseConfig):
     generate_html: bool = True
     send_telegram: bool = False
 
+    # Research phase
+    enable_research: bool = True
+    max_research_sources: int = 8
+    research_rounds: int = 2
+
     # Optimization
     optimization_mode: str = "parallel_deep"
     max_concurrent_llm: int = 5
@@ -122,6 +128,42 @@ class OlympiadLearningConfig(SwarmBaseConfig):
             from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS
 
             self.llm_timeout = LLM_TIMEOUT_SECONDS
+
+        # Scale problem counts and content flags by depth
+        self._apply_depth_scaling()
+
+    def _apply_depth_scaling(self) -> None:
+        """Adjust problem counts and content flags based on lesson depth.
+
+        QUICK:    Minimal content — 1 problem per tier, skip proofs/code/connections
+        STANDARD: Default content — 3/3/2/2 problems (unchanged)
+        DEEP:     Full deep dive — 5/5/4/4 problems, all flags on
+        MARATHON: Comprehensive — 8/8/6/6 problems, all flags on, more research
+        """
+        if self.depth == LessonDepth.QUICK:
+            self.foundation_problems = 1
+            self.intermediate_problems = 1
+            self.advanced_problems = 1
+            self.olympiad_problems = 1
+            self.include_proofs = False
+            self.include_code = False
+            self.include_connections = False
+            self.enable_research = False
+        elif self.depth == LessonDepth.DEEP:
+            self.foundation_problems = 5
+            self.intermediate_problems = 5
+            self.advanced_problems = 4
+            self.olympiad_problems = 4
+            self.max_problems_per_tier = 8
+        elif self.depth == LessonDepth.MARATHON:
+            self.foundation_problems = 8
+            self.intermediate_problems = 8
+            self.advanced_problems = 6
+            self.olympiad_problems = 6
+            self.max_problems_per_tier = 10
+            self.max_research_sources = 12
+            self.research_rounds = 3
+        # STANDARD: use defaults as-is
 
 
 # =============================================================================

@@ -776,6 +776,65 @@ class RankTipsSignature(dspy.Signature):
     )
 
 
+# =============================================================================
+# RESEARCH AGENT SIGNATURES
+# =============================================================================
+
+
+class SourceSearchSignature(dspy.Signature):
+    """Generate targeted search queries to find educational resources for a topic.
+
+    You are a research librarian. Given a topic, subject, and target level,
+    generate 3-5 specific search queries that will find the BEST educational
+    content (textbook excerpts, lesson plans, worked examples, Khan Academy-style).
+
+    For foundation/elementary levels: focus on simple explanations, visual guides
+    For advanced/olympiad levels: focus on competition problems, proofs, techniques
+    """
+
+    topic: str = dspy.InputField(desc="Topic to research")
+    subject: str = dspy.InputField(desc="Subject area")
+    target_level: str = dspy.InputField(desc="Target difficulty/grade level")
+    existing_sources: str = dspy.InputField(desc="Already-found sources to avoid duplicating")
+
+    search_queries: str = dspy.OutputField(
+        desc="3-5 targeted search queries separated by |. Each query should be specific "
+        "enough to find high-quality educational content. Include level-appropriate "
+        "keywords (e.g. 'for kids' vs 'competition problems'). "
+        "Example: 'fractions visual guide elementary | fraction word problems 5th grade "
+        "with solutions | understanding fractions Khan Academy'"
+    )
+
+
+class ContentCurationSignature(dspy.Signature):
+    """Score the quality and relevance of extracted educational content.
+
+    You are an educational content reviewer. Given a sample of extracted content,
+    score it on a 0-1 scale for:
+    - Relevance to the topic (is this actually about the right subject?)
+    - Grade-appropriateness (is the difficulty level right?)
+    - Educational quality (are there examples, explanations, not just ads?)
+    - Accuracy (does the content appear factually correct?)
+
+    Return a single float score from 0.0 (useless) to 1.0 (excellent).
+    """
+
+    content_sample: str = dspy.InputField(desc="Sample of extracted content to evaluate")
+    topic: str = dspy.InputField(desc="Expected topic")
+    subject: str = dspy.InputField(desc="Expected subject area")
+    target_level: str = dspy.InputField(desc="Expected difficulty/grade level")
+
+    quality_score: str = dspy.OutputField(
+        desc="A single float from 0.0 to 1.0 representing overall quality. "
+        "0.0 = completely irrelevant or garbage. "
+        "0.3 = somewhat related but poor quality. "
+        "0.6 = relevant and usable. "
+        "0.8 = high quality, grade-appropriate, with examples. "
+        "1.0 = exceptional educational content perfectly suited to level."
+    )
+    reasoning: str = dspy.OutputField(desc="1-2 sentences explaining the score.")
+
+
 __all__ = [
     "CurriculumArchitectSignature",
     "ConceptDecomposerSignature",
@@ -789,4 +848,6 @@ __all__ = [
     "SingleTopicDeepSignature",
     "NarrativeEditorSignature",
     "RankTipsSignature",
+    "SourceSearchSignature",
+    "ContentCurationSignature",
 ]
