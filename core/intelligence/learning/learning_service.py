@@ -1617,7 +1617,15 @@ class LearningService:
         is_succeeding = rate >= 0.90 and total >= 1
 
         if not has_failures and not is_cold_start:
-            # Stable success: stay silent. The model knows what it's doing.
+            # Stable success: include only distilled lessons (high signal,
+            # low noise). Skip raw retrieval and failure hints to avoid
+            # over-constraining the model.
+            lessons = self.retrieve_distilled_lessons(
+                domain, goal=goal, agent_name=unit_name, top_k=3
+            )
+            if lessons:
+                lesson_lines = [f"- {l['lesson']}" for l in lessons[:3]]
+                return f"[Learned patterns for {domain}]\n" + "\n".join(lesson_lines)
             return self._maintenance_guidance(domain, task_type)
 
         # Cold start succeeding: minimal bootstrap only — no lessons yet
@@ -1675,14 +1683,14 @@ class LearningService:
 
         # Per-(state,action) lessons
         try:
-            lessons = self._store.get_lessons(
+            stored_lessons = self._store.get_lessons(
                 domain=domain,
                 unit_name=unit_name if unit_name else None,
                 limit=3,
             )
-            if lessons:
-                for lesson in lessons[:2]:
-                    parts.append(f"  - {lesson}")
+            if stored_lessons:
+                for sl in stored_lessons[:2]:
+                    parts.append(f"  - {sl}")
         except Exception:
             pass
 

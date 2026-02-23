@@ -364,10 +364,10 @@ class TestDistilledLessons:
         assert "UNIQUE_TEST_LESSON_XYZ" in ctx
 
     @pytest.mark.unit
-    def test_no_lessons_when_succeeding(self, tmp_service):
-        """When model succeeds, context should NOT inject distilled lessons (do no harm)."""
+    def test_lessons_injected_when_succeeding(self, tmp_service):
+        """When model succeeds, distilled lessons should still be injected (concise, high-signal)."""
         tmp_service._store_distilled_lessons(
-            [{"lesson": "SHOULD_NOT_APPEAR", "type": "pattern", "confidence": 0.9}],
+            [{"lesson": "LESSON_FROM_PAST", "type": "pattern", "confidence": 0.9}],
             episode_id="ep_test",
             domain="coding",
             agent_name="test",
@@ -387,7 +387,9 @@ class TestDistilledLessons:
             )
 
         ctx = tmp_service.build_context_string("coding", goal="New task")
-        assert "SHOULD_NOT_APPEAR" not in ctx
+        assert "LESSON_FROM_PAST" in ctx
+        assert "Learned patterns" in ctx
+        assert len(ctx) < 500
 
     @pytest.mark.unit
     def test_per_agent_lesson_retrieval(self, tmp_service):
