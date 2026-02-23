@@ -1073,9 +1073,10 @@ class AutonomousAgent(BaseAgent):
         learning_ctx = getattr(self, "_learning_context", None)
         if learning_ctx:
             prompt = f"{learning_ctx}\n\n{prompt}"
-        prompt = (
-            "[Format: Use markdown. Wrap ALL code in fenced blocks "
-            "(```python, ```sql, etc). Use ## headings.]\n\n" + prompt
+        prompt += (
+            "\n\nIMPORTANT: Format your response in markdown. "
+            "Wrap ALL code in fenced code blocks using ```python ... ```. "
+            "Use ## headings for sections."
         )
 
         # 1. Try DSPy API first (fastest — direct HTTP to Anthropic/OpenAI)

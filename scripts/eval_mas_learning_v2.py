@@ -42,6 +42,18 @@ logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("eval_mas_v2")
 logger.setLevel(logging.INFO)
 
+# Disable DSPy disk cache so each run makes a fresh LLM call.
+# Without this, DSPy returns stale responses from ~/.dspy_cache
+# and we cannot measure the effect of new learning context.
+try:
+    import dspy
+
+    dspy.cache.enable_disk_cache = False
+    dspy.cache.enable_memory_cache = False
+    logger.info("DSPy cache disabled for eval")
+except Exception:
+    pass
+
 EVAL_MODEL = "claude-3-haiku-20240307"
 RUNS_PER_TASK = 5
 SLEEP_BETWEEN = 8
@@ -55,8 +67,30 @@ def rx(content: str, pattern: str) -> bool:
 
 
 def code_blocks(content: str, n: int = 2, min_lines: int = 5) -> bool:
-    blocks = re.findall(r"```[\w]*\n(.*?)```", content, re.DOTALL)
-    return len([b for b in blocks if len(b.strip().split("\n")) >= min_lines]) >= n
+    """Detect substantial code — fenced blocks OR inline code patterns."""
+    # 1. Fenced markdown blocks (```python ... ```)
+    fenced = re.findall(r"```[\w]*\n(.*?)```", content, re.DOTALL)
+    fenced_count = len([b for b in fenced if len(b.strip().split("\n")) >= min_lines])
+    if fenced_count >= n:
+        return True
+    # 2. Inline code: consecutive lines with class/def/import patterns
+    code_line_re = re.compile(
+        r"^\s*(class |def |import |from .+ import |if |for |while |return |"
+        r"self\.|raise |except |try:|with |@\w|assert )",
+    )
+    lines = content.split("\n")
+    run_len = 0
+    code_runs = 0
+    for line in lines:
+        if code_line_re.match(line):
+            run_len += 1
+        else:
+            if run_len >= min_lines:
+                code_runs += 1
+            run_len = 0
+    if run_len >= min_lines:
+        code_runs += 1
+    return (fenced_count + code_runs) >= n
 
 
 def has_func(content: str, name: str) -> bool:

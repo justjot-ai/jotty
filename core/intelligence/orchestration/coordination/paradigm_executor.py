@@ -214,12 +214,15 @@ class ParadigmExecutor:
                         except Exception as _lc_err:
                             logger.debug(f"Fast-path learning context skipped: {_lc_err}")
 
-                    # Formatting instruction: ensures code appears in fenced blocks
-                    if not sub_goal.startswith("[Format"):
-                        sub_goal = (
-                            "[Format: Use markdown. Wrap ALL code in fenced blocks "
-                            "(```python, ```sql, etc). Use ## headings.]\n\n" + sub_goal
-                        )
+                    # Append formatting instruction at the END of the prompt
+                    # (recency bias: LLMs attend more to the end of the context)
+                    _fmt = (
+                        "\n\nIMPORTANT: Format your response in markdown. "
+                        "Wrap ALL code in fenced code blocks using ```python ... ```. "
+                        "Use ## headings for sections."
+                    )
+                    if "```python" not in sub_goal[-200:]:
+                        sub_goal += _fmt
 
                     _last_err = None
                     response = None
