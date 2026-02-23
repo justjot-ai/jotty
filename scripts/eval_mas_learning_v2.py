@@ -42,15 +42,22 @@ logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("eval_mas_v2")
 logger.setLevel(logging.INFO)
 
-# Disable DSPy disk cache so each run makes a fresh LLM call.
-# Without this, DSPy returns stale responses from ~/.dspy_cache
-# and we cannot measure the effect of new learning context.
+# Disable ALL DSPy caching (disk + memory + per-LM) so each run hits the API.
+# Three levels: global cache object, per-LM cache flag, and LM __init__ default.
 try:
     import dspy
 
     dspy.cache.enable_disk_cache = False
     dspy.cache.enable_memory_cache = False
-    logger.info("DSPy cache disabled for eval")
+
+    _orig_lm_init = dspy.LM.__init__
+
+    def _nocache_init(self: Any, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("cache", False)
+        _orig_lm_init(self, *args, **kwargs)
+
+    dspy.LM.__init__ = _nocache_init  # type: ignore[method-assign]
+    logger.info("DSPy cache fully disabled for eval")
 except Exception:
     pass
 
@@ -275,16 +282,6 @@ class MASEvalV2:
         start = time.time()
         content = ""
         error = None
-
-        # Clear DSPy cache before each run so fresh prompts hit the API
-        try:
-            import dspy as _dspy
-
-            _dspy.cache.enable_disk_cache = False
-            _dspy.cache.enable_memory_cache = False
-            _dspy.cache.memory_cache.clear()
-        except Exception:
-            pass
 
         try:
             orch = self._get_orchestrator()

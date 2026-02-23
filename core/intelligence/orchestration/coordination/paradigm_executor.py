@@ -646,7 +646,20 @@ class ParadigmExecutor:
             )
 
         if len(results) == 1:
-            return list(results.values())[0]
+            single = list(results.values())[0]
+            if isinstance(single.output, str):
+                single = EpisodeResult(
+                    output=_ensure_code_fences(single.output),
+                    success=single.success,
+                    trajectory=single.trajectory,
+                    tagged_outputs=single.tagged_outputs,
+                    episode=single.episode,
+                    execution_time=single.execution_time,
+                    architect_results=single.architect_results,
+                    auditor_results=single.auditor_results,
+                    agent_contributions=single.agent_contributions,
+                )
+            return single
 
         # Try SI consensus voting (trust-weighted) for selecting best output
         consensus_output = None
