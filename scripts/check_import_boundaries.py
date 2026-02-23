@@ -530,13 +530,53 @@ def print_violations(violations: List[ImportInfo], label: str):
 # =============================================================================
 
 
+def check_apps_layer_boundary(project_root: str) -> List[str]:
+    """Check that apps/ never imports from Jotty.core.* directly.
+
+    Apps (Layer 5) must only import from SDK (Layer 4): Jotty.sdk.*, jotty.*,
+    or Jotty.__init__. Direct imports from Jotty.core.* violate clean architecture.
+
+    Returns list of violation descriptions (empty = clean).
+    """
+    apps_root = os.path.join(project_root, "apps")
+    if not os.path.isdir(apps_root):
+        return []
+
+    violations = []
+    for dirpath, dirnames, filenames in os.walk(apps_root):
+        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+        for fname in filenames:
+            if not fname.endswith(".py"):
+                continue
+            filepath = os.path.join(dirpath, fname)
+            try:
+                with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+                    source = f.read()
+                tree = ast.parse(source, filename=filepath)
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom) or not node.module:
+                    continue
+                if node.module.startswith("Jotty.core."):
+                    rel_path = os.path.relpath(filepath, project_root)
+                    violations.append(
+                        f"  {rel_path}:{node.lineno}  "
+                        f"from {node.module} (apps must use Jotty.sdk, not Jotty.core)"
+                    )
+
+    return violations
+
+
 def main():
     verbose = "--verbose" in sys.argv
     strict = "--strict" in sys.argv
 
     # Find core/ directory
     script_dir = Path(__file__).resolve().parent
-    core_root = script_dir.parent / "core"
+    project_root = script_dir.parent
+    core_root = project_root / "core"
 
     if not core_root.is_dir():
         print(f"ERROR: core/ not found at {core_root}")
@@ -570,23 +610,39 @@ def main():
         for v in internal_violations:
             print(v)
 
+    # Apps layer boundary (apps/ must not import from core/)
+    apps_violations = check_apps_layer_boundary(str(project_root))
+    if apps_violations:
+        print(f"\n{'='*60}")
+        print(f"  APPS LAYER VIOLATIONS: {len(apps_violations)} (apps/ importing from core/)")
+        print(f"{'='*60}")
+        for v in apps_violations:
+            print(v)
+
     # Summary
     print("\n--- Summary ---")
     print(f"  Top-level violations: {len(top_level_violations)}")
     print(f"  Deferred violations:  {len(deferred_violations)}")
     print(f"  Internal violations:  {len(internal_violations)} (orchestration sub-modules)")
+    print(f"  Apps layer violations: {len(apps_violations)} (apps/ -> core/)")
 
+    exit_code = 0
     if top_level_violations:
         print(f"\nFAILED: {len(top_level_violations)} top-level boundary violation(s)")
         print("Fix: Add the dependency to ALLOWED_DEPS in scripts/check_import_boundaries.py")
         print("     (or remove the import if it shouldn't exist)")
-        sys.exit(1)
-    elif strict and deferred_violations:
+        exit_code = 1
+    if apps_violations:
+        print(f"\nFAILED: {len(apps_violations)} apps layer violation(s)")
+        print("Fix: Import from Jotty.sdk instead of Jotty.core in apps/")
+        exit_code = 1
+    if strict and deferred_violations:
         print(f"\nFAILED (strict): {len(deferred_violations)} deferred boundary violation(s)")
-        sys.exit(1)
-    else:
+        exit_code = 1
+
+    if exit_code == 0:
         print("\nPASSED: All imports within allowed boundaries")
-        sys.exit(0)
+    sys.exit(exit_code)
 
 
 def check_programmatic(strict: bool = False) -> Tuple[List[ImportInfo], List[ImportInfo]]:

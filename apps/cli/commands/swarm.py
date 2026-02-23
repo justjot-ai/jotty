@@ -197,16 +197,7 @@ class SwarmCommand(BaseCommand):
             except ImportError:
                 from Jotty.apps.cli.ui.progress import SwarmDashboard
 
-            try:
-                from Jotty.core.intelligence.orchestration.swarms.coding_swarm import (
-                    CodingConfig,
-                    CodingSwarm,
-                )
-            except ImportError:
-                from Jotty.core.intelligence.orchestration.swarms.coding_swarm import (
-                    CodingConfig,
-                    CodingSwarm,
-                )
+            from Jotty.sdk import CodingConfig, CodingSwarm
 
             # Parse config flags
             team = args.flags.get("team", "fullstack")

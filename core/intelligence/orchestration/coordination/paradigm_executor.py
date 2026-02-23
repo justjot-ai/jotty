@@ -40,6 +40,8 @@ def _ensure_code_fences(text: str) -> str:
     """
     if not text:
         return text
+    if not isinstance(text, str):
+        text = str(text)
     # If there are already well-formed fenced blocks, skip post-processing
     existing_fenced = re.findall(r"```[\w]*\n.+?```", text, re.DOTALL)
     if len(existing_fenced) >= 2:

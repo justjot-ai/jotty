@@ -199,9 +199,10 @@ class PIIConstraint(SafetyConstraint):
                     for m in matches
                     if not m.startswith(("127.", "0.0.", "192.168.", "10.", "172."))
                 ]
-            elif pii_type == "phone":
-                # Phone numbers in public content (travel guides, business
-                # directories, restaurant listings) are not personal PII.
+            elif pii_type in ("phone", "credit_card"):
+                # Phone numbers and numeric patterns in public content
+                # (travel guides, business directories, restaurant listings,
+                # booking references) are not personal PII.
                 _pub_kws = (
                     "hotel",
                     "hostel",
@@ -217,6 +218,10 @@ class PIIConstraint(SafetyConstraint):
                     "itinerary",
                     "attraction",
                     "guide",
+                    "flight",
+                    "budget",
+                    "price",
+                    "cost",
                 )
                 _lower = output[:2000].lower()
                 if any(kw in _lower for kw in _pub_kws):

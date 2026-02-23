@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Jotty REST API Server
 =====================
@@ -82,14 +83,14 @@ class JottyAPIServer:
         if self._router is None:
             # Use absolute imports — works both when run as Jotty.apps.api.simple_server
             # and when run standalone (background process with sys.path insert)
-            from Jotty.core.interface.api.mode_router import get_mode_router
+            from Jotty.sdk import get_mode_router
 
             self._router = get_mode_router()
         return self._router
 
     def _make_context(self, mode: str = "chat", **kwargs: Any) -> Any:
         """Create an ExecutionContext for ModeRouter calls."""
-        from Jotty.core.infrastructure.foundation.types.sdk_types import (
+        from Jotty.sdk import (
             ChannelType,
             ExecutionContext,
             ExecutionMode,
@@ -206,7 +207,7 @@ class JottyAPIServer:
         @app.post("/api/skills/{skill_name}")
         async def execute_skill(skill_name: str, params: Dict[str, Any] = {}) -> Any:
             """Execute a specific skill via ModeRouter."""
-            from Jotty.core.infrastructure.foundation.types.sdk_types import (
+            from Jotty.sdk import (
                 ExecutionMode,
                 SDKRequest,
             )

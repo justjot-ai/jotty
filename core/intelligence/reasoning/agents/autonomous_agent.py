@@ -623,6 +623,20 @@ class AutonomousAgent(BaseAgent):
 
         skills = await self._select_skills(selection_task, all_skills, task_type=task_type)
 
+        # Ensure file-operations is present when the task mentions file paths
+        import re as _re_sel
+
+        _has_file_ref = bool(
+            _re_sel.search(
+                r"save\b.*\b(to|file|\.md|\.txt|\.csv|\.json|/tmp/)", task, _re_sel.IGNORECASE
+            )
+        )
+        _has_file_skill = any(s.get("name") == "file-operations" for s in skills)
+        if _has_file_ref and not _has_file_skill:
+            _file_skill = next((s for s in all_skills if s.get("name") == "file-operations"), None)
+            if _file_skill:
+                skills.append(_file_skill)
+
         # Strip heavy/irrelevant skills for knowledge-only tasks
         skills = self._optimize_for_knowledge_tasks(task, task_type, skills, all_skills, status)
 

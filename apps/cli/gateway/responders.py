@@ -73,7 +73,7 @@ class ChannelResponderRegistry:
         try:
             # Try to import from skills dynamically
             # This avoids hardcoded imports
-            from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+            from Jotty.sdk import get_unified_registry
 
             registry = get_unified_registry()
 

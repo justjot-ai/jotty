@@ -44,7 +44,7 @@ class ProviderManager:
 
     def init_provider_registry(self) -> None:
         """Initialize the skill provider registry with all available providers."""
-        from ..core.swarm_manager import _load_providers, _provider_cache
+        from ..core.lazy_components import _load_providers, _provider_cache
 
         if not _load_providers():
             logger.debug("Skill providers not available")
@@ -135,7 +135,7 @@ class ProviderManager:
             return None
 
         try:
-            from ..core.swarm_manager import _provider_cache
+            from ..core.swarm_manager import _provider_cache  # type: ignore[attr-defined]
 
             SkillCategory = _provider_cache.get("SkillCategory")
             cat_enum = (

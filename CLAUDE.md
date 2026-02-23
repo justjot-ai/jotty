@@ -198,7 +198,7 @@ AGENT_TEAM = TeamCoordinator.define(
 
 ### Educational Content Example
 ```python
-from Jotty.core.intelligence.swarms.olympiad_learning_swarm import learn_topic
+from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm import learn_topic
 
 # Generate comprehensive learning material with PDF + HTML
 result = await learn_topic(
@@ -320,10 +320,10 @@ from Jotty.core.intelligence.orchestration.facade import (
 )
 
 # SWARMS — Multi-agent coordination
-from Jotty.core.intelligence.swarms.base_swarm import SwarmLearning
-from Jotty.core.intelligence.swarms.base.domain_swarm import SwarmTemplate
-from Jotty.core.intelligence.swarms.coding_swarm import CodingSwarm
-from Jotty.core.intelligence.swarms.research_swarm import ResearchSwarm
+from Jotty.core.intelligence.orchestration.swarms._base.swarm_learning import SwarmLearning
+from Jotty.core.intelligence.orchestration.swarms.base.swarm_template import SwarmTemplate
+from Jotty.core.intelligence.orchestration.swarms.coding_swarm import CodingSwarm
+from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
 ```
 
 ### Layer 3: CAPABILITIES (Skills & Registry)
@@ -342,10 +342,8 @@ from Jotty.core.capabilities.registry.unified_registry import (
 )
 from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
 
-# SDK — Skill development kit
-from Jotty.core.capabilities.sdk.skill_sdk.tool_helpers import format_json
-
-# NOTE: All actual skills (semantic, automl, research, content-gen, etc.)  # are now in skills/ folder and discovered automatically by the registry
+# NOTE: All actual skills (semantic, automl, research, content-gen, etc.)
+# are now in skills/ folder and discovered automatically by the registry
 ```
 
 ### Layer 2: MODES (Execution Modes)
@@ -365,8 +363,8 @@ from Jotty.core.intelligence.reasoning.base.domain_agent import DomainAgent
 from Jotty.core.intelligence.reasoning.autonomous.intent_parser import IntentParser
 
 # WORKFLOW — Workflow execution
-from Jotty.core.intelligence.workflow.auto_workflow import AutoWorkflow
-from Jotty.core.intelligence.workflow.research_workflow import ResearchWorkflow
+from Jotty.core.intelligence.orchestration.pipelines.auto_pipeline import AutoWorkflow
+from Jotty.core.intelligence.orchestration.pipelines.research_pipeline import ResearchWorkflow
 
 # EXECUTION — Executors
 from Jotty.core.intelligence.orchestration.execution.executor import Executor

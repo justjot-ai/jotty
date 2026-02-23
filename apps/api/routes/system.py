@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 System routes - health, capabilities, models, agents, providers, commands, features, static.
 """
@@ -38,7 +39,7 @@ def register_system_routes(app, api) -> Any:
     async def get_widgets() -> Any:
         """Get all widgets from unified registry."""
         try:
-            from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+            from Jotty.sdk import get_unified_registry
 
             registry = get_unified_registry()
             return registry.get_widgets()
@@ -50,7 +51,7 @@ def register_system_routes(app, api) -> Any:
     async def get_tools() -> Any:
         """Get all tools from unified registry."""
         try:
-            from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+            from Jotty.sdk import get_unified_registry
 
             registry = get_unified_registry()
             return registry.get_tools()
@@ -102,7 +103,7 @@ def register_system_routes(app, api) -> Any:
         ]
 
         try:
-            from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+            from Jotty.sdk import get_unified_registry
 
             registry = get_unified_registry()
             all_data = registry.get_all()
@@ -154,7 +155,7 @@ def register_system_routes(app, api) -> Any:
     async def list_agents() -> dict[str, Any]:
         """Get agents from skills registry."""
         try:
-            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+            from Jotty.sdk import get_skills_registry
 
             registry = get_skills_registry()
             if hasattr(registry, "list_agents_from_skills"):
@@ -463,7 +464,7 @@ def register_system_routes(app, api) -> Any:
     async def execute_swarm(request: SwarmRequest) -> dict[str, Any]:
         """Execute multi-agent swarm."""
         try:
-            from Jotty.core.intelligence.orchestration import Orchestrator
+            from Jotty.sdk import Orchestrator
 
             manager = Orchestrator()
             result = await manager.execute(

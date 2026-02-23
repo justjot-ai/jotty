@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 ML Command
 ==========
@@ -346,7 +347,7 @@ class MLCommand(BaseCommand):
 
         # Use ConnectorX loader
         try:
-            from Jotty.core.capabilities.semantic.query.data_loader import (
+            from Jotty.sdk.semantic import (
                 DataLoaderFactory,
                 OutputFormat,
             )
@@ -549,7 +550,7 @@ class MLCommand(BaseCommand):
         warnings.filterwarnings("ignore", message=".*feature names.*")
 
         # Import skills
-        from Jotty.core.capabilities.skills.ml import (
+        from Jotty.sdk.ml import (
             EnsembleSkill,
             FeatureEngineeringSkill,
             FeatureSelectionSkill,

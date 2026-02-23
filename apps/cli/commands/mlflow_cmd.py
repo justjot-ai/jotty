@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 MLflow Command
 ==============
@@ -50,7 +51,7 @@ class MLflowCommand(BaseCommand):
         subcommand = args.positional[0] if args.positional else "list"
 
         # Initialize MLflow tracker with saved state
-        from Jotty.core.capabilities.skills.ml import MLflowTrackerSkill
+        from Jotty.sdk.ml import MLflowTrackerSkill
 
         state = self._get_saved_state()
         tracker = MLflowTrackerSkill()

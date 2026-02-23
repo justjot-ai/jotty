@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 # Absolute imports - single source of truth
 from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode
 
+SDKChannelType = ChannelType
+SDK_TYPES_AVAILABLE = True
+
 
 @dataclass
 class MessageEvent:
@@ -277,7 +280,7 @@ class ChannelRouter:
         """
         # ModeRouter: canonical execution path
         try:
-            from Jotty.core.interface.api.mode_router import get_mode_router
+            from Jotty.sdk import get_mode_router
 
             router = get_mode_router()
 

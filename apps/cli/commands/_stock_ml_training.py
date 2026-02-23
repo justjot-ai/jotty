@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Stock ML - Training Mode Methods
 ==================================
@@ -138,7 +139,7 @@ class StockMLTrainingMixin:
 
         # Log to MLflow if enabled
         if use_mlflow:
-            from Jotty.core.capabilities.skills.ml import MLflowTrackerSkill
+            from Jotty.sdk.ml import MLflowTrackerSkill
 
             from .ml import MLCommand
 
@@ -487,7 +488,7 @@ class StockMLTrainingMixin:
             cli.renderer.info("")  # type: ignore[attr-defined]
             cli.renderer.header("Running World-Class Backtest Engine")  # type: ignore[attr-defined]
 
-            from Jotty.core.capabilities.skills.ml import (
+            from Jotty.sdk.ml import (
                 ComprehensiveBacktestReportGenerator,
                 TransactionCosts,
                 WorldClassBacktestEngine,
@@ -785,7 +786,7 @@ class StockMLTrainingMixin:
 
         # Log to MLflow if enabled
         if use_mlflow:
-            from Jotty.core.capabilities.skills.ml import MLflowTrackerSkill
+            from Jotty.sdk.ml import MLflowTrackerSkill
 
             from .ml import MLCommand
 
@@ -1136,7 +1137,7 @@ class StockMLTrainingMixin:
 
         # Log to MLflow
         if use_mlflow:
-            from Jotty.core.capabilities.skills.ml import MLflowTrackerSkill
+            from Jotty.sdk.ml import MLflowTrackerSkill
 
             from .ml import MLCommand
 

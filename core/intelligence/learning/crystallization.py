@@ -75,8 +75,8 @@ class CrystallizedConfig:
 # Thresholds (conservative — only crystallize when truly confident)
 MIN_EPISODES = 10
 MIN_SUCCESS_RATE = 0.85
-MIN_PLAN_CONSISTENCY = 0.60  # top template must account for >= 60% of recent plans
-MIN_ROLE_Q = 0.65  # best skill per role must have Q >= this
+MIN_PLAN_CONSISTENCY = 0.40  # top template must account for >= 40% of recent plans
+MIN_ROLE_Q = 0.55  # best skill per role must have Q >= this
 
 
 def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str, Any]]:
@@ -91,38 +91,65 @@ def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str
     key = td.skill_q._make_key(task_type, domain)
     stats: Dict[str, Any] = {"domain_key": key, "reasons": []}
 
-    # 1. Enough observations? (fallback to base task_type if domain-specific is sparse)
+    # 1. Enough observations? (fallback to base task_type if domain-specific is sparse,
+    #    then merge sibling task_types for the same domain)
     skill_counts = td.skill_q._counts.get(key, {})
     if not skill_counts and ":" in key:
         base = td.skill_q._base_key(key)
         skill_counts = td.skill_q._counts.get(base, {})
+
+    # Merge sibling task_types for the same domain (e.g. research:travel + creation:travel)
+    if domain:
+        for other_key in list(td.skill_q._counts.keys()):
+            if other_key != key and other_key.endswith(f":{domain}"):
+                for skill, cnt in td.skill_q._counts[other_key].items():
+                    skill_counts[skill] = skill_counts.get(skill, 0) + cnt
+        # Also check base task_types that were used for this domain
+        for base_key in list(td.skill_q._counts.keys()):
+            if ":" not in base_key and base_key != task_type:
+                for skill, cnt in td.skill_q._counts[base_key].items():
+                    skill_counts[skill] = skill_counts.get(skill, 0) + cnt
+
     total_obs = sum(skill_counts.values()) if skill_counts else 0
     if total_obs < MIN_EPISODES:
         stats["reasons"].append(f"too few observations ({total_obs} < {MIN_EPISODES})")
         return False, stats
     stats["total_obs"] = total_obs
 
-    # 2. Plan history success rate
-    plans = td.step_q._plan_history.get(key, [])
-    if not plans:
+    # 2. Plan history — same-type plans for consistency, merged for count/success rate
+    # Same-type plans (for consistency check): only the target key + base key
+    same_type_plans = list(td.step_q._plan_history.get(key, []))
+    if not same_type_plans:
         base = td.step_q._base_key(key)
-        plans = td.step_q._plan_history.get(base, [])
-    recent = plans[-20:] if len(plans) > 20 else plans
-    if len(recent) < 5:
-        stats["reasons"].append(f"too few plans ({len(recent)} < 5)")
+        same_type_plans = list(td.step_q._plan_history.get(base, []))
+
+    # All plans (for count + success rate): merge sibling task_types for same domain
+    all_plans = list(same_type_plans)
+    if domain:
+        for other_key in list(td.step_q._plan_history.keys()):
+            if other_key != key and (other_key.endswith(f":{domain}") or ":" not in other_key):
+                all_plans.extend(td.step_q._plan_history[other_key])
+
+    recent_all = all_plans[-20:] if len(all_plans) > 20 else all_plans
+    if len(recent_all) < 5:
+        stats["reasons"].append(f"too few plans ({len(recent_all)} < 5)")
         return False, stats
-    avg_reward = sum(r for _, r in recent) / len(recent)
+    avg_reward = sum(r for _, r in recent_all) / len(recent_all)
     stats["success_rate"] = avg_reward
     if avg_reward < MIN_SUCCESS_RATE:
         stats["reasons"].append(f"success rate too low ({avg_reward:.0%} < {MIN_SUCCESS_RATE:.0%})")
         return False, stats
 
-    # 3. Plan template consistency — does one template dominate?
+    # 3. Plan template consistency — use same-type plans only (don't mix
+    #    "creation" 2-step templates with "research" 7-step templates)
     from collections import Counter
 
-    template_counts = Counter(roles for roles, _ in recent)
+    recent_same = same_type_plans[-20:] if len(same_type_plans) > 20 else same_type_plans
+    if len(recent_same) < 3:
+        recent_same = recent_all  # fallback if too few same-type
+    template_counts = Counter(roles for roles, _ in recent_same)
     top_template, top_count = template_counts.most_common(1)[0]
-    consistency = top_count / len(recent)
+    consistency = top_count / len(recent_same)
     stats["plan_consistency"] = consistency
     stats["top_template"] = top_template
     if consistency < MIN_PLAN_CONSISTENCY:
@@ -133,6 +160,18 @@ def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str
 
     # 4. Role Q-values stable and high (ignore roles with < 3 visits — noise)
     role_guidance = td.step_q.get_role_guidance(task_type, domain=domain)
+    # Merge role guidance from sibling task types for same domain
+    if domain and not role_guidance:
+        for alt_type in ("research", "creation", "coding", "analysis"):
+            if alt_type != task_type:
+                alt_guidance = td.step_q.get_role_guidance(alt_type, domain=domain)
+                if not alt_guidance:
+                    alt_guidance = td.step_q.get_role_guidance(alt_type)
+                if alt_guidance:
+                    role_guidance = alt_guidance
+                    break
+    if not role_guidance:
+        role_guidance = td.step_q.get_role_guidance(task_type)
     if not role_guidance:
         stats["reasons"].append("no role guidance data")
         return False, stats
@@ -272,7 +311,7 @@ def decrystallize(task_type: str, domain: str = "") -> bool:
 
 def list_crystallized() -> List[CrystallizedConfig]:
     """List all crystallized domain configs."""
-    configs = []
+    configs: list[CrystallizedConfig] = []
     if not _CRYSTAL_DIR.exists():
         return configs
     for path in sorted(_CRYSTAL_DIR.glob("*.json")):
@@ -372,10 +411,13 @@ async def run_probation(
         f"max_tasks={max_tasks}, supplied_goals={len(goal_queue)}"
     )
 
+    task = None  # Only set when using curriculum-generated goals
+
     for i in range(max_tasks):
         # 1. Pick a goal
         if goal_queue:
             goal = goal_queue.pop(0)
+            task = None
         else:
             task = curriculum.generate_domain_task(task_type, domain)
             goal = task.description
@@ -398,7 +440,7 @@ async def run_probation(
         results.append({"goal": goal, "success": success, "iteration": i})
 
         # 3. Feed result back to curriculum (closes the feedback loop)
-        if not goal_queue:
+        if task is not None:
             curriculum.update_from_result(task, success, execution_time=0)
 
         # 4. Check graduation — check both the target task_type and the

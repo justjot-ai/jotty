@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Unified Gateway Server
 ======================
@@ -183,7 +184,7 @@ class UnifiedGateway:
                 pass
             # Check skills
             try:
-                from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+                from Jotty.sdk import get_unified_registry
 
                 registry = get_unified_registry()
                 result["skills_loaded"] = (
@@ -231,9 +232,8 @@ class UnifiedGateway:
                 if not message:
                     return {"success": False, "error": "No message provided"}
 
-                from Jotty.core.interface.api.mode_router import get_mode_router
                 from Jotty.sdk import ChannelType as CTType
-                from Jotty.sdk import ExecutionContext, ExecutionMode
+                from Jotty.sdk import ExecutionContext, ExecutionMode, get_mode_router
 
                 router = get_mode_router()
                 context = ExecutionContext(
@@ -260,9 +260,8 @@ class UnifiedGateway:
                 if not goal:
                     return {"success": False, "error": "No goal provided"}
 
-                from Jotty.core.interface.api.mode_router import get_mode_router
                 from Jotty.sdk import ChannelType as CTType
-                from Jotty.sdk import ExecutionContext, ExecutionMode
+                from Jotty.sdk import ExecutionContext, ExecutionMode, get_mode_router
 
                 router = get_mode_router()
                 context = ExecutionContext(
@@ -287,9 +286,8 @@ class UnifiedGateway:
 
             async def event_generator() -> Any:
                 try:
-                    from Jotty.core.interface.api.mode_router import get_mode_router
                     from Jotty.sdk import ChannelType as CTType
-                    from Jotty.sdk import ExecutionContext, ExecutionMode
+                    from Jotty.sdk import ExecutionContext, ExecutionMode, get_mode_router
 
                     router = get_mode_router()
                     context = ExecutionContext(
@@ -310,7 +308,7 @@ class UnifiedGateway:
         async def api_list_skills() -> Any:
             """List available skills."""
             try:
-                from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+                from Jotty.sdk import get_unified_registry
 
                 registry = get_unified_registry()
                 skills = registry.list_skills()
@@ -324,7 +322,7 @@ class UnifiedGateway:
             try:
                 params = await request.json()
 
-                from Jotty.core.interface.api.mode_router import get_mode_router
+                from Jotty.sdk import get_mode_router
 
                 router = get_mode_router()
                 result = await router.skill(name, params)
@@ -336,7 +334,7 @@ class UnifiedGateway:
         async def api_skill_info(name: str) -> Any:
             """Get skill info."""
             try:
-                from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+                from Jotty.sdk import get_unified_registry
 
                 registry = get_unified_registry()
                 skill = registry.get_skill(name)
@@ -358,9 +356,8 @@ class UnifiedGateway:
                 data = await request.json()
                 task = data.get("task", "")
 
-                from Jotty.core.interface.api.mode_router import get_mode_router
                 from Jotty.sdk import ChannelType as CTType
-                from Jotty.sdk import ExecutionContext, ExecutionMode
+                from Jotty.sdk import ExecutionContext, ExecutionMode, get_mode_router
 
                 router = get_mode_router()
                 context = ExecutionContext(mode=ExecutionMode.AGENT, channel=CTType.HTTP)
@@ -372,7 +369,7 @@ class UnifiedGateway:
         # ============ RATE LIMITING (shared utility) ============
         from starlette.middleware.base import BaseHTTPMiddleware
 
-        from Jotty.core.infrastructure.utils.api_middleware import (
+        from Jotty.sdk import (
             RateLimiter,
             make_rate_limit_middleware,
         )

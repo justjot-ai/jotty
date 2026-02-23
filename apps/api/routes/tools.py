@@ -256,7 +256,7 @@ def register_tools_routes(app, api) -> Any:
     async def list_mcp_tools() -> dict[str, Any]:
         """List available MCP tools with enable/disable status."""
         try:
-            from Jotty.core.infrastructure.integration.mcp_client import MCPClient
+            from Jotty.sdk import MCPClient
 
             # Try to get tools from MCP server
             try:
@@ -319,7 +319,7 @@ def register_tools_routes(app, api) -> Any:
         start_time = time.time()
 
         try:
-            from Jotty.core.infrastructure.integration.mcp_client import call_justjot_mcp_tool
+            from Jotty.sdk import call_justjot_mcp_tool
 
             result = await call_justjot_mcp_tool(
                 tool_name=request.tool_name, arguments=request.arguments

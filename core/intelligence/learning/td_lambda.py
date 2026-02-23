@@ -1771,6 +1771,21 @@ class StepQTable(_DomainKeyMixin):
 
         return td_error
 
+    @staticmethod
+    def _normalize_roles(roles: tuple) -> tuple:
+        """Collapse consecutive duplicate roles into a single occurrence.
+
+        (search, search, search, synthesize, save) → (search, synthesize, save)
+        This ensures plan templates are compared by *structure*, not step count.
+        """
+        if not roles:
+            return roles
+        normalized: list = [roles[0]]
+        for r in roles[1:]:
+            if r != normalized[-1]:
+                normalized.append(r)
+        return tuple(normalized)
+
     def record_plan(
         self,
         task_type: str,
@@ -1790,10 +1805,12 @@ class StepQTable(_DomainKeyMixin):
             desc = descriptions[i] if descriptions and i < len(descriptions) else ""
             roles.append(self.infer_role(skill, desc))
 
+        normalized = self._normalize_roles(tuple(roles))
+
         for key in keys:
             if key not in self._plan_history:
                 self._plan_history[key] = []
-            self._plan_history[key].append((tuple(roles), reward))
+            self._plan_history[key].append((normalized, reward))
             if len(self._plan_history[key]) > 100:
                 self._plan_history[key] = self._plan_history[key][-100:]
 

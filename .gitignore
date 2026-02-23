@@ -68,3 +68,4 @@ tests/e2e/results/
 # Test artifacts (MagicMock leaked paths)
 MagicMock/
 scripts/eval_results/
+artifacts/

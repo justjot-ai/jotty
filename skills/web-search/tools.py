@@ -576,7 +576,24 @@ def search_and_scrape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     results = search_result.get("results", [])
     scraped_count = 0
 
-    # Parallelize URL scraping — biggest latency win (22s → ~5s for 3 URLs)
+    # Tavily already returns content-rich snippets — scraping adds latency
+    # and often fails (sites block scrapers), corrupting good data.
+    provider = search_result.get("provider", "")
+    if provider == "tavily":
+        for r in results:
+            if r.get("snippet"):
+                r["content"] = r["snippet"]
+                r["content_length"] = len(r["snippet"])
+                scraped_count += 1
+        return tool_response(
+            query=query,
+            results=results,
+            count=len(results),
+            scraped_count=scraped_count,
+            provider=provider,
+        )
+
+    # For non-Tavily providers: parallelize URL scraping
     to_scrape = [(i, r) for i, r in enumerate(results[:scrape_top]) if r.get("url")]
     if to_scrape:
         from concurrent.futures import ThreadPoolExecutor, as_completed

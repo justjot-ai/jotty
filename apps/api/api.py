@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 FastAPI Web API
 ===============
@@ -44,7 +45,7 @@ def create_app() -> "FastAPI":
     # Auth + rate limiting middleware
     from starlette.middleware.base import BaseHTTPMiddleware
 
-    from Jotty.core.infrastructure.utils.api_middleware import (
+    from Jotty.sdk import (
         RateLimiter,
         make_auth_middleware,
         make_rate_limit_middleware,

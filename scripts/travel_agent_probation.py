@@ -32,6 +32,11 @@ logging.getLogger("Jotty.core.intelligence.learning.crystallization").setLevel(l
 logging.getLogger("Jotty.core.intelligence.reasoning.agents.autonomous_agent").setLevel(
     logging.INFO
 )
+logging.getLogger("Jotty.core.intelligence.learning.learning_service").setLevel(logging.INFO)
+logging.getLogger("Jotty.core.infrastructure.monitoring.safety_gates.validators").setLevel(
+    logging.INFO
+)
+logging.getLogger("skill_tools").setLevel(logging.INFO)
 
 
 TRAVEL_CURRICULUM = [

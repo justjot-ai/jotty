@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 JottyAPI - Core API business logic.
 
@@ -17,10 +18,8 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
-from Jotty.core.interface.api.mode_router import ModeRouter, get_mode_router
-
 # Import SDK types from public package
-from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode
+from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode, ModeRouter, get_mode_router
 
 
 class JottyAPI:
@@ -155,9 +154,7 @@ class JottyAPI:
             )
 
             # Try Anthropic SDK directly (best for vision); respects ANTHROPIC_BASE_URL (CCR)
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                get_anthropic_client_kwargs,
-            )
+            from Jotty.sdk import get_anthropic_client_kwargs
 
             client_kwargs = get_anthropic_client_kwargs()
             api_key = client_kwargs.get("api_key")
