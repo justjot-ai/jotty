@@ -204,6 +204,16 @@ class ParadigmExecutor:
                     )
                     sub_goal = hook_ctx.get("goal", sub_goal)
 
+                    # Inject learning context so fast-path benefits from past experience
+                    if hasattr(runner, "_gather_learning_context"):
+                        try:
+                            lc_parts = runner._gather_learning_context(sub_goal)
+                            if lc_parts:
+                                lc_text = "\n\n".join(lc_parts)
+                                sub_goal = f"{lc_text}\n\n{sub_goal}"
+                        except Exception as _lc_err:
+                            logger.debug(f"Fast-path learning context skipped: {_lc_err}")
+
                     _last_err = None
                     response = None
                     for _attempt in range(4):
@@ -617,7 +627,14 @@ class ParadigmExecutor:
         if verified_output is not None:
             combined_output = verified_output
         else:
-            combined_output = {name: r.output for name, r in results.items()}
+            # Join per-agent outputs into a single string so downstream
+            # consumers (learning, eval) get usable text instead of a raw dict.
+            parts = []
+            for name, r in results.items():
+                agent_text = str(r.output or "").strip()
+                if agent_text:
+                    parts.append(f"## {name}\n\n{agent_text}")
+            combined_output = "\n\n---\n\n".join(parts) if parts else ""
 
         all_success = all(r.success for r in results.values())
 

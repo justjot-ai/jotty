@@ -79,6 +79,16 @@ class EpisodeResult:
     # A-TEAM: Confidence-based override metadata (Dec 29, 2025)
     override_metadata: Optional[Dict[str, Any]] = None
 
+    @property
+    def final_output(self) -> str:
+        """Return output as clean text, joining multi-agent dict outputs."""
+        if isinstance(self.output, str):
+            return self.output
+        if isinstance(self.output, dict):
+            parts = [str(v).strip() for v in self.output.values() if v]
+            return "\n\n---\n\n".join(parts)
+        return str(self.output or "")
+
 
 # =============================================================================
 # EPISODE STORAGE (Enhanced for Offline Learning)

@@ -944,16 +944,21 @@ class SkillPlanExecutor:
         else:
             _status("Executing", f" Running {step.skill_name}...")
 
-        # Inject learning context into LLM-calling skills' prompt param
-        _LLM_SKILL_KEYWORDS = ("llm", "claude", "openai", "groq", "generate-text")
-        _is_llm_skill = any(kw in step.skill_name.lower() for kw in _LLM_SKILL_KEYWORDS)
-        if learning_context and _is_llm_skill and isinstance(resolved_params.get("prompt"), str):
-            _condensed = learning_context.strip()
-            if len(_condensed) > 500:
-                # Keep first 300 + last 200 chars (preserves opening guidance + closing hints)
-                _condensed = _condensed[:300] + "\n...\n" + _condensed[-195:]
-            if _condensed:
-                resolved_params["prompt"] = f"{_condensed}\n\n{resolved_params['prompt']}"
+        # Inject learning context into any skill that has a prompt/query/instruction param.
+        # Previously only matched LLM-named skills, missing code-generation, research, etc.
+        _PROMPT_PARAMS = ("prompt", "query", "instruction", "task", "question")
+        if learning_context:
+            _target_param = next(
+                (p for p in _PROMPT_PARAMS if isinstance(resolved_params.get(p), str)), None
+            )
+            if _target_param:
+                _condensed = learning_context.strip()
+                if len(_condensed) > 500:
+                    _condensed = _condensed[:300] + "\n...\n" + _condensed[-195:]
+                if _condensed:
+                    resolved_params[_target_param] = (
+                        f"{_condensed}\n\n{resolved_params[_target_param]}"
+                    )
 
         try:
             import asyncio as _asyncio
