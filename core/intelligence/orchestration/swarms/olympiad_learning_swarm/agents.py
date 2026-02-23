@@ -938,10 +938,14 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
             )
 
             edited = str(result.edited_content)
-            socratic = [q.strip() for q in str(result.socratic_questions).split("|") if q.strip()]
-            breakthroughs = [
-                b.strip() for b in str(result.breakthrough_moments).split("|") if b.strip()
-            ]
+
+            # Parse Socratic questions and breakthroughs from the edited content
+            import re
+
+            socratic = re.findall(
+                r"(?:Pause and think|Before reading on|What would YOU)[^?.]*\?", edited
+            )
+            breakthroughs = re.findall(r"[*][*]Brilliant breakthrough moment![*][*]\s*(.+)", edited)
 
             self._broadcast(
                 "narrative_edited",

@@ -672,7 +672,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 
         # Fire TUI trace callback if active
         try:
-            from .coding_swarm import utils as _cu
+            from ..coding_swarm import utils as _cu
 
             if _cu._active_trace_callback is not None:
                 _cu._active_trace_callback(

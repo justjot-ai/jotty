@@ -8,8 +8,6 @@ Demonstrates run(goal) with:
 2. SwarmTaskBoard tracking with Q-value selection
 3. Learning pipeline (Q-tables, episodes, distillation)
 4. Agent coordination (paradigm selection, feedback)
-
-Run: python -m scripts.test_live_orchestrator
 """
 
 import asyncio
@@ -19,18 +17,43 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-)
-logger = logging.getLogger(__name__)
+# Suppress ALL init noise — only show our test output
+logging.basicConfig(level=logging.WARNING, format="%(message)s")
+for name in [
+    "httpx",
+    "httpcore",
+    "urllib3",
+    "dspy",
+    "litellm",
+    "Jotty",
+    "anthropic",
+    "sentence_transformers",
+    "torch",
+    "transformers",
+    "filelock",
+    "huggingface_hub",
+    "root",
+]:
+    logging.getLogger(name).setLevel(logging.ERROR)
+# Suppress the root logger too
+logging.getLogger().setLevel(logging.WARNING)
 
-# Suppress noisy loggers
-for name in ["httpx", "httpcore", "urllib3", "dspy", "litellm"]:
-    logging.getLogger(name).setLevel(logging.WARNING)
+# Redirect stderr during import to suppress init messages
+import io
 
+_real_stderr = sys.stderr
+sys.stderr = io.StringIO()
+
+# Do the heavy import with stderr suppressed
+_real_stdout = sys.stdout
+sys.stdout = io.StringIO()
+
+from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator  # noqa: E402
+
+sys.stdout = _real_stdout
+sys.stderr = _real_stderr
 
 BLUE = "\033[94m"
 GREEN = "\033[92m"
@@ -45,36 +68,159 @@ RESET = "\033[0m"
 def header(title: str) -> None:
     print(f"\n{BOLD}{CYAN}{'='*70}")
     print(f"  {title}")
-    print(f"{'='*70}{RESET}\n")
+    print(f"{'='*70}{RESET}")
 
 
 def section(title: str) -> None:
-    print(f"\n{BOLD}{YELLOW}--- {title} ---{RESET}")
+    print(f"\n  {BOLD}{YELLOW}--- {title} ---{RESET}")
 
 
 def status_callback(stage: str, detail: str) -> None:
-    print(f"  {DIM}[{stage}]{RESET} {detail}")
+    """Live streaming callback — prints each status as it happens."""
+    icon = "→"
+    if "complet" in detail.lower() or "success" in detail.lower():
+        icon = f"{GREEN}✓{RESET}"
+    elif "fail" in detail.lower() or "error" in detail.lower():
+        icon = f"{RED}✗{RESET}"
+    elif "start" in detail.lower() or "execut" in detail.lower():
+        icon = f"{CYAN}▶{RESET}"
+    elif "learn" in detail.lower() or "intel" in detail.lower():
+        icon = f"{YELLOW}◆{RESET}"
+
+    # Flush immediately for streaming effect
+    print(f"    {icon} [{stage}] {detail}", flush=True)
+
+
+def show_task_board(orch: Orchestrator, label: str) -> None:
+    """Display task board state."""
+    section(f"Task Board ({label})")
+    tb = orch.swarm_task_board
+    print(f"    Root: {tb.root_task or '(empty)'}")
+    print(
+        f"    Subtasks: {len(tb.subtasks)} | "
+        f"Completed: {len(tb.completed_tasks)} | "
+        f"Failed: {len(tb.failed_tasks)}"
+    )
+
+    if tb.subtasks:
+        print(f"    Completion probability: {tb.completion_probability:.0%}")
+        for tid, task in tb.subtasks.items():
+            s = task.status.value
+            icon = (
+                f"{GREEN}✓{RESET}"
+                if s == "completed"
+                else f"{RED}✗{RESET}" if s == "failed" else f"{YELLOW}●{RESET}"
+            )
+            print(f"      {icon} {tid}: {task.actor} → {task.description[:55]}")
+            print(f"        Status={s} Attempts={task.attempts} Q={task.estimated_reward:.2f}")
+
+
+def show_learning(label: str) -> None:
+    """Display learning state."""
+    section(f"Learning ({label})")
+    try:
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.intelligence.learning.learning_store import LearningStore
+
+        ls = LearningService.get_instance()
+        store = LearningStore.get_instance()
+
+        ep_count = store.get_episode_count()
+        report = ls.improvement_report()
+        recent_rate = report.get("recent_success_rate", "?")
+        total = report.get("total", ep_count)
+        improving = report.get("improving", "?")
+        print(
+            f"    Episodes: {total} | Recent success: " f"{recent_rate:.0%}"
+            if isinstance(recent_rate, float)
+            else f"    Episodes: {total} | Recent success: {recent_rate}"
+            f" | Improving: {improving}"
+        )
+
+        lessons = store.get_distilled_lessons(limit=5)
+        if lessons:
+            print(f"    Distilled lessons ({len(lessons)}):")
+            for l in lessons[:3]:
+                text = getattr(l, "lesson", str(l))[:70]
+                print(f"      • {text}")
+        else:
+            print(f"    Distilled lessons: (none yet)")
+    except Exception as e:
+        print(f"    Stats error: {e}")
+
+    try:
+        from Jotty.core.intelligence.learning.facade import get_td_lambda
+
+        td = get_td_lambda()
+        sq = td.skill_q
+        stq = td.step_q
+        sq_count = sum(len(v) for v in sq._q.values()) if hasattr(sq, "_q") else 0
+        stq_count = len(stq._q) if hasattr(stq, "_q") else 0
+        print(f"    Q-Tables: {sq_count} skill entries, {stq_count} step entries")
+        if hasattr(sq, "_q") and sq._q:
+            for task_type, skills in list(sq._q.items())[:2]:
+                top = sorted(skills.items(), key=lambda x: x[1], reverse=True)[:3]
+                print(f"      [{task_type}] " + ", ".join(f"{k}={v:.2f}" for k, v in top))
+    except Exception as e:
+        print(f"    Q-tables: {e}")
+
+
+def show_coordination(orch: Orchestrator) -> None:
+    """Display coordination stats."""
+    section("Coordination")
+    print(f"    Mode: {orch.mode} | Agents: {len(orch.agents)}")
+    if orch.agents:
+        for a in orch.agents:
+            name = getattr(a, "name", str(a))
+            caps = getattr(a, "capabilities", [])
+            print(f"      • {name}: {caps[0][:55] if caps else 'general'}")
+
+    sched = getattr(orch, "_scheduling_stats", {})
+    if sched.get("total_scheduled", 0) > 0:
+        print(
+            f"    Scheduled: {sched['total_scheduled']} | "
+            f"Peak concurrent: {sched['peak_concurrent']} | "
+            f"Waited: {sched['total_waited']}"
+        )
+
+    eff = getattr(orch, "_efficiency_stats", {})
+    if eff:
+        total = eff.get("total_time", 0)
+        overhead = eff.get("overhead_pct", 0)
+        print(f"    Total time: {total:.1f}s | Overhead: {overhead:.0f}%")
+
+
+def show_result(result, elapsed: float) -> None:
+    """Display result summary."""
+    section("Result")
+    success = getattr(result, "success", None)
+    output = str(getattr(result, "output", result))
+    color = GREEN if success else RED
+    print(f"    Success: {color}{success}{RESET} | Time: {elapsed:.1f}s")
+
+    if len(output) > 400:
+        print(f"    Output ({len(output)} chars):")
+        # Show first and last 150 chars
+        print(f"      {output[:200]}...")
+        print(f"      ...{output[-150:]}")
+    else:
+        print(f"    Output: {output}")
 
 
 async def run_test(goal: str, test_name: str) -> dict:
     """Run a single test with full observability."""
-    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
-
     header(f"TEST: {test_name}")
-    print(f"{BOLD}Goal:{RESET} {goal}\n")
+    print(f"  {BOLD}Goal:{RESET} {goal}")
 
-    # Create orchestrator with learning enabled
+    # Suppress init noise during Orchestrator creation
+    old_stdout = sys.stdout
+    sys.stdout = io.StringIO()
     orch = Orchestrator()
+    sys.stdout = old_stdout
 
-    # Show task board state BEFORE execution
-    section("Task Board (before)")
-    tb = orch.swarm_task_board
-    print(f"  Root task: {tb.root_task or '(empty)'}")
-    print(f"  Subtasks: {len(tb.subtasks)}")
-    print(f"  Completed: {len(tb.completed_tasks)}")
+    show_task_board(orch, "before")
 
-    # Execute with status callbacks
-    section("Execution")
+    section("Execution (live)")
     start = time.time()
 
     try:
@@ -85,113 +231,23 @@ async def run_test(goal: str, test_name: str) -> dict:
         )
         elapsed = time.time() - start
 
-        # Show task board state AFTER execution
-        section("Task Board (after)")
-        tb = orch.swarm_task_board
-        print(f"  Root task: {tb.root_task}")
-        print(f"  Total subtasks: {len(tb.subtasks)}")
-        print(f"  Completed: {len(tb.completed_tasks)}")
-        print(f"  Failed: {len(tb.failed_tasks)}")
-        print(f"  Completion probability: {tb.completion_probability:.1%}")
-
-        if tb.subtasks:
-            print(f"\n  {BOLD}Task Details:{RESET}")
-            for tid, task in tb.subtasks.items():
-                status_icon = (
-                    f"{GREEN}✓{RESET}"
-                    if task.status.value == "completed"
-                    else f"{RED}✗{RESET}" if task.status.value == "failed" else f"{YELLOW}●{RESET}"
-                )
-                print(f"    {status_icon} {tid}: {task.description[:60]}")
-                print(
-                    f"      Actor: {task.actor}, Status: {task.status.value}, "
-                    f"Attempts: {task.attempts}, Q={task.estimated_reward:.2f}"
-                )
-
-        # Show learning state
-        section("Learning State")
-        try:
-            from Jotty.core.intelligence.learning.learning_service import LearningService
-
-            ls = LearningService.get_instance()
-            stats = ls.get_stats()
-            print(f"  Total episodes: {stats.get('total_episodes', 'N/A')}")
-            print(f"  Success rate: {stats.get('success_rate', 'N/A')}")
-            print(f"  Domains: {stats.get('domains', 'N/A')}")
-
-            # Check for distilled lessons
-            lessons = ls.get_lessons(limit=5)
-            if lessons:
-                print(f"\n  {BOLD}Recent Lessons:{RESET}")
-                for lesson in lessons[:3]:
-                    text = lesson.get("lesson", str(lesson))[:80]
-                    print(f"    • {text}")
-        except Exception as e:
-            print(f"  Learning stats unavailable: {e}")
-
-        # Show Q-table state
-        try:
-            from Jotty.core.intelligence.learning.facade import get_td_lambda
-
-            td = get_td_lambda()
-            skill_q = td.skill_q_table if hasattr(td, "skill_q_table") else {}
-            step_q = td.step_q_table if hasattr(td, "step_q_table") else {}
-            print(f"\n  Q-Tables: {len(skill_q)} skill entries, {len(step_q)} step entries")
-            if skill_q:
-                top_skills = sorted(skill_q.items(), key=lambda x: x[1], reverse=True)[:5]
-                print(f"  Top skills: {[(k, f'{v:.2f}') for k, v in top_skills]}")
-        except Exception as e:
-            print(f"  Q-tables unavailable: {e}")
-
-        # Show agent coordination stats
-        section("Coordination Stats")
-        print(f"  Mode: {orch.mode}")
-        print(f"  Agents: {len(orch.agents)}")
-        if orch.agents:
-            for a in orch.agents:
-                name = getattr(a, "name", str(a))
-                caps = getattr(a, "capabilities", [])
-                print(f"    • {name}: {caps[0][:60] if caps else 'general'}")
-
-        sched = getattr(orch, "_scheduling_stats", {})
-        if sched:
-            print(f"  Scheduling: {json.dumps(sched, indent=4)}")
-
-        eff = getattr(orch, "_efficiency_stats", {})
-        if eff:
-            print(
-                f"  Efficiency: {json.dumps({k: f'{v:.2f}' if isinstance(v, float) else v for k, v in eff.items()})}"
-            )
-
-        # Show result summary
-        section("Result")
-        success = getattr(result, "success", None)
-        output = getattr(result, "output", str(result))
-        exec_time = getattr(result, "execution_time", elapsed)
-        print(f"  Success: {GREEN if success else RED}{success}{RESET}")
-        print(f"  Time: {exec_time:.1f}s")
-
-        # Show output preview
-        output_str = str(output)
-        if len(output_str) > 500:
-            print(f"  Output ({len(output_str)} chars):")
-            print(f"    {output_str[:400]}...")
-        else:
-            print(f"  Output: {output_str}")
+        show_task_board(orch, "after")
+        show_coordination(orch)
+        show_result(result, elapsed)
 
         return {
             "test": test_name,
-            "success": success,
+            "success": getattr(result, "success", None),
             "time": elapsed,
             "agents": len(orch.agents),
             "mode": orch.mode,
-            "tasks_total": len(tb.subtasks),
-            "tasks_completed": len(tb.completed_tasks),
+            "tasks_total": len(orch.swarm_task_board.subtasks),
+            "tasks_completed": len(orch.swarm_task_board.completed_tasks),
         }
 
     except Exception as e:
         elapsed = time.time() - start
-        print(f"\n  {RED}ERROR: {type(e).__name__}: {e}{RESET}")
+        print(f"\n    {RED}ERROR: {type(e).__name__}: {e}{RESET}")
         import traceback
 
         traceback.print_exc()
@@ -200,43 +256,48 @@ async def run_test(goal: str, test_name: str) -> dict:
 
 async def main():
     header("LIVE ORCHESTRATOR TEST SUITE")
-    print("Testing run(goal) with task board, learning, and coordination\n")
+    print(f"  Testing run(goal) — task board, learning, coordination")
 
     results = []
 
-    # Test 1: Simple factual query (should use fast path / single agent)
+    # Test 1: Simple query (fast path)
     r = await run_test(
-        "What are the three main types of machine learning?", "Simple Query (Fast Path)"
+        "What are the three main types of machine learning?", "Simple Query → Fast Path"
     )
     results.append(r)
 
-    # Test 2: Multi-step task (should auto-decompose into agents)
+    show_learning("after Test 1")
+
+    # Test 2: Comparison task (should trigger skill orchestration)
     r = await run_test(
-        "Compare the pros and cons of Python vs Rust for building a high-performance web API. "
-        "Cover performance, developer experience, ecosystem, and deployment.",
-        "Multi-Aspect Analysis (Multi-Agent)",
+        "Compare Python vs Rust for web APIs: performance, ecosystem, developer experience",
+        "Comparison → Skill Orchestration",
     )
     results.append(r)
 
-    # Test 3: Run the SAME domain again to show learning kicks in
+    show_learning("after Test 2")
+
+    # Test 3: Same domain — learning from Test 2 should influence this
     r = await run_test(
-        "Compare React vs Svelte for building a real-time dashboard. "
-        "Cover performance, bundle size, learning curve, and ecosystem.",
-        "Similar Task (Learning Should Apply)",
+        "Compare React vs Vue for dashboards: performance, learning curve, ecosystem",
+        "Similar Comparison → Learning Applies",
     )
     results.append(r)
+
+    show_learning("after Test 3 — should show accumulated learning")
 
     # Summary
-    header("TEST SUMMARY")
+    header("SUMMARY")
     for r in results:
         icon = f"{GREEN}✓{RESET}" if r.get("success") else f"{RED}✗{RESET}"
-        agents = r.get("agents", "?")
-        mode = r.get("mode", "?")
-        tasks = f"{r.get('tasks_completed', '?')}/{r.get('tasks_total', '?')}"
         print(f"  {icon} {r['test']}")
-        print(f"    Time: {r['time']:.1f}s | Mode: {mode} | Agents: {agents} | Tasks: {tasks}")
+        print(
+            f"    {r['time']:.1f}s | mode={r.get('mode','?')} | "
+            f"agents={r.get('agents','?')} | "
+            f"tasks={r.get('tasks_completed','?')}/{r.get('tasks_total','?')}"
+        )
         if r.get("error"):
-            print(f"    {RED}Error: {r['error'][:80]}{RESET}")
+            print(f"    {RED}{r['error'][:80]}{RESET}")
 
     print()
 

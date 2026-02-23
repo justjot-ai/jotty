@@ -455,6 +455,21 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
         final_result.pdf_path = pdf_path  # type: ignore[assignment]
         final_result.html_path = html_path  # type: ignore[assignment]
 
+        # Also save markdown file
+        md_path = None
+        complete_content = result.get("complete_content", "")
+        if complete_content:
+            try:
+                safe_topic = topic.replace(" ", "_").replace(":", "").replace(",", "")[:50]
+                safe_name = student_name.replace(" ", "_")
+                md_path = f"/tmp/olympiad_{safe_topic}_{safe_name}_lesson.md"
+                Path(md_path).write_text(complete_content, encoding="utf-8")
+                logger.info(f"Generated Markdown: {md_path}")
+            except Exception as e:
+                logger.warning(f"Markdown save failed: {e}")
+                md_path = None
+        final_result.md_path = md_path  # type: ignore[assignment]
+
         # ── Live cost summary ──
         try:
             from Jotty.core.infrastructure.foundation.direct_anthropic_lm import get_cost_tracker

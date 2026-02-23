@@ -304,6 +304,7 @@ class OlympiadLearningResult(SwarmResult):
     difficulty_progression: List[int] = field(default_factory=list)
     pdf_path: Optional[str] = None
     html_path: Optional[str] = None
+    md_path: Optional[str] = None
 
 
 # =============================================================================

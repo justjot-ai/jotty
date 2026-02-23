@@ -713,13 +713,9 @@ class NarrativeEditorSignature(dspy.Signature):
     edited_content: str = dspy.OutputField(
         desc="The edited lesson content with Socratic questions, narrative threading, "
         "specific breakthroughs, and natural transitions. Same markdown format. "
-        "MUST be at least 90% the length of the input. Do NOT summarize — ENHANCE."
-    )
-    socratic_questions: str = dspy.OutputField(
-        desc="The Socratic questions added to the content, separated by |"
-    )
-    breakthrough_moments: str = dspy.OutputField(
-        desc="Specific breakthrough/insight moments used (not generic), separated by |"
+        "MUST be at least 90% the length of the input. Do NOT summarize — ENHANCE. "
+        "Embed Socratic questions as 'Pause and think: ...' prompts in the text. "
+        "Mark breakthrough moments with '**Brilliant breakthrough moment!**' prefix."
     )
 
 
