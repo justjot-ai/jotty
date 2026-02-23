@@ -1206,11 +1206,9 @@ class Orchestrator:
         """Core run() logic, may be called directly or under a session lock."""
         import time as _time
 
-        from Jotty.core.intelligence.learning.learning_service import (
-            LearningService,
-            analyze_response,
-            classify_domain,
-        )
+        from Jotty.core.intelligence.learning.domain_classifier import classify_domain
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.intelligence.learning.response_analyzer import analyze_response
 
         learning = LearningService.get_instance()
         run_start = _time.time()
@@ -1373,7 +1371,7 @@ class Orchestrator:
             if not isinstance(result_text, str):
                 result_text = str(result_text) if result_text else ""
 
-            from Jotty.core.intelligence.learning.learning_service import analyze_response
+            from Jotty.core.intelligence.learning.response_analyzer import analyze_response
 
             response_analysis = analyze_response(result_text, goal) if result_text else {}
             heuristic_quality = response_analysis.get(
@@ -1460,35 +1458,13 @@ class Orchestrator:
             if isinstance(learnable_result, EpisodeResult):
                 self._schedule_background_learning(learnable_result, goal)
 
-        # ── LLM judge (awaited inline to ensure completion) ──
-        if learn and result_text and len(result_text) > 1000 and success:
+        # NOTE: LLM judge + distillation is now handled automatically by
+        # LearningService.record() above — no duplicate judge call needed.
+        if learn:
             try:
-                llm_score = await learning.llm_judge_quality(
-                    goal=goal,
-                    content=result_text,
-                    domain=detected_domain,
-                    heuristic_score=heuristic_quality,
-                )
-                blended = llm_score * 0.6 + heuristic_quality * 0.4
-                learning._store.update_episode_quality(
-                    episode_id=ep_id,
-                    quality=blended,
-                    outcome_patch={
-                        "llm_judged": True,
-                        "llm_score": round(llm_score, 3),
-                        "heuristic_quality": round(heuristic_quality, 3),
-                    },
-                )
-                learning._update_values(
-                    detected_domain,
-                    detected_task_type,
-                    {"domain": detected_domain},
-                    True,
-                    blended,
-                )
                 learning.analyze_exploration_results(detected_domain)
-            except Exception as e:
-                logger.debug(f"LLM judge failed in _run_inner: {e}")
+            except Exception:
+                pass
 
         return result
 
@@ -1563,11 +1539,9 @@ class Orchestrator:
 
         import time as _time
 
-        from Jotty.core.intelligence.learning.learning_service import (
-            LearningService,
-            analyze_response,
-            classify_domain,
-        )
+        from Jotty.core.intelligence.learning.domain_classifier import classify_domain
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.intelligence.learning.response_analyzer import analyze_response
         from Jotty.core.intelligence.orchestration.execution.unified_executor import (
             ChatExecutor as _ChatExecutor,
         )
@@ -1786,52 +1760,14 @@ class Orchestrator:
                     except Exception as e:
                         logger.debug(f"Post-execution reflection failed: {e}")
 
-        # ── POST-EXECUTION: Adaptive LLM judge ──
-        # Cold start (<10 judged): inline. Stable: background (or skip).
-        if learn and episode_id and result:
-            _jcontent = getattr(result, "content", "")
-            _jsuccess = getattr(result, "success", False)
-            if _jcontent and len(_jcontent) > 1000 and _jsuccess:
-                try:
-                    _jra = analyze_response(_jcontent, message)
-                    _jhq = _jra.get("quality_score", 0.8)
-
-                    if learning.should_judge_inline(detected_domain):
-                        llm_score = await learning.llm_judge_quality(
-                            goal=message,
-                            content=_jcontent,
-                            domain=detected_domain,
-                            heuristic_score=_jhq,
-                        )
-                        blended = llm_score * 0.6 + _jhq * 0.4
-                        learning._store.update_episode_quality(
-                            episode_id=episode_id,
-                            quality=blended,
-                            outcome_patch={
-                                "llm_judged": True,
-                                "llm_score": round(llm_score, 3),
-                                "heuristic_quality": round(_jhq, 3),
-                            },
-                        )
-                        learning._update_values(
-                            detected_domain,
-                            detected_task_type,
-                            {"domain": detected_domain, "provider": effective_provider or "auto"},
-                            True,
-                            blended,
-                        )
-                    else:
-                        learning.schedule_background_judge(
-                            episode_id=episode_id,
-                            goal=message,
-                            content=_jcontent,
-                            domain=detected_domain,
-                            heuristic_quality=_jhq,
-                        )
-
-                    learning.analyze_exploration_results(detected_domain)
-                except Exception as e:
-                    logger.debug(f"LLM judge failed: {e}")
+        # NOTE: LLM judge + distillation is now handled automatically by
+        # LearningService.record() (called via end_episode above).
+        # No separate judge call needed here — avoids duplicate judging.
+        if learn and episode_id:
+            try:
+                learning.analyze_exploration_results(detected_domain)
+            except Exception:
+                pass
 
         # ── TRACING: generate and save report ──
         if _tracer_inst is not None:
@@ -1882,7 +1818,7 @@ class Orchestrator:
                 chat_time = _time.time() - start_time
                 full_content = "".join(collected_content)
 
-                from Jotty.core.intelligence.learning.learning_service import analyze_response
+                from Jotty.core.intelligence.learning.response_analyzer import analyze_response
 
                 analysis = analyze_response(full_content, message) if full_content else {}
                 quality = analysis.get("quality_score", 0.7)
@@ -1905,47 +1841,28 @@ class Orchestrator:
                 if _op.get("strategy"):
                     stream_action_meta["strategy"] = _op["strategy"]
 
+                stream_outcome: Dict[str, Any] = {
+                    "streamed": True,
+                    "duration": chat_time,
+                    "content_length": len(full_content),
+                    **{k: v for k, v in analysis.items() if k != "empty"},
+                }
+                if full_content:
+                    stream_outcome["content"] = full_content[:2000]
+                    stream_outcome["response_excerpt"] = (
+                        full_content[:600].rsplit("\n", 1)[0]
+                        if len(full_content) > 600
+                        else full_content
+                    )
+
                 try:
                     learning.end_episode(
                         episode_id=episode_id,
                         success=True,
                         quality=quality,
                         cost=0.0,
-                        outcome={
-                            "streamed": True,
-                            "duration": chat_time,
-                            "content_length": len(full_content),
-                            **{k: v for k, v in analysis.items() if k != "empty"},
-                        },
-                        action_metadata=stream_action_meta,
-                    )
-                except Exception:
-                    pass
-
-                # Domain-specific record for streaming too
-                try:
-                    stream_outcome: Dict[str, Any] = {
-                        "content_length": len(full_content),
-                        **analysis,
-                    }
-                    if full_content:
-                        excerpt = (
-                            full_content[:600].rsplit("\n", 1)[0]
-                            if len(full_content) > 600
-                            else full_content
-                        )
-                        stream_outcome["response_excerpt"] = excerpt
-                    learning.record(
-                        unit_name="Orchestrator",
-                        unit_type="chat",
-                        domain=_domain,
-                        task_type=_task_type,
-                        context={"goal": message[:500]},
-                        action={"domain": _domain, "task_type": _task_type, "streamed": True},
                         outcome=stream_outcome,
-                        success=True,
-                        quality=quality,
-                        execution_time=chat_time,
+                        action_metadata=stream_action_meta,
                     )
                 except Exception:
                     pass
@@ -2119,7 +2036,7 @@ class Orchestrator:
         pipeline_start = _time.time()
 
         # Classify the pipeline goal to get actual domain (not config default)
-        from Jotty.core.intelligence.learning.learning_service import classify_domain
+        from Jotty.core.intelligence.learning.domain_classifier import classify_domain
 
         pipeline_domain, pipeline_task_type = classify_domain(goal)
 

@@ -93,17 +93,26 @@ def _execution_paths() -> Dict[str, Any]:
 def _subsystems() -> Dict[str, Any]:
     return {
         "learning": {
-            "description": "Reinforcement learning: TD(lambda), credit assignment, cooperative agents",
-            "package": "Jotty.core.learning",
-            "facade": "Jotty.core.learning.facade",
+            "description": (
+                "Self-improving learning: TD(λ) RL, LLM judge (Sonnet), "
+                "fact distillation, agent crystallization (probation → graduation)"
+            ),
+            "package": "Jotty.core.intelligence.learning",
+            "facade": "Jotty.core.intelligence.learning.facade",
             "key_classes": [
+                "LearningService",
                 "TDLambdaLearner",
+                "CrystallizedConfig",
                 "ReasoningCreditAssigner",
-                "OfflineLearner",
                 "ShapedRewardManager",
-                "PredictiveCooperativeAgent",
-                "NashBargainingSolver",
-                "LearningManager",
+            ],
+            "key_features": [
+                "Q-tables: skill effectiveness & plan template tracking per domain",
+                "LLM Judge: Sonnet evaluates output quality on 5-dimension rubric",
+                "Fact distillation: extract incremental lessons from episodes (dedup-aware)",
+                "Crystallization: agents graduate to hardened SOPs after probation",
+                "Reflexion: self-analysis on failures (Shinn et al.)",
+                "Pattern discovery: cross-episode statistical patterns",
             ],
         },
         "memory": {
@@ -234,7 +243,7 @@ def _providers() -> list:
     ]
     result = []
     for p in provider_info:
-        installed = False
+        installed: bool | None = False
         if p["module"]:  # type: ignore[index]
             try:
                 __import__(p["module"])  # type: ignore[index]
@@ -277,18 +286,41 @@ def _utilities() -> Dict[str, Any]:
 def _explanations() -> Dict[str, str]:
     return {
         "learning": (
-            "Learning Subsystem (Jotty.core.learning)\n"
-            "==========================================\n"
-            "Reinforcement learning components for agent improvement:\n"
-            "- TDLambdaLearner: Temporal-difference learning with eligibility traces\n"
-            "- ReasoningCreditAssigner: Credit assignment for multi-step reasoning\n"
-            "- OfflineLearner: Batch learning from stored episodes\n"
-            "- ShapedRewardManager: Reward shaping for faster convergence\n"
-            "- PredictiveCooperativeAgent: Multi-agent cooperation with prediction\n"
-            "- NashBargainingSolver: Game-theoretic negotiation between agents\n"
-            "- LearningManager: Unified coordinator for all learning components\n\n"
+            "Learning Subsystem (Jotty.core.intelligence.learning)\n"
+            "======================================================\n"
+            "Self-improving agents through 5 integrated mechanisms:\n\n"
+            "1. Q-TABLES (TD-Lambda RL):\n"
+            "   - SkillQTable: tracks which skills work best per task type/domain\n"
+            "   - StepQTable: tracks plan templates (role sequences) and role→skill bindings\n"
+            "   - Guidance injected into planner: 'Q-table guidance injected: 3 roles, 1 template'\n\n"
+            "2. LLM JUDGE (Sonnet):\n"
+            "   - Evaluates every successful episode on 5 dimensions:\n"
+            "     accuracy, completeness, structure, actionability, depth\n"
+            "   - Returns specific strengths + improvements needed\n"
+            "   - Score = 0.6×judge + 0.4×heuristic (blended)\n\n"
+            "3. FACT DISTILLATION (judge-informed):\n"
+            "   - After judge scores, Haiku extracts 2-3 lessons per episode\n"
+            "   - Dedup-aware: existing lessons shown so LLM only extracts NEW insights\n"
+            "   - Judge feedback included: lessons focus on expert-identified gaps\n"
+            "   - Cold start: synchronous (blocks 3-5s); warm: async background\n\n"
+            "4. CRYSTALLIZATION (probation → graduation):\n"
+            "   - run_probation(task_type, domain, goals): runs N tasks\n"
+            "   - should_crystallize() checks: MIN_EPISODES=25, MIN_SUCCESS_RATE=85%,\n"
+            "     MIN_PLAN_CONSISTENCY=60%, MIN_ROLE_Q=0.65, MIN_PLANS=8\n"
+            "   - Graduated agents get a CrystallizedConfig: proven SOP + skill whitelist\n"
+            "   - AutonomousAgent checks for crystallized config before planning\n\n"
+            "5. REFLEXION (Shinn et al.):\n"
+            "   - Generates self-analysis on failures\n"
+            "   - Stored reflections inform future attempts\n\n"
             "Access via facade:\n"
-            "  from Jotty.core.intelligence.learning.facade import get_learning_system, list_components"
+            "  from Jotty.core.intelligence.learning.facade import (\n"
+            "      get_learning_service,  # Unified entry point\n"
+            "      get_td_lambda,         # Q-tables\n"
+            "      get_crystallized,      # Load graduated agent config\n"
+            "  )\n\n"
+            "Run probation:\n"
+            "  from Jotty.core.intelligence.learning.crystallization import run_probation\n"
+            "  result = await run_probation('research', domain='travel', goals=[...])"
         ),
         "memory": (
             "Memory Subsystem (Jotty.core.memory)\n"

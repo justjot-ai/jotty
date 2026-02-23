@@ -16,6 +16,9 @@ from pathlib import Path
 
 import pytest
 
+# Project root: tests/architecture/test_modularity.py → 3 levels up = Jotty/
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 # =============================================================================
 # Phase 1: Import Boundary Linter
 # =============================================================================
@@ -26,11 +29,11 @@ class TestImportBoundaryLinter:
     """Verify the import boundary linter script."""
 
     def test_linter_script_exists(self):
-        script = Path(__file__).resolve().parent.parent / "scripts" / "check_import_boundaries.py"
+        script = _PROJECT_ROOT / "scripts" / "check_import_boundaries.py"
         assert script.exists(), f"Linter script not found at {script}"
 
     def test_linter_passes(self):
-        script = Path(__file__).resolve().parent.parent / "scripts" / "check_import_boundaries.py"
+        script = _PROJECT_ROOT / "scripts" / "check_import_boundaries.py"
         result = subprocess.run(
             [sys.executable, str(script)],
             capture_output=True,
@@ -41,7 +44,7 @@ class TestImportBoundaryLinter:
         assert "PASSED" in result.stdout
 
     def test_linter_reports_import_count(self):
-        script = Path(__file__).resolve().parent.parent / "scripts" / "check_import_boundaries.py"
+        script = _PROJECT_ROOT / "scripts" / "check_import_boundaries.py"
         result = subprocess.run(
             [sys.executable, str(script)],
             capture_output=True,
@@ -573,7 +576,7 @@ class TestTightenedBoundaryLinter:
 
     def test_linter_passes(self):
         """Linter passes with tighter rules."""
-        script = Path(__file__).resolve().parent.parent / "scripts" / "check_import_boundaries.py"
+        script = _PROJECT_ROOT / "scripts" / "check_import_boundaries.py"
         result = subprocess.run(
             [sys.executable, str(script)],
             capture_output=True,
@@ -585,7 +588,7 @@ class TestTightenedBoundaryLinter:
 
     def test_orchestration_no_wildcard(self):
         """Orchestration no longer uses wildcard deps."""
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
         try:
             import check_import_boundaries as linter
 
@@ -600,7 +603,7 @@ class TestTightenedBoundaryLinter:
 
     def test_linter_rejects_bad_import(self):
         """Linter detects violations programmatically."""
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
         try:
             import check_import_boundaries as linter
 
@@ -631,7 +634,7 @@ class TestOrchestrationSubBoundaries:
         """orchestration/__init__.py documents sub-module structure."""
         import inspect
 
-        from Jotty.core import orchestration
+        from Jotty.core.intelligence import orchestration
 
         doc = inspect.getmodule(orchestration).__doc__
         assert "Sub-module Structure" in doc
@@ -641,7 +644,7 @@ class TestOrchestrationSubBoundaries:
 
     def test_internal_boundaries_defined(self):
         """Internal boundary rules exist in linter."""
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
         try:
             import check_import_boundaries as linter
 
@@ -654,11 +657,11 @@ class TestOrchestrationSubBoundaries:
 
     def test_internal_boundaries_pass(self):
         """Internal boundary check passes."""
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
         try:
             import check_import_boundaries as linter
 
-            core_root = str(Path(__file__).resolve().parent.parent / "core")
+            core_root = str(_PROJECT_ROOT / "core")
             violations = linter.check_internal_boundaries(core_root)
             assert len(violations) == 0, f"Internal violations: {violations}"
         finally:
@@ -666,7 +669,7 @@ class TestOrchestrationSubBoundaries:
 
     def test_llm_providers_is_leaf(self):
         """llm_providers has no intra-orchestration deps."""
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
         try:
             import check_import_boundaries as linter
 
@@ -1176,7 +1179,7 @@ class TestToolWrapperMigration:
 
     def test_all_skills_have_tool_wrapper(self):
         """Every skill tools.py imports tool_wrapper."""
-        skills_dir = Path(__file__).resolve().parent.parent / "skills"
+        skills_dir = _PROJECT_ROOT / "skills"
         missing = []
         for skill_dir in sorted(skills_dir.iterdir()):
             tools_py = skill_dir / "tools.py"
@@ -1191,7 +1194,7 @@ class TestToolWrapperMigration:
         """Every skill tools.py parses without syntax errors."""
         import ast
 
-        skills_dir = Path(__file__).resolve().parent.parent / "skills"
+        skills_dir = _PROJECT_ROOT / "skills"
         errors = []
         for skill_dir in sorted(skills_dir.iterdir()):
             tools_py = skill_dir / "tools.py"
@@ -1208,7 +1211,7 @@ class TestToolWrapperMigration:
         """Every public tool function (params arg) has @*_wrapper decorator."""
         import ast
 
-        skills_dir = Path(__file__).resolve().parent.parent / "skills"
+        skills_dir = _PROJECT_ROOT / "skills"
         undecorated = []
         for skill_dir in sorted(skills_dir.iterdir()):
             tools_py = skill_dir / "tools.py"
@@ -1238,7 +1241,7 @@ class TestToolWrapperMigration:
 
     def test_all_skills_have_triggers(self):
         """Every SKILL.md has a ## Triggers section."""
-        skills_dir = Path(__file__).resolve().parent.parent / "skills"
+        skills_dir = _PROJECT_ROOT / "skills"
         missing = []
         for skill_dir in sorted(skills_dir.iterdir()):
             skill_md = skill_dir / "SKILL.md"

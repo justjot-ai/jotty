@@ -5,9 +5,12 @@ Skill Package Manager - Manage dependencies and virtual environments for skills.
 import logging
 from typing import Any, Dict, List, Optional
 
+from Jotty.core.infrastructure.utils.tool_helpers import tool_wrapper
+
 logger = logging.getLogger(__name__)
 
 
+@tool_wrapper()
 def install_skill_dependencies(
     skill_name: str, requirements: Optional[List[str]] = None
 ) -> Dict[str, Any]:
@@ -38,6 +41,7 @@ def install_skill_dependencies(
         }
 
 
+@tool_wrapper()
 def create_skill_venv(skill_name: str, shared: bool = True) -> Dict[str, Any]:
     """Create an isolated virtual environment for a skill."""
     from .skill_venv_manager import get_venv_manager
@@ -59,6 +63,7 @@ def create_skill_venv(skill_name: str, shared: bool = True) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def check_skill_dependencies(skill_name: str) -> Dict[str, Any]:
     """Check if all dependencies for a skill are installed."""
     from .skill_dependency_manager import get_dependency_manager

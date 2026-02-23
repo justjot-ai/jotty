@@ -40,7 +40,7 @@ logging.getLogger("skill_tools").setLevel(logging.INFO)
 
 
 TRAVEL_CURRICULUM = [
-    # Round 1: Simple destination research
+    # Round 1: Simple destination research (warm-up)
     "Research the top 5 must-visit places in Tokyo Japan for a first-time visitor, "
     "include estimated costs in USD, and save the travel guide to /tmp/tokyo_guide.md",
     "Research the best time to visit Bali Indonesia, top attractions, "
@@ -61,6 +61,20 @@ TRAVEL_CURRICULUM = [
     "Research JR Pass options, ryokan stays, day trips to Mount Fuji, "
     "food tours, cultural etiquette tips, and a packing list. "
     "Save the complete research to /tmp/japan_itinerary.md",
+    # Round 4: Niche / edge-case research
+    "Research the top 5 budget-friendly destinations in South America for backpackers, "
+    "including safety tips, average daily costs, and best hostels. "
+    "Save the research to /tmp/south_america_budget.md",
+    "Research a 3-day weekend getaway to Istanbul Turkey, covering must-see historical "
+    "sites, local street food, Grand Bazaar shopping tips, and transport from the airport. "
+    "Save the guide to /tmp/istanbul_weekend.md",
+    # Round 5: Stress test — different angles
+    "Research family-friendly travel options in New Zealand for a 2-week trip, "
+    "including kid-friendly activities, campervan rental options, and seasonal weather. "
+    "Save the research to /tmp/newzealand_family.md",
+    "Research and compare the cost of a 5-day trip to Dubai vs Singapore, "
+    "covering flights, hotels, food, and top attractions for each city. "
+    "Save the comparison to /tmp/dubai_vs_singapore.md",
 ]
 
 

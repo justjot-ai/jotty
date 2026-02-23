@@ -375,16 +375,21 @@ class LearningService:
             except Exception as e:
                 logger.debug(f"Auto-reflect failed: {e}")
 
-        # Fire-and-forget LLM judge for successful episodes with rich content
+        # Fire-and-forget LLM judge for successful episodes with rich content.
+        # The judge also triggers judge-informed distillation when it completes.
         _content = (
             outcome.get("content", "")
             or outcome.get("response_excerpt", "")
             or outcome.get("output", "")
             or outcome.get("result", "")
         )
+        _judge_will_distill = False
         if isinstance(_content, str) and len(_content) > 500 and success:
             _goal = str(context.get("goal", context.get("message", task_type)))
-            self.schedule_background_judge(episode_id, _goal, _content, domain, quality)
+            self.schedule_background_judge(
+                episode_id, _goal, _content, domain, quality, unit_name=unit_name
+            )
+            _judge_will_distill = True  # judge handles distillation with feedback
 
         # ── Compute & store embedding for the goal text ──────────────────
         _goal_text = ""
@@ -403,14 +408,15 @@ class LearningService:
                 logger.debug("Embedding computation failed: %s", exc)
 
         # ── Schedule fact distillation for good episodes (mem0 pattern) ──
-        # Gate: success + quality >= 0.2 (MAS episodes have lower computed quality
-        # due to execution time, but their content is still distill-worthy).
+        # Skip if the judge is already handling distillation (with its feedback).
+        # Only run standalone distillation for episodes the judge won't cover
+        # (shorter content or failed episodes that still have useful content).
         _content_len = len(_content) if isinstance(_content, str) else 0
-        if _content_len > 300 and success and quality >= 0.2:
+        if not _judge_will_distill and _content_len > 300 and success and quality >= 0.2:
             self._schedule_fact_distillation(
                 episode_id, _goal_text or task_type, _content, domain, unit_name
             )
-        elif _content_len > 100:
+        elif not _judge_will_distill and _content_len > 100:
             logger.warning(
                 "Distillation gate BLOCKED for %s: content=%d success=%s quality=%.2f",
                 episode_id,
@@ -1119,54 +1125,6 @@ class LearningService:
             logger.debug(f"get_best_approach_for_domain failed: {e}")
             return None
 
-    def schedule_background_judge(
-        self,
-        episode_id: str,
-        goal: str,
-        content: str,
-        domain: str,
-        heuristic_quality: float,
-    ) -> None:
-        """Fire-and-forget LLM judge for a recorded episode.
-
-        Runs the Haiku judge in the background and updates the episode's
-        quality score + marks it as llm_judged. Deduplicates via DB check.
-        """
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return  # No event loop — skip
-
-        # Dedup: skip if already judged or in-flight
-        if episode_id in self._judged_episodes:
-            return
-        self._judged_episodes.add(episode_id)
-
-        async def _judge_and_update() -> None:
-            try:
-                score = await self.llm_judge_quality(goal, content, domain, heuristic_quality)
-                if abs(score - heuristic_quality) > 0.01:
-                    # Blend: 60% LLM judge, 40% heuristic
-                    blended = 0.6 * score + 0.4 * heuristic_quality
-                    try:
-                        self._store.update_episode_quality(
-                            episode_id,
-                            blended,
-                            outcome_patch={"llm_judged": True, "llm_score": score},
-                        )
-                        logger.debug(
-                            f"LLM judge updated episode {episode_id}: "
-                            f"heuristic={heuristic_quality:.2f} → blended={blended:.2f}"
-                        )
-                    except Exception as e:
-                        logger.debug(f"LLM judge DB update failed: {e}")
-            except Exception as e:
-                logger.debug(f"Background judge failed: {e}")
-
-        task = loop.create_task(_judge_and_update())
-        self._judge_tasks.add(task)
-        task.add_done_callback(self._judge_tasks.discard)
-
     async def llm_judge_quality(
         self,
         goal: str,
@@ -1175,29 +1133,45 @@ class LearningService:
         heuristic_score: float,
     ) -> float:
         """
-        Use LLMJudge (DSPy-based) to score response quality. Returns 0.0-1.0.
-
-        Primary path uses LLMJudge (Haiku via DSPy). Falls back to direct
-        Anthropic API call if DSPy is unavailable, then to heuristic_score.
+        Use LLM judge to score response quality. Returns 0.0-1.0.
+        Calls llm_judge_quality_with_feedback() and returns the score only.
         """
+        result = await self.llm_judge_quality_with_feedback(goal, content, domain, heuristic_score)
+        return result.get("score", heuristic_score)
+
+    async def llm_judge_quality_with_feedback(
+        self,
+        goal: str,
+        content: str,
+        domain: str,
+        heuristic_score: float,
+    ) -> Dict[str, Any]:
+        """
+        Use a strong LLM (Sonnet) to evaluate response quality with a detailed
+        rubric. Returns structured feedback that can inform lesson extraction.
+
+        Returns:
+            {
+                "score": float (0.0-1.0),
+                "accuracy": float,
+                "completeness": float,
+                "structure": float,
+                "actionability": float,
+                "depth": float,
+                "strengths": [str, ...],
+                "improvements": [str, ...],
+                "verdict": str,
+            }
+        """
+        fallback = {
+            "score": heuristic_score,
+            "verdict": "heuristic-only",
+            "strengths": [],
+            "improvements": [],
+        }
         if len(content) < 500:
-            return heuristic_score
+            return fallback
 
-        # Primary: use LLMJudge (DSPy-based, blends LLM + heuristic 70/30)
-        try:
-            import asyncio as _aio
-
-            from .advanced_learning import LLMJudge
-
-            judge = LLMJudge.get_instance()
-            loop = _aio.get_running_loop()
-            verdict = await loop.run_in_executor(None, judge.judge, goal, content, heuristic_score)
-            if verdict.source == "llm":
-                return verdict.quality
-        except Exception as e:
-            logger.debug(f"LLMJudge primary path failed: {e}")
-
-        # Fallback: direct Anthropic call
         try:
             import asyncio as _aio
             import json as _json
@@ -1205,47 +1179,56 @@ class LearningService:
             digest = self._build_judge_digest(content, goal, domain)
 
             prompt = (
-                f"Rate this {domain} response quality from 0.0 to 1.0.\n\n"
-                f"Scoring guide:\n"
-                f"  0.9-1.0 = Exceptional: expert-level, thorough, well-structured, no errors\n"
-                f"  0.7-0.9 = Good: solid coverage, mostly correct, good structure\n"
-                f"  0.5-0.7 = Adequate: addresses the task but lacks depth or has gaps\n"
-                f"  0.3-0.5 = Weak: major gaps, errors, or shallow treatment\n"
-                f"  0.0-0.3 = Poor: mostly wrong, off-topic, or trivial\n\n"
+                f"You are an expert evaluator. Score this {domain} response on 5 dimensions "
+                f"(each 0.0-1.0) and provide specific feedback.\n\n"
                 f"TASK: {goal[:500]}\n\n"
                 f"{digest}\n\n"
-                f'Reply with ONLY a JSON object: {{"score": 0.XX, "reason": "one sentence"}}'
+                f"RUBRIC:\n"
+                f"  accuracy:      Are facts correct? Are claims realistic and verifiable?\n"
+                f"  completeness:  Does it cover ALL aspects the task requested?\n"
+                f"  structure:     Is it well-organized with clear sections and flow?\n"
+                f"  actionability: Can someone directly USE this output for its intended purpose?\n"
+                f"  depth:         Does it go beyond surface-level? Specific details, not generic?\n\n"
+                f"Reply with ONLY a JSON object:\n"
+                f'{{"accuracy": 0.X, "completeness": 0.X, "structure": 0.X, '
+                f'"actionability": 0.X, "depth": 0.X, '
+                f'"strengths": ["specific strength 1", "specific strength 2"], '
+                f'"improvements": ["what would make this better 1", "what is missing"]}}'
             )
 
-            def _sync_judge_call(p: str) -> str:
+            def _sync_judge(p: str) -> str:
                 import anthropic
 
                 client = anthropic.Anthropic()
                 resp = client.messages.create(
-                    model="claude-3-haiku-20240307",
-                    max_tokens=64,
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=300,
                     messages=[{"role": "user", "content": p}],
                 )
                 return getattr(resp.content[0], "text", "").strip()
 
             loop = _aio.get_running_loop()
-            text = await loop.run_in_executor(None, _sync_judge_call, prompt)
+            text = await loop.run_in_executor(None, _sync_judge, prompt)
 
-            for line in text.split("\n"):
-                line = line.strip()
-                if line.startswith("{"):
-                    try:
-                        parsed = _json.loads(line)
-                        score = float(parsed.get("score", heuristic_score))
-                        return max(0.0, min(1.0, score))
-                    except (ValueError, _json.JSONDecodeError):
-                        continue
+            if "```" in text:
+                text = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`")
 
-            return heuristic_score
+            parsed = _json.loads(text)
+
+            dims = ["accuracy", "completeness", "structure", "actionability", "depth"]
+            for d in dims:
+                parsed[d] = max(0.0, min(1.0, float(parsed.get(d, 0.5))))
+
+            parsed["score"] = round(sum(parsed[d] for d in dims) / len(dims), 3)
+            parsed["verdict"] = "llm-judged"
+            parsed.setdefault("strengths", [])
+            parsed.setdefault("improvements", [])
+
+            return parsed
 
         except Exception as e:
-            logger.debug(f"LLM judge fallback failed, using heuristic: {e}")
-            return heuristic_score
+            logger.debug(f"LLM judge with feedback failed: {e}")
+            return fallback
 
     # =========================================================================
     # THOMPSON SAMPLING — Principled Bayesian exploration
@@ -1997,24 +1980,28 @@ class LearningService:
         content: str,
         domain: str,
         heuristic_quality: float,
+        unit_name: str = "",
     ) -> None:
         """
         Schedule an LLM quality judge as a background task.
         Does NOT block the response. Updates the episode record asynchronously.
+
+        The judge feedback is also passed to fact distillation so lessons
+        are grounded in expert evaluation (not just the raw output).
         """
         import asyncio
 
         async def _judge_and_update() -> None:
             try:
-                llm_score = await self.llm_judge_quality(
+                feedback = await self.llm_judge_quality_with_feedback(
                     goal=goal,
                     content=content,
                     domain=domain,
                     heuristic_score=heuristic_quality,
                 )
+                llm_score = feedback.get("score", heuristic_quality)
                 blended = llm_score * 0.6 + heuristic_quality * 0.4
 
-                # Update the episode record with the LLM-judged quality
                 self._store.update_episode_quality(
                     episode_id=episode_id,
                     quality=blended,
@@ -2022,19 +2009,50 @@ class LearningService:
                         "llm_judged": True,
                         "llm_score": round(llm_score, 3),
                         "heuristic_quality": round(heuristic_quality, 3),
+                        "judge_feedback": {
+                            k: feedback[k]
+                            for k in (
+                                "accuracy",
+                                "completeness",
+                                "structure",
+                                "actionability",
+                                "depth",
+                                "strengths",
+                                "improvements",
+                            )
+                            if k in feedback
+                        },
                     },
                 )
 
-                # Re-run value update with the better quality score
                 episodes = self._store.query_episodes(domain=domain, limit=1)
                 if episodes:
                     ep = episodes[0]
                     self._update_values(domain, ep.task_type, ep.action, ep.success, blended)
 
-                logger.debug(
-                    f"Background judge: {episode_id} quality updated "
-                    f"{heuristic_quality:.3f} → {blended:.3f} (LLM={llm_score:.3f})"
+                logger.info(
+                    "Judge: %s score %.2f→%.2f (acc=%.2f comp=%.2f struct=%.2f act=%.2f depth=%.2f)",
+                    episode_id,
+                    heuristic_quality,
+                    blended,
+                    feedback.get("accuracy", 0),
+                    feedback.get("completeness", 0),
+                    feedback.get("structure", 0),
+                    feedback.get("actionability", 0),
+                    feedback.get("depth", 0),
                 )
+
+                # Now run judge-informed distillation (if content is rich enough)
+                if len(content) > 300 and blended >= 0.2:
+                    self._schedule_fact_distillation(
+                        episode_id,
+                        goal,
+                        content,
+                        domain,
+                        unit_name or "auto",
+                        judge_feedback=feedback,
+                    )
+
             except Exception as e:
                 logger.debug(f"Background judge failed for {episode_id}: {e}")
 
@@ -2042,7 +2060,6 @@ class LearningService:
             loop = asyncio.get_running_loop()
             loop.create_task(_judge_and_update())
         except RuntimeError:
-            # No event loop — skip background judge
             logger.debug("No event loop for background judge, skipping")
 
     # =========================================================================
@@ -2056,6 +2073,7 @@ class LearningService:
         content: str,
         domain: str,
         agent_name: str,
+        judge_feedback: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Extract facts from an episode using LLM (mem0 pattern).
@@ -2063,20 +2081,22 @@ class LearningService:
         Cold start (<5 distilled lessons in domain): runs synchronously
         via thread pool so lessons are available for the very next task.
         After warm-up: runs as async background task.
+
+        If judge_feedback is provided, it is included in the distillation
+        prompt so lessons are grounded in the expert evaluation.
         """
         existing_lessons = self._store.get_distilled_lessons(domain=domain, limit=5)
         is_cold = len(existing_lessons) < 5
 
         if is_cold:
-            # Cold start: synchronous distillation in current thread.
-            # Blocks for ~3-5s but ensures lessons are immediately available.
-            self._sync_distill(episode_id, goal, content, domain, agent_name)
+            self._sync_distill(episode_id, goal, content, domain, agent_name, judge_feedback)
             return
 
-        # Warm: background async task
         async def _distill() -> None:
             try:
-                lessons = await self._extract_lessons(goal, content, domain, agent_name)
+                lessons = await self._extract_lessons(
+                    goal, content, domain, agent_name, judge_feedback
+                )
                 self._store_distilled_lessons(lessons, episode_id, domain, agent_name)
                 logger.debug("Distilled %d lessons from episode %s", len(lessons), episode_id)
             except Exception as exc:
@@ -2086,8 +2106,7 @@ class LearningService:
             loop = asyncio.get_running_loop()
             loop.create_task(_distill())
         except RuntimeError:
-            # No event loop — fall back to sync
-            self._sync_distill(episode_id, goal, content, domain, agent_name)
+            self._sync_distill(episode_id, goal, content, domain, agent_name, judge_feedback)
 
     def _sync_distill(
         self,
@@ -2096,13 +2115,14 @@ class LearningService:
         content: str,
         domain: str,
         agent_name: str,
+        judge_feedback: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Synchronous fact distillation — blocks calling thread."""
         import json as _json
 
         import anthropic
 
-        prompt = self._build_distillation_prompt(goal, content, domain)
+        prompt = self._build_distillation_prompt(goal, content, domain, judge_feedback)
         client = anthropic.Anthropic()
 
         # Retry once on empty/invalid response
@@ -2159,18 +2179,60 @@ class LearningService:
                 return
         logger.debug("Distillation failed after retries for %s", episode_id)
 
-    def _build_distillation_prompt(self, goal: str, content: str, domain: str) -> str:
+    def _build_distillation_prompt(
+        self,
+        goal: str,
+        content: str,
+        domain: str,
+        judge_feedback: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        # Fetch existing lessons so the LLM only extracts NEW insights
+        existing_block = ""
+        try:
+            existing = self._store.get_distilled_lessons(domain=domain, limit=15)
+            if existing:
+                seen = [l.lesson for l in existing[:15]]
+                existing_block = (
+                    "\n\nALREADY KNOWN LESSONS (do NOT repeat these — extract only NEW insights):\n"
+                    + "\n".join(f"- {s}" for s in seen)
+                    + "\n"
+                )
+        except Exception:
+            pass
+
+        # Include expert judge feedback when available
+        judge_block = ""
+        if judge_feedback and judge_feedback.get("verdict") == "llm-judged":
+            parts = ["\n\nEXPERT JUDGE EVALUATION:"]
+            for dim in ("accuracy", "completeness", "structure", "actionability", "depth"):
+                if dim in judge_feedback:
+                    parts.append(f"  {dim}: {judge_feedback[dim]:.2f}/1.0")
+            strengths = judge_feedback.get("strengths", [])
+            improvements = judge_feedback.get("improvements", [])
+            if strengths:
+                parts.append("  Strengths: " + "; ".join(str(s) for s in strengths[:3]))
+            if improvements:
+                parts.append(
+                    "  Improvements needed: " + "; ".join(str(s) for s in improvements[:3])
+                )
+            judge_block = "\n".join(parts) + "\n"
+
         return (
             f"Analyze this {domain} task execution and extract 2-3 concise, actionable lessons.\n\n"
             f"TASK: {goal[:500]}\n\n"
-            f"OUTPUT (first 1500 chars):\n{content[:1500]}\n\n"
+            f"OUTPUT (first 1500 chars):\n{content[:1500]}\n"
+            f"{judge_block}"
+            f"{existing_block}\n"
             f"For each lesson, provide:\n"
             f"- lesson: One sentence, specific and actionable (not generic advice)\n"
             f"- type: 'strategy' | 'mistake' | 'pattern' | 'tool_usage'\n"
             f"- applies_to: When this lesson applies\n"
             f"- confidence: 0.0-1.0 how reliable this lesson is\n\n"
-            f"CRITICAL: Only extract NON-OBVIOUS lessons. Skip generic advice like "
-            f"'write tests' or 'handle errors'.\n\n"
+            f"CRITICAL: Focus on what the EXPERT JUDGE highlighted — especially the "
+            f"improvements needed (learn from gaps) and strengths (learn what worked). "
+            f"Only extract NON-OBVIOUS lessons that are NOT already listed above. "
+            f"Skip generic advice like 'write tests' or 'handle errors'. "
+            f"If this task taught nothing new beyond the known lessons, return an empty array [].\n\n"
             f"Respond as JSON array. Example:\n"
             f'[{{"lesson": "Using dataclass for Request/Response gives cleaner API than raw dicts", '
             f'"type": "pattern", "applies_to": "Python API framework tasks", "confidence": 0.8}}]'
@@ -2211,13 +2273,14 @@ class LearningService:
         content: str,
         domain: str,
         agent_name: str,
+        judge_feedback: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Use a cheap LLM to extract 2-3 concise lessons from an episode.
 
         Returns list of {"lesson": str, "type": str, "applies_to": str, "confidence": float}
         """
-        prompt = self._build_distillation_prompt(goal, content, domain)
+        prompt = self._build_distillation_prompt(goal, content, domain, judge_feedback)
 
         try:
             import json as _json

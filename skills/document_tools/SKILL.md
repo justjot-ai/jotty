@@ -22,6 +22,15 @@ composite
 - productivity
 - conversion
 
+## Triggers
+
+- generate document
+- create PDF
+- convert to EPUB
+- make presentation
+- export to DOCX
+- generate HTML
+
 ## Use When
 
 - User wants to generate PDF, EPUB, HTML, DOCX, or presentation from markdown

@@ -72,24 +72,51 @@ class CrystallizedConfig:
 # Convergence check — should we crystallize?
 # =============================================================================
 
-# Thresholds (conservative — only crystallize when truly confident)
-MIN_EPISODES = 10
-MIN_SUCCESS_RATE = 0.85
-MIN_PLAN_CONSISTENCY = 0.40  # top template must account for >= 40% of recent plans
-MIN_ROLE_Q = 0.55  # best skill per role must have Q >= this
+# Default thresholds (conservative — only crystallize when truly confident)
+DEFAULT_THRESHOLDS: Dict[str, float] = {
+    "min_episodes": 25,  # skill observations; ~5-6 real tasks
+    "min_success_rate": 0.85,
+    "min_plan_consistency": 0.60,  # top template ≥ 60% of recent plans
+    "min_role_q": 0.65,  # best skill per role Q ≥ this
+    "min_plans": 8,  # plan history entries needed
+}
+
+# Module-level aliases for backward compat
+MIN_EPISODES = int(DEFAULT_THRESHOLDS["min_episodes"])
+MIN_SUCCESS_RATE = DEFAULT_THRESHOLDS["min_success_rate"]
+MIN_PLAN_CONSISTENCY = DEFAULT_THRESHOLDS["min_plan_consistency"]
+MIN_ROLE_Q = DEFAULT_THRESHOLDS["min_role_q"]
+MIN_PLANS = int(DEFAULT_THRESHOLDS["min_plans"])
 
 
-def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str, Any]]:
+def should_crystallize(
+    task_type: str,
+    domain: str = "",
+    thresholds: Optional[Dict[str, float]] = None,
+) -> Tuple[bool, Dict[str, Any]]:
     """Check if a domain's learning has converged enough to crystallize.
 
     Reads existing Q-table data — no new tracking needed.
+
+    Args:
+        thresholds: Override default thresholds. Keys:
+            min_episodes, min_success_rate, min_plan_consistency,
+            min_role_q, min_plans.
+
     Returns (should_crystallize, stats_dict).
     """
+    t = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
+    _min_episodes = int(t["min_episodes"])
+    _min_success = t["min_success_rate"]
+    _min_consistency = t["min_plan_consistency"]
+    _min_role_q = t["min_role_q"]
+    _min_plans = int(t["min_plans"])
+
     from .facade import get_td_lambda
 
     td = get_td_lambda()
     key = td.skill_q._make_key(task_type, domain)
-    stats: Dict[str, Any] = {"domain_key": key, "reasons": []}
+    stats: Dict[str, Any] = {"domain_key": key, "reasons": [], "thresholds": t}
 
     # 1. Enough observations? (fallback to base task_type if domain-specific is sparse,
     #    then merge sibling task_types for the same domain)
@@ -104,15 +131,10 @@ def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str
             if other_key != key and other_key.endswith(f":{domain}"):
                 for skill, cnt in td.skill_q._counts[other_key].items():
                     skill_counts[skill] = skill_counts.get(skill, 0) + cnt
-        # Also check base task_types that were used for this domain
-        for base_key in list(td.skill_q._counts.keys()):
-            if ":" not in base_key and base_key != task_type:
-                for skill, cnt in td.skill_q._counts[base_key].items():
-                    skill_counts[skill] = skill_counts.get(skill, 0) + cnt
 
     total_obs = sum(skill_counts.values()) if skill_counts else 0
-    if total_obs < MIN_EPISODES:
-        stats["reasons"].append(f"too few observations ({total_obs} < {MIN_EPISODES})")
+    if total_obs < _min_episodes:
+        stats["reasons"].append(f"too few observations ({total_obs} < {_min_episodes})")
         return False, stats
     stats["total_obs"] = total_obs
 
@@ -131,13 +153,13 @@ def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str
                 all_plans.extend(td.step_q._plan_history[other_key])
 
     recent_all = all_plans[-20:] if len(all_plans) > 20 else all_plans
-    if len(recent_all) < 5:
-        stats["reasons"].append(f"too few plans ({len(recent_all)} < 5)")
+    if len(recent_all) < _min_plans:
+        stats["reasons"].append(f"too few plans ({len(recent_all)} < {_min_plans})")
         return False, stats
     avg_reward = sum(r for _, r in recent_all) / len(recent_all)
     stats["success_rate"] = avg_reward
-    if avg_reward < MIN_SUCCESS_RATE:
-        stats["reasons"].append(f"success rate too low ({avg_reward:.0%} < {MIN_SUCCESS_RATE:.0%})")
+    if avg_reward < _min_success:
+        stats["reasons"].append(f"success rate too low ({avg_reward:.0%} < {_min_success:.0%})")
         return False, stats
 
     # 3. Plan template consistency — use same-type plans only (don't mix
@@ -152,10 +174,8 @@ def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str
     consistency = top_count / len(recent_same)
     stats["plan_consistency"] = consistency
     stats["top_template"] = top_template
-    if consistency < MIN_PLAN_CONSISTENCY:
-        stats["reasons"].append(
-            f"plan inconsistent ({consistency:.0%} < {MIN_PLAN_CONSISTENCY:.0%})"
-        )
+    if consistency < _min_consistency:
+        stats["reasons"].append(f"plan inconsistent ({consistency:.0%} < {_min_consistency:.0%})")
         return False, stats
 
     # 4. Role Q-values stable and high (ignore roles with < 3 visits — noise)
@@ -176,7 +196,7 @@ def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str
         stats["reasons"].append("no role guidance data")
         return False, stats
     significant_roles = [g for g in role_guidance if g["total_visits"] >= 3]
-    low_roles = [g for g in significant_roles if g["best_q"] < MIN_ROLE_Q]
+    low_roles = [g for g in significant_roles if g["best_q"] < _min_role_q]
     if low_roles:
         stats["reasons"].append(f"roles with low Q: {[r['role'] for r in low_roles]}")
         return False, stats
@@ -190,13 +210,17 @@ def should_crystallize(task_type: str, domain: str = "") -> Tuple[bool, Dict[str
 # =============================================================================
 
 
-def crystallize(task_type: str, domain: str = "") -> Optional[CrystallizedConfig]:
+def crystallize(
+    task_type: str,
+    domain: str = "",
+    thresholds: Optional[Dict[str, float]] = None,
+) -> Optional[CrystallizedConfig]:
     """Extract a CrystallizedConfig from current Q-table state.
 
     Only succeeds if should_crystallize() passes.
     Saves the config to disk automatically.
     """
-    ok, stats = should_crystallize(task_type, domain)
+    ok, stats = should_crystallize(task_type, domain, thresholds=thresholds)
     if not ok:
         logger.info(f"Cannot crystallize {task_type}:{domain}: {stats['reasons']}")
         return None
@@ -329,7 +353,11 @@ def list_crystallized() -> List[CrystallizedConfig]:
 # =============================================================================
 
 
-def maybe_crystallize(task_type: str, domain: str = "") -> Optional[CrystallizedConfig]:
+def maybe_crystallize(
+    task_type: str,
+    domain: str = "",
+    thresholds: Optional[Dict[str, float]] = None,
+) -> Optional[CrystallizedConfig]:
     """Check convergence and crystallize if ready. Idempotent.
 
     Call this after recording learning outcomes. If already crystallized,
@@ -338,7 +366,7 @@ def maybe_crystallize(task_type: str, domain: str = "") -> Optional[Crystallized
     existing = load(task_type, domain)
     if existing:
         return existing
-    return crystallize(task_type, domain)
+    return crystallize(task_type, domain, thresholds=thresholds)
 
 
 # =============================================================================
@@ -351,6 +379,7 @@ async def run_probation(
     domain: str = "",
     max_tasks: int = 15,
     goals: Optional[List[str]] = None,
+    thresholds: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """Run a probation loop: generate curriculum, execute, learn, crystallize.
 
@@ -367,6 +396,9 @@ async def run_probation(
         domain: Business domain (e.g. "finance", "devops")
         max_tasks: Max curriculum tasks before giving up
         goals: Optional explicit goals (skips curriculum generation)
+        thresholds: Override graduation thresholds. Keys:
+            min_episodes, min_success_rate, min_plan_consistency,
+            min_role_q, min_plans.
 
     Returns:
         Dict with graduated, config, stats
@@ -446,10 +478,10 @@ async def run_probation(
         # 4. Check graduation — check both the target task_type and the
         # classifier's actual task_type (they can diverge: "research travel
         # itinerary" may classify as "creation" instead of "research").
-        graduated_config = maybe_crystallize(task_type, domain)
+        graduated_config = maybe_crystallize(task_type, domain, thresholds=thresholds)
         if not graduated_config:
             # Also check the base task_type without domain
-            graduated_config = maybe_crystallize(task_type)
+            graduated_config = maybe_crystallize(task_type, thresholds=thresholds)
         if graduated_config:
             logger.info(
                 f"Probation GRADUATED after {i+1} tasks: {domain_key} "

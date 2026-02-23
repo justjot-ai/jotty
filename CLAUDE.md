@@ -107,8 +107,9 @@ from Jotty.core.intelligence.orchestration import Orchestrator  # NO!
 
 ## Common Tasks → Swarms (START HERE!)
 
-| Task | Swarm | Quick Example |
-|------|-------|---------------|
+| Task | Entry Point | Quick Example |
+|------|-------------|---------------|
+| **Graduate a domain expert** | `run_probation()` | `await run_probation("research", domain="travel", goals=[...])` |
 | **Generate learning materials** (K-12, Olympiad) | `olympiad_learning_swarm` | `learn_topic("economics", "5th Grade Economics", "Student")` |
 | **Research ArXiv papers** | `arxiv_learning_swarm` | Research academic papers and create summaries |
 | **Write/review code** | `coding_swarm` | Generate, test, and review code |
@@ -301,14 +302,19 @@ from Jotty.core.intelligence.memory.facade import (
     get_rag_retriever,       # LLMRAGRetriever
 )
 
-# LEARNING — RL, TD-Lambda, Q-Learning
+# LEARNING — Self-improving agents (RL + Judge + Crystallization)
 from Jotty.core.intelligence.learning.facade import (
-    get_td_lambda,           # TDLambdaLearner (gamma=0.99)
+    get_learning_service,    # Unified: record/query/judge/distill
+    get_td_lambda,           # TDLambdaLearner (skill Q-tables + plan tracking)
+    get_crystallized,        # Load graduated agent config (CrystallizedConfig)
     get_credit_assigner,     # ReasoningCreditAssigner
     get_reward_manager,      # Reward management
 )
-from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
-from Jotty.core.intelligence.learning.q_learning import QLearningManager
+from Jotty.core.intelligence.learning.crystallization import (
+    run_probation,           # Probation → graduation pipeline
+    should_crystallize,      # Check if domain is ready to graduate
+    CrystallizedConfig,      # Hardened SOP config
+)
 
 # ORCHESTRATION — Swarm coordination
 from Jotty.core.intelligence.orchestration.facade import (
@@ -461,17 +467,57 @@ for r in results:
 status = mem.status()  # {'backend': 'full', 'operations': {...}, 'total_memories': N}
 ```
 
-### Learning — TD-Lambda Updates
-```python
-from Jotty.core.intelligence.learning.facade import get_td_lambda
-td = get_td_lambda()  # gamma=0.99, lambda_trace=0.95
+### Learning — Self-Improving Agents (5 Mechanisms)
 
-td.update(
-    state={"task": "research", "agent": "researcher"},
-    action={"tool": "web-search"},
-    reward=1.0,
-    next_state={"task": "research", "agent": "researcher", "step": 2},
+The learning system works **by default** for all agent executions. No setup needed.
+
+```python
+# === 1. Q-TABLES (automatic — tracks skill/plan effectiveness per domain) ===
+from Jotty.core.intelligence.learning.facade import get_td_lambda
+td = get_td_lambda()
+
+# Check what the agent has learned for a domain
+guidance = td.step_q.get_role_guidance("research", domain="travel")
+# [{'role': 'research', 'best_skill': 'web-search', 'best_q': 0.97, 'total_visits': 28}, ...]
+
+# View plan history
+plans = td.step_q._plan_history.get("research", [])
+# [((research, synthesize, save), 1.0), ...]  — template + reward per episode
+
+# === 2. LLM JUDGE (automatic — Sonnet evaluates every successful episode) ===
+# Scores on 5 dimensions: accuracy, completeness, structure, actionability, depth
+# Judge feedback is stored in episode metadata and fed into lesson extraction
+# No manual calls needed — runs as background task after each episode
+
+# === 3. FACT DISTILLATION (automatic — extracts lessons from episodes) ===
+# After judge scores, Haiku extracts 2-3 NEW lessons per episode
+# Dedup-aware: won't repeat existing lessons
+# Judge feedback included: "Focus on what the expert judge highlighted"
+service = get_learning_service()
+lessons = service.retrieve_distilled_lessons("travel", goal="plan Tokyo trip", top_k=5)
+# [{'lesson': 'Research top attractions with estimated costs', 'type': 'strategy'}, ...]
+
+# === 4. CRYSTALLIZATION (run probation to graduate domain experts) ===
+from Jotty.core.intelligence.learning.crystallization import run_probation, load
+
+# Run probation: agent does N tasks, learns, graduates when thresholds met
+result = await run_probation(
+    task_type="research",
+    domain="travel",
+    goals=["Research Tokyo guide...", "Research Bali guide...", ...],
+    max_tasks=15,
 )
+# result = {graduated: True, config: CrystallizedConfig, tasks_run: 6, success_rate: 1.0}
+
+# Load a graduated config (AutonomousAgent checks this automatically)
+config = load("research", "travel")
+if config:
+    print(config.sop_roles)       # ('research', 'synthesize', 'save')
+    print(config.role_skill_map)  # {'research': 'web-search', 'synthesize': 'claude-cli-llm', ...}
+
+# === 5. REFLEXION (automatic — self-analysis on failures) ===
+# Generates reflections when episodes fail or quality < 0.4
+# Stored in SQLite, informs future attempts
 ```
 
 ### Budget Tracking — Record LLM Costs
@@ -647,6 +693,17 @@ from Jotty import (
     EnsembleManager,      # Ensemble methods
     ModelTierRouter,      # Model routing
 )
+
+# Learning-specific (facade)
+from Jotty.core.intelligence.learning.facade import (
+    get_learning_service,  # Unified: record, query, judge, distill
+    get_td_lambda,         # Q-tables (skill + plan tracking)
+    get_crystallized,      # Load CrystallizedConfig for a domain
+)
+from Jotty.core.intelligence.learning.crystallization import (
+    run_probation,         # Probation pipeline (async)
+    should_crystallize,    # Check graduation thresholds
+)
 ```
 
 ---
@@ -720,7 +777,7 @@ Jotty/
 │   │   └── semantic/        # Query engine, visualization
 │   │
 │   ├── intelligence/        # Brain + Execution (unified)
-│   │   ├── learning/        # TD-Lambda, Q-learning, RL
+│   │   ├── learning/        # Self-improving: RL, judge, distillation, crystallization
 │   │   ├── memory/          # 5-level memory system
 │   │   ├── orchestration/   # Swarm coordination, execution, use cases
 │   │   │   ├── execution/   # TierExecutor, agent runner, intent classifier
@@ -781,9 +838,12 @@ See: LAYER5_CLEANUP_COMPLETE.md, LAYER3_CLEANUP_COMPLETE.md
 | File | Purpose |
 |------|---------|
 | `docs/CORE_FLOW_AND_RELATIONSHIPS.md` | Flow and file relationships in `core/` — every file's links or "not integrated" |
-| `core/capabilities.py` | Discovery API — `capabilities()` and `explain()` |
+| `core/capabilities/__init__.py` | Discovery API — `capabilities()` and `explain()` |
 | `core/intelligence/memory/facade.py` | Memory subsystem facade |
-| `core/intelligence/learning/facade.py` | Learning subsystem facade |
+| `core/intelligence/learning/facade.py` | Learning subsystem facade (get_learning_service, get_td_lambda, get_crystallized) |
+| `core/intelligence/learning/learning_service.py` | **LearningService**: record/judge/distill/reflect — central learning orchestrator |
+| `core/intelligence/learning/crystallization.py` | **Crystallization**: run_probation, should_crystallize, CrystallizedConfig |
+| `core/intelligence/learning/td_lambda.py` | **TDLambdaLearner**: SkillQTable + StepQTable, plan normalization |
 | `core/infrastructure/context/facade.py` | Context subsystem facade |
 | `core/capabilities/skills/facade.py` | Skills/providers subsystem facade |
 | `core/intelligence/orchestration/facade.py` | Orchestration subsystem facade |
@@ -793,7 +853,8 @@ See: LAYER5_CLEANUP_COMPLETE.md, LAYER3_CLEANUP_COMPLETE.md
 | `core/intelligence/orchestration/swarms/base/team_coordinator.py` | **9 coordination patterns** (pipeline, parallel, debate, consensus, etc.) |
 | `core/intelligence/orchestration/swarms/base/swarm_template.py` | SwarmTemplate + PhaseExecutor — declarative swarm definition |
 | `core/infrastructure/foundation/types/execution_types.py` | CoordinationPattern, MergeStrategy, SynthesisStrategy enums |
-| `core/intelligence/orchestration/swarm_manager.py` | SwarmIntelligence (learning state management) |
+| `core/intelligence/orchestration/core/swarm_manager.py` | SwarmIntelligence (learning state management) |
+| `core/intelligence/reasoning/agents/autonomous_agent.py` | AutonomousAgent — checks Q-tables + crystallized config for planning |
 | `cli/gateway/server.py` | UnifiedGateway (all webhooks) |
 | `cli/gateway/channels.py` | ChannelRouter (message routing) |
 | `cli/app.py` | JottyCLI (main CLI application) |

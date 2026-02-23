@@ -362,7 +362,7 @@ class AutonomousAgent(BaseAgent):
         # Step 2b: Check for crystallized config (auto-promoted domain knowledge).
         # If the domain's learning has converged, override skill selection and
         # inject proven SOP into the planner.  Agent can decline if skills missing.
-        _crystal = self._try_crystallized(task_type, all_skills, _status)
+        _crystal = self._try_crystallized(task_type, all_skills, _status, task=task)
         if _crystal and _crystal.get("decline"):
             _status("Decline", _crystal["reason"])
             return _crystal["result"]
@@ -551,8 +551,13 @@ class AutonomousAgent(BaseAgent):
         task_type: str,
         all_skills: List[Dict],
         status: StatusReporter,
+        task: str = "",
     ) -> Optional[Dict[str, Any]]:
         """Check for a crystallized config and apply overrides.
+
+        Scans all graduated configs and matches by domain keyword in the
+        task text.  No hardcoded domain list needed — graduated domains
+        are auto-discovered from disk.
 
         Returns None (no crystallization) or a dict with:
           - skills: filtered skill dicts matching the crystallized whitelist
@@ -560,9 +565,24 @@ class AutonomousAgent(BaseAgent):
           - decline/reason/result: if crystallized skills aren't available
         """
         try:
-            from Jotty.core.intelligence.learning.crystallization import load
+            from Jotty.core.intelligence.learning.crystallization import (
+                list_crystallized,
+                load,
+            )
 
-            config = load(task_type)
+            config = None
+            task_lower = task.lower() if task else ""
+
+            # Scan all graduated configs; pick best match by domain keyword
+            if task_lower:
+                for cc in list_crystallized():
+                    if cc.domain and cc.domain in task_lower:
+                        config = cc
+                        break
+
+            # Fall back to base task_type
+            if not config:
+                config = load(task_type)
         except Exception:
             return None
 

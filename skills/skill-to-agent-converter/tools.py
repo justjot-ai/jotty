@@ -6,9 +6,12 @@ import logging
 import time
 from typing import Any, Dict, Optional
 
+from Jotty.core.infrastructure.utils.tool_helpers import tool_wrapper
+
 logger = logging.getLogger(__name__)
 
 
+@tool_wrapper()
 def convert_skill_to_agent(
     skill_name: str,
     agent_name: Optional[str] = None,
@@ -48,6 +51,7 @@ def convert_skill_to_agent(
         }
 
 
+@tool_wrapper()
 def test_skill_agent(agent_name: str, test_task: str) -> Dict[str, Any]:
     """Test a converted skill agent with a sample task."""
     try:

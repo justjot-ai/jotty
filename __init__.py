@@ -121,6 +121,10 @@ _LAZY_IMPORTS: dict[str, str] = {
     "TDLambdaLearner": ".core.intelligence.learning.learning",
     "AdaptiveLearningRate": ".core.intelligence.learning.learning",
     "ReasoningCreditAssigner": ".core.intelligence.learning.learning",
+    "LearningService": ".core.intelligence.learning.learning_service",
+    "CrystallizedConfig": ".core.intelligence.learning.crystallization",
+    "run_probation": ".core.intelligence.learning.crystallization",
+    "should_crystallize": ".core.intelligence.learning.crystallization",
     # --- CONTEXT ---
     "GlobalContextGuard": ".core.infrastructure.context.global_context_guard",
     "patch_dspy_with_guard": ".core.infrastructure.context.global_context_guard",

@@ -21,6 +21,14 @@ composite
 - messaging
 - delivery
 
+## Triggers
+
+- send message
+- send to telegram
+- send to whatsapp
+- notify via
+- deliver to channel
+
 ## Use When
 
 - User wants to send a message or file to Telegram or WhatsApp

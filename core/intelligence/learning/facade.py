@@ -179,24 +179,24 @@ def list_components() -> Dict[str, str]:
         Dict mapping component name to description.
     """
     return {
-        "LearningService": "Unified learning service (SQLite-backed, record/query/reflect/transfer)",
-        "TDLambdaLearner": "Temporal-difference learning with eligibility traces",
+        # Core learning pipeline
+        "LearningService": "Unified learning service (SQLite-backed, record/query/reflect/transfer/judge/distill)",
+        "TDLambdaLearner": "TD(λ) RL with SkillQTable + StepQTable per domain",
+        "CrystallizedConfig": "Hardened SOP from graduated agent (probation → crystallization)",
+        "LLMJudge": "Sonnet-based quality evaluator (5 dimensions: accuracy/completeness/structure/actionability/depth)",
+        "FactDistillation": "Judge-informed lesson extraction (dedup-aware, incremental)",
+        # Credit & rewards
         "ReasoningCreditAssigner": "Credit assignment for multi-step reasoning chains",
-        "AdaptiveLearningRate": "Learning rate that adapts to convergence dynamics",
-        "IntermediateRewardCalculator": "Calculates intermediate rewards during execution",
-        "LearningHealthMonitor": "Monitors learning system health and convergence",
-        "DynamicBudgetManager": "Dynamically allocates exploration budget",
+        "ShapedRewardManager": "Reward shaping for faster RL convergence",
+        # Offline & patterns
         "OfflineLearner": "Batch learning from stored episode buffers",
         "CounterfactualLearner": "What-if analysis for alternative action sequences",
         "PatternDiscovery": "Discovers recurring patterns in agent behavior",
-        "ShapedRewardManager": "Reward shaping for faster RL convergence",
+        # Cooperative
         "PredictiveCooperativeAgent": "Multi-agent cooperation with trajectory prediction",
         "NashBargainingSolver": "Game-theoretic negotiation between agents",
-        "CooperativeCreditAssigner": "Credit assignment in cooperative multi-agent settings",
-        "LLMTrajectoryPredictor": "Predicts future agent trajectories using LLMs",
-        "AlgorithmicCreditAssigner": "Shapley value and difference reward estimation",
-        "AdaptiveExploration": "Exploration strategy that adapts over time",
-        "ToolLearningFeedback": "Tool execution → learning feedback loop (NEW 2026-02-16)",
+        # Tool feedback
+        "ToolLearningFeedback": "Tool execution → learning feedback loop",
     }
 
 
