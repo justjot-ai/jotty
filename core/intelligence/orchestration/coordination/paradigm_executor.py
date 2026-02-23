@@ -214,6 +214,13 @@ class ParadigmExecutor:
                         except Exception as _lc_err:
                             logger.debug(f"Fast-path learning context skipped: {_lc_err}")
 
+                    # Formatting instruction: ensures code appears in fenced blocks
+                    if not sub_goal.startswith("[Format"):
+                        sub_goal = (
+                            "[Format: Use markdown. Wrap ALL code in fenced blocks "
+                            "(```python, ```sql, etc). Use ## headings.]\n\n" + sub_goal
+                        )
+
                     _last_err = None
                     response = None
                     for _attempt in range(4):

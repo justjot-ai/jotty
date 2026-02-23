@@ -1752,10 +1752,10 @@ class LearningService:
         _DOMAIN_BOOTSTRAP: Dict[str, str] = {
             "coding": (
                 "[Quality guidance for coding tasks]\n"
+                "  - Wrap ALL code in markdown fenced blocks (```python)\n"
                 "  - Include complete, runnable code with class/function definitions\n"
                 "  - Add test functions (def test_*) with 5+ assertions\n"
-                "  - Use section headings to organize (## Implementation, ## Tests)\n"
-                "  - Explain key design decisions and complexity analysis"
+                "  - Use section headings to organize (## Implementation, ## Tests)"
             ),
             "algorithms": (
                 "[Quality guidance for algorithm tasks]\n"
@@ -1780,9 +1780,9 @@ class LearningService:
             ),
             "system_design": (
                 "[Quality guidance for system design tasks]\n"
+                "  - Wrap code examples in markdown fenced blocks (```python)\n"
                 "  - Include architecture diagrams or structured descriptions\n"
                 "  - Analyze trade-offs (latency, throughput, consistency)\n"
-                "  - Discuss scaling strategies and failure modes\n"
                 "  - Use tables for comparisons where appropriate"
             ),
             "math": (

@@ -187,7 +187,7 @@ class AutonomousAgent(BaseAgent):
             try:
                 from ..planners.agentic_planner import TaskPlanner  # type: ignore[import-not-found]
 
-                self._planner = TaskPlanner()
+                self._planner = TaskPlanner()  # type: ignore[assignment]
                 logger.debug("Initialized TaskPlanner")
             except Exception as e:
                 logger.warning(f"Could not initialize TaskPlanner: {e}")
@@ -331,6 +331,20 @@ class AutonomousAgent(BaseAgent):
         workspace_dir = kwargs.pop("workspace_dir", None)
         direct_llm = kwargs.pop("direct_llm", False)
 
+        # Disable DSPy cache when learning context is present so each run
+        # generates fresh output instead of returning stale cached responses.
+        _dspy_cache_was = None  # type: ignore[assignment]
+        if learning_context:
+            try:
+                import dspy as _dmod
+
+                _lm = getattr(_dmod.settings, "lm", None)
+                if _lm and getattr(_lm, "cache", False):
+                    _dspy_cache_was = True
+                    _lm.cache = False
+            except Exception:
+                pass
+
         _status = StatusReporter(status_callback, logger)
 
         self._emit("step_start", phase="execute_impl", task=task[:200])
@@ -420,6 +434,18 @@ class AutonomousAgent(BaseAgent):
             errors=len(errors),
             elapsed=round(time.time() - start_time, 2),
         )
+
+        # Restore DSPy cache if we disabled it
+        if _dspy_cache_was is not None:
+            try:
+                import dspy as _dmod
+
+                _lm = getattr(_dmod.settings, "lm", None)
+                if _lm:
+                    _lm.cache = _dspy_cache_was
+            except Exception:
+                pass
+
         return self._build_result(
             task,
             task_type,
@@ -515,20 +541,18 @@ class AutonomousAgent(BaseAgent):
         """Select best skills and strip heavy ones for knowledge tasks."""
         status("Selecting", "choosing best skills")
 
-        # Inject approach guidance from learning context
+        # Inject learning context into skill selection prompt.
+        # Pass all lesson lines through — the LLM decides relevance.
         selection_task = task
         if learning_context:
-            approach_lines = [
-                ln
+            guidance_lines = [
+                ln.strip()
                 for ln in learning_context.split("\n")
-                if any(
-                    kw in ln.lower()
-                    for kw in ["avoid", "failed approach", "successful approach", "use:"]
-                )
+                if ln.strip() and not ln.strip().startswith("[Quality guidance")
             ]
-            if approach_lines:
-                selection_task = f"{task}\n\n[Skill guidance from past experience]:\n" + "\n".join(
-                    approach_lines[:5]
+            if guidance_lines:
+                selection_task = f"{task}\n\n[Guidance from past experience]:\n" + "\n".join(
+                    guidance_lines[:8]
                 )
 
         skills = await self._select_skills(selection_task, all_skills, task_type=task_type)
@@ -1043,13 +1067,16 @@ class AutonomousAgent(BaseAgent):
         Returns:
             LLM response string or None if generation fails
         """
-        # Inject system_prompt and learning context if available
         prompt = task
         if self.config.system_prompt:
             prompt = f"[System: {self.config.system_prompt}]\n\n{task}"
         learning_ctx = getattr(self, "_learning_context", None)
         if learning_ctx:
             prompt = f"{learning_ctx}\n\n{prompt}"
+        prompt = (
+            "[Format: Use markdown. Wrap ALL code in fenced blocks "
+            "(```python, ```sql, etc). Use ## headings.]\n\n" + prompt
+        )
 
         # 1. Try DSPy API first (fastest — direct HTTP to Anthropic/OpenAI)
         # Run in executor so sync HTTP doesn't block the event loop
