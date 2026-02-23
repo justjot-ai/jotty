@@ -1212,7 +1212,7 @@ class AgentRunner:
 
     async def _gather_context(self, ctx: ExecutionContext) -> ExecutionContext:
         """Gather learning context from memory, Q-learning, transfer learning."""
-        ctx.task_progress.start_step(0)  # Gather context  # type: ignore
+        ctx.task_progress.start_step(0)  # Gather context  # type: ignore[union-attr]
         ctx._status("Preparing", "retrieving context")  # type: ignore[misc]
 
         ctx.learning_context_parts = self._gather_learning_context(ctx.goal)
@@ -1231,7 +1231,7 @@ class AgentRunner:
             ctx.kwargs["workspace_dir"] = os.getcwd()
 
         ctx.enriched_goal = ctx.goal
-        ctx.task_progress.complete_step(0)  # Context gathered  # type: ignore
+        ctx.task_progress.complete_step(0)  # Context gathered  # type: ignore[union-attr]
         return ctx
 
     async def _validate_architect(self, ctx: ExecutionContext) -> ExecutionContext:
@@ -1240,7 +1240,7 @@ class AgentRunner:
             # Hook: pre_architect
             self._run_hooks("pre_architect", goal=ctx.goal, agent_name=self.agent_name)
 
-            ctx.task_progress.start_step(1)  # Validate approach  # type: ignore
+            ctx.task_progress.start_step(1)  # Validate approach  # type: ignore[union-attr]
             ctx._status("Architect", "validating approach")  # type: ignore[misc]
             ctx.architect_results, ctx.proceed = await self.architect_validator.validate(
                 goal=ctx.goal,
@@ -1305,7 +1305,7 @@ class AgentRunner:
         else:
             logger.info(f" Skipping architect: gate={ctx.gate_decision.mode.value}")  # type: ignore[union-attr]
 
-        ctx.task_progress.complete_step(1)  # Approach validated  # type: ignore
+        ctx.task_progress.complete_step(1)  # Approach validated  # type: ignore[union-attr]
         return ctx
 
     async def _execute_agent(self, ctx: ExecutionContext) -> ExecutionContext:
@@ -1319,7 +1319,7 @@ class AgentRunner:
         )
         ctx.enriched_goal = exec_ctx.get("goal", ctx.enriched_goal)
 
-        ctx.task_progress.start_step(2)  # Execute task  # type: ignore
+        ctx.task_progress.start_step(2)  # Execute task  # type: ignore[union-attr]
 
         # Result cache check: skip execution if cached result available
         _cache_key = None
@@ -1429,12 +1429,12 @@ class AgentRunner:
             except Exception as cache_err:
                 logger.debug(f"Cache store skipped: {cache_err}")
 
-        ctx.task_progress.complete_step(2)  # Task executed  # type: ignore
+        ctx.task_progress.complete_step(2)  # Task executed  # type: ignore[union-attr]
         return ctx
 
     async def _validate_auditor_with_retry(self, ctx: ExecutionContext) -> ExecutionContext:
         """Auditor validation + MALLM judge retry logic."""
-        ctx.task_progress.start_step(3)  # Verify output  # type: ignore
+        ctx.task_progress.start_step(3)  # Verify output  # type: ignore[union-attr]
 
         if not ctx.skip_auditor:
             ctx.auditor_results, passed = await self.auditor_validator.validate(
@@ -1608,10 +1608,10 @@ class AgentRunner:
 
         # Update task progress + consecutive failure counter
         if ctx.success:
-            ctx.task_progress.complete_step(3)  # Verified OK  # type: ignore
+            ctx.task_progress.complete_step(3)  # Verified OK  # type: ignore[union-attr]
             self._consecutive_failures = 0
         else:
-            ctx.task_progress.fail_step(3)  # Verification failed  # type: ignore
+            ctx.task_progress.fail_step(3)  # Verification failed  # type: ignore[union-attr]
             self._consecutive_failures += 1
 
         # Record gate outcome for drift detection
