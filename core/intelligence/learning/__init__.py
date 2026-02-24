@@ -11,11 +11,6 @@ All imports are lazy to avoid pulling in DSPy/OpenAI/Anthropic at module load ti
 import importlib as _importlib
 
 _LAZY_IMPORTS: dict[str, str] = {
-    # base_learning_manager
-    "BaseLearningManager": ".base_learning_manager",
-    "ValueBasedLearningManager": ".base_learning_manager",
-    "RewardShapingManager": ".base_learning_manager",
-    "MultiAgentLearningManager": ".base_learning_manager",
     # algorithmic_credit
     "AgentContribution": ".algorithmic_credit",
     "AlgorithmicCreditAssigner": ".algorithmic_credit",
@@ -29,60 +24,28 @@ _LAZY_IMPORTS: dict[str, str] = {
     # health_budget
     "DynamicBudgetManager": ".health_budget",
     "LearningHealthMonitor": ".health_budget",
-    # reasoning_credit
-    "ReasoningCreditAssigner": ".reasoning_credit",
     # td_lambda
     "TDLambdaLearner": ".td_lambda",
-    # offline_learning
-    "CounterfactualLearner": ".offline_learning",
-    "OfflineLearner": ".offline_learning",
-    "PatternDiscovery": ".offline_learning",
-    "PrioritizedEpisodeBuffer": ".offline_learning",
-    # predictive_cooperation
-    "CooperationPrinciples": ".predictive_cooperation",
-    "CooperationReasoner": ".predictive_cooperation",
-    "CooperationState": ".predictive_cooperation",
-    "NashBargainingSolver": ".predictive_cooperation",
-    "PredictiveCooperativeAgent": ".predictive_cooperation",
-    # predictive_marl
-    "ActualTrajectory": ".predictive_marl",
-    "AgentModel": ".predictive_marl",
-    "CooperativeCreditAssigner": ".predictive_marl",
-    "Divergence": ".predictive_marl",
-    "DivergenceMemory": ".predictive_marl",
-    "LLMTrajectoryPredictor": ".predictive_marl",
-    "PredictedAction": ".predictive_marl",
-    "PredictedTrajectory": ".predictive_marl",
-    # rl_components
-    "RLComponents": ".rl_components",
     # shaped_rewards
     "AgenticRewardEvaluator": ".shaped_rewards",
     "RewardCondition": ".shaped_rewards",
     "ShapedRewardManager": ".shaped_rewards",
+    # learning_service (unified service)
+    "LearningService": ".learning_service",
+    "get_learning_service": ".learning_service",
+    # learning_store (persistent SQLite store)
+    "LearningStore": ".learning_store",
+    "EpisodeRecord": ".learning_store",
+    "PatternRecord": ".learning_store",
+    "ReflectionRecord": ".learning_store",
+    "ValueEstimate": ".learning_store",
 }
-
-
-_LAZY_IMPORTS.update(
-    {
-        # learning_service (NEW - unified service)
-        "LearningService": ".learning_service",
-        "get_learning_service": ".learning_service",
-        # learning_store (NEW - persistent SQLite store)
-        "LearningStore": ".learning_store",
-        "EpisodeRecord": ".learning_store",
-        "PatternRecord": ".learning_store",
-        "ReflectionRecord": ".learning_store",
-        "ValueEstimate": ".learning_store",
-    }
-)
 
 _FACADE_IMPORTS = {
     "get_learning_system",
     "get_td_lambda",
     "get_credit_assigner",
-    "get_offline_learner",
     "get_reward_manager",
-    "get_cooperative_agents",
     "get_learning_service",
 }
 
@@ -103,13 +66,6 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = list(_LAZY_IMPORTS.keys()) + [
-    "get_learning_system",
-    "get_td_lambda",
-    "get_credit_assigner",
-    "get_offline_learner",
-    "get_reward_manager",
-    "get_cooperative_agents",
-]
+__all__ = list(_LAZY_IMPORTS.keys()) + list(_FACADE_IMPORTS)
 
 from .cost_aware_td import CostAwareTDLambda, get_cost_aware_td_lambda

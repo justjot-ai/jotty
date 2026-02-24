@@ -356,6 +356,10 @@ def reset_singletons():
     BudgetTracker.reset_instances()
     LLMCallCache.reset_instances()
     SmartTokenizer.reset_instances()
+    # TDLambdaLearner singleton
+    from Jotty.core.intelligence.learning.facade import reset_td_lambda
+
+    reset_td_lambda()
 
 
 @pytest.fixture(autouse=True)

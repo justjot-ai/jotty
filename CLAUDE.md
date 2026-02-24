@@ -67,7 +67,7 @@ Jotty follows world-class clean architecture with strict layering:
 ┌────────────────────────┴────────────────────────────────────┐
 │  LAYER 2: CORE FRAMEWORK (core/)                            │
 │  ├── interface/      → Interfaces, messages, modalities     │
-│  ├── capabilities/   → Skills, registry, tools (273 skills) │
+│  ├── capabilities/   → Skills, registry, tools (198 skills) │
 │  ├── intelligence/   → Agents, swarms, learning, memory     │
 │  └── infrastructure/ → Foundation, utils, context           │
 └─────────────────────────────────────────────────────────────┘
@@ -468,7 +468,8 @@ status = mem.status()  # {'backend': 'full', 'operations': {...}, 'total_memorie
 
 ### Learning — Self-Improving Agents (5 Mechanisms)
 
-The learning system works **by default** for all agent executions. No setup needed.
+Learning hooks are enabled in standard configs, but behavior depends on config,
+providers, and runtime environment. Verify with tests in your setup.
 
 ```python
 # === 1. Q-TABLES (automatic — tracks skill/plan effectiveness per domain) ===
@@ -769,7 +770,7 @@ Jotty/
 │   │   ├── ui/              # A2UI response formatting
 │   │
 │   ├── capabilities/        # Skills & Tools
-│   │   ├── skills/          # 273 skills (web-search, calculator, etc.)
+│   │   ├── skills/          # 198 skills (web-search, calculator, etc.)
 │   │   ├── registry/        # Unified registry, skill registry
 │   │   ├── tools/           # Content generation tools
 │   │   ├── sdk/             # Skill development kit
@@ -781,7 +782,7 @@ Jotty/
 │   │   ├── orchestration/   # Swarm coordination, execution, use cases
 │   │   │   ├── execution/   # TierExecutor, agent runner, intent classifier
 │   │   │   ├── pipelines/   # ResearchWorkflow, LearningWorkflow
-│   │   │   ├── swarms/      # 30+ domain swarms
+│   │   │   ├── swarms/      # 6 domain swarms
 │   │   │   ├── use_cases/   # ChatUseCase, WorkflowUseCase
 │   │   │   └── ...          # coordination, learning, routing, state
 │   │   └── reasoning/       # All agents + infrastructure

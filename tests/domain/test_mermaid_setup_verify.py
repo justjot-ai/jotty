@@ -10,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from Jotty.core.intelligence.reasoning.agents.memory_integration import sync_improvements_to_memory
 from Jotty.core.intelligence.reasoning.agents.mermaid_renderer import validate_mermaid_syntax
-from core.foundation.data_structures import SwarmConfig
-from core.memory.cortex import SwarmMemory
+from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+from Jotty.core.intelligence.memory.cortex import SwarmMemory
 
 
 def test_improvements_loading():
@@ -41,7 +41,7 @@ def test_improvements_loading():
     print(f"   ✅ Synced {synced}/{len(improvements)} improvements to memory")
 
     # Verify retrieval
-    from core.foundation.data_structures import MemoryLevel
+    from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
 
     memory_entries = memory.retrieve(
         query="expert agent improvements mermaid mermaid_professional",

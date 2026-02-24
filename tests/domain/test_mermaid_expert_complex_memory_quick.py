@@ -13,8 +13,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
-from core.foundation.data_structures import SwarmConfig
-from core.memory.cortex import SwarmMemory
+from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+from Jotty.core.intelligence.memory.cortex import SwarmMemory
 
 
 def configure_llm():
@@ -187,7 +187,7 @@ async def test_complex_scenarios():
         print(f"   Improvements so far: {len(expert.improvements)}")
 
     # Check memory
-    from core.foundation.data_structures import MemoryLevel
+    from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
 
     procedural_count = len(memory.memories[MemoryLevel.PROCEDURAL])
     meta_count = len(memory.memories[MemoryLevel.META])

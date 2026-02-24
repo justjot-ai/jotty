@@ -30,9 +30,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from Jotty.core.intelligence.learning.learning_store import LearningStore
 from Jotty.core.intelligence.learning.learning_service import (
     LearningService,
-    classify_domain,
     analyze_response,
 )
+from Jotty.core.intelligence.learning.domain_classifier import classify_domain
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -1148,7 +1148,7 @@ References: CLRS (2009), Algorithm Design Manual (Skiena, 2008).
 
     # Record 10 high-quality "networking" episodes that will trigger auto-transfer
     # First, define networking domain affinity (it's not in the default map)
-    from Jotty.core.intelligence.learning.learning_service import _DOMAIN_AFFINITY
+    from Jotty.core.intelligence.learning.domain_classifier import _DOMAIN_AFFINITY
 
     _DOMAIN_AFFINITY["networking"] = ["system_design", "devops"]
 

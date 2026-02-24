@@ -13,8 +13,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
-from core.foundation.data_structures import MemoryLevel, SwarmConfig
-from core.memory.cortex import SwarmMemory
+from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
+from Jotty.core.intelligence.memory.cortex import SwarmMemory
 
 
 def configure_llm():

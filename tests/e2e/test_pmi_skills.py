@@ -18,7 +18,7 @@ from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
 # Module Loading Helpers (hyphenated dirs can't be imported normally)
 # =============================================================================
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
+SKILLS_DIR = Path(__file__).resolve().parent.parent.parent / "skills"
 
 
 def _load_skill_module(skill_dir: str, module_name: str = "tools"):

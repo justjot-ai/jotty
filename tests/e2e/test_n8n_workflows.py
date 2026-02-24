@@ -15,7 +15,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # Load module from hyphenated directory via importlib (not importable as package)
-_tools_path = Path(__file__).resolve().parent.parent / "skills" / "n8n-workflows" / "tools.py"
+_tools_path = (
+    Path(__file__).resolve().parent.parent.parent / "skills" / "n8n-workflows" / "tools.py"
+)
 _spec = importlib.util.spec_from_file_location("n8n_workflows_tools", _tools_path)
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
@@ -32,28 +34,34 @@ _get_client = _mod._get_client
 
 # Add parent directory for core imports — import skills_registry module directly
 # to avoid broken __init__.py in core.registry (ToolValidator NameError)
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Pre-register the package hierarchy so relative imports inside skills_registry work
 import types
 
-for pkg_name in ["core", "core.registry"]:
+for pkg_name in ["core", "core.capabilities", "core.capabilities.registry"]:
     if pkg_name not in sys.modules:
         sys.modules[pkg_name] = types.ModuleType(pkg_name)
         sys.modules[pkg_name].__path__ = [
-            str(Path(__file__).resolve().parent.parent / pkg_name.replace(".", "/"))
+            str(Path(__file__).resolve().parent.parent.parent / pkg_name.replace(".", "/"))
         ]
         sys.modules[pkg_name].__package__ = pkg_name
 
-_sr_path = Path(__file__).resolve().parent.parent / "core" / "registry" / "skills_registry.py"
+_sr_path = (
+    Path(__file__).resolve().parent.parent.parent
+    / "core"
+    / "capabilities"
+    / "registry"
+    / "skills_registry.py"
+)
 _sr_spec = importlib.util.spec_from_file_location(
-    "core.registry.skills_registry",
+    "core.capabilities.registry.skills_registry",
     _sr_path,
     submodule_search_locations=[],
 )
 _sr_mod = importlib.util.module_from_spec(_sr_spec)
-_sr_mod.__package__ = "core.registry"
-sys.modules["core.registry.skills_registry"] = _sr_mod
+_sr_mod.__package__ = "core.capabilities.registry"
+sys.modules["core.capabilities.registry.skills_registry"] = _sr_mod
 _sr_spec.loader.exec_module(_sr_mod)
 SkillsRegistry = _sr_mod.SkillsRegistry
 SkillDefinition = _sr_mod.SkillDefinition

@@ -11,7 +11,7 @@ Tests all 22 categories of configuration settings to ensure:
 """
 
 import pytest
-from core.foundation import SwarmConfig
+from Jotty.core.infrastructure.foundation import SwarmConfig
 
 # =============================================================================
 # TEST 1: Basic Configuration Creation
@@ -656,8 +656,13 @@ def test_config_jotty_config_instantiation():
 def test_config_can_be_used_by_both_orchestrators():
     """Test that config works with both SAS and MAS."""
     import dspy
-    from core.foundation import AgentConfig  # Phase 7: Consistent naming - use AgentConfig
-    from core.orchestration import MultiAgentsOrchestrator, SingleAgentOrchestrator
+    from Jotty.core.infrastructure.foundation import (
+        AgentConfig,
+    )  # Phase 7: Consistent naming - use AgentConfig
+    from Jotty.core.intelligence.orchestration import (
+        MultiAgentsOrchestrator,
+        SingleAgentOrchestrator,
+    )
 
     # Create unified config
     config = SwarmConfig(base_path="/tmp/test", enable_validation=False, enable_rl=False)

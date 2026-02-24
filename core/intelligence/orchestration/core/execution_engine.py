@@ -842,9 +842,16 @@ class ExecutionEngine:
         DRY: All paradigms reuse the same AgentRunner.run() and semaphore.
         """
         sm = self._manager
-        from Jotty.core.intelligence.learning.predictive_marl import (
-            ActualTrajectory,  # type: ignore[import]
-        )
+        import time as _time
+        from dataclasses import dataclass as _dc
+        from dataclasses import field as _fl
+
+        @_dc
+        class ActualTrajectory:
+            steps: list
+            actual_reward: float
+            timestamp: float = _fl(default_factory=_time.time)
+
         from Jotty.core.intelligence.orchestration.state.swarm_roadmap import TaskStatus
 
         # Extract callbacks and ensemble params before passing to runners

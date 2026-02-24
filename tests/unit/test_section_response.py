@@ -12,7 +12,7 @@ import sys
 # Add to path for imports
 sys.path.insert(0, "/var/www/sites/personal/stock_market/Jotty")
 
-from core.ui import return_chart, return_kanban, return_mermaid, return_section
+from Jotty.core.interface.ui import return_chart, return_kanban, return_mermaid, return_section
 
 
 def test_kanban_response():

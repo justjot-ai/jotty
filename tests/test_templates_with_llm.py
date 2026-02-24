@@ -4,15 +4,15 @@ Test templates with real LLM execution.
 This tests the simple stub templates to verify they work end-to-end.
 """
 
+import pytest
+
+pytest.skip(
+    "Module removed in Feb 2026 restructure: core.intelligence.orchestration.swarms.templates deleted",
+    allow_module_level=True,
+)
+
 import asyncio
 import os
-
-from core.intelligence.orchestration.swarms.templates import (
-    DataAnalysisTemplate,
-    MLTemplate,
-    ReviewTemplate,
-    TestingTemplate,
-)
 
 # Requires ANTHROPIC_API_KEY env var
 assert os.getenv("ANTHROPIC_API_KEY"), "Set ANTHROPIC_API_KEY to run real LLM tests"

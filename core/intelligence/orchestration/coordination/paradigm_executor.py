@@ -310,7 +310,7 @@ class ParadigmExecutor:
                                 logger.info(
                                     f"Paradigm fast-path rate limited, retry in {_delay:.0f}s"
                                 )
-                                time.sleep(_delay)
+                                await asyncio.sleep(_delay)
                                 _last_err = _e
                             else:
                                 raise

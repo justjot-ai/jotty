@@ -1187,3 +1187,141 @@ class TestLLMJudgeConfig:
 
         judge = LLMJudge()
         assert judge._config is not None
+
+
+# =============================================================================
+# Learning Validation — prove what's learned is actually better
+# =============================================================================
+
+
+class TestLearningValidation:
+    """Verify the LearningValidator correctly evaluates learned knowledge."""
+
+    def _make_episode(self, quality, success=True, exec_time=0.0, action=None):
+        from Jotty.core.intelligence.learning.learning_store import EpisodeRecord
+
+        return EpisodeRecord(
+            episode_id=f"ep_test_{exec_time}",
+            unit_type="agent",
+            unit_name="TestAgent",
+            domain="test",
+            task_type="test_task",
+            context={"goal": "test"},
+            action=action or {},
+            outcome={},
+            success=success,
+            quality=quality,
+            execution_time=exec_time,
+            cost=0.0,
+        )
+
+    @pytest.mark.unit
+    def test_temporal_improvement_detects_improving_quality(self):
+        from Jotty.core.intelligence.learning.validation import LearningValidator
+
+        v = LearningValidator()
+        episodes = [self._make_episode(0.5, exec_time=float(i)) for i in range(5)]
+        episodes += [self._make_episode(0.9, exec_time=float(i + 5)) for i in range(5)]
+        result = v._check_temporal_improvement(episodes)
+        assert result.passed
+        assert result.data["delta"] > 0
+
+    @pytest.mark.unit
+    def test_temporal_improvement_detects_declining_quality(self):
+        from Jotty.core.intelligence.learning.validation import LearningValidator
+
+        v = LearningValidator()
+        episodes = [self._make_episode(0.9, exec_time=float(i)) for i in range(5)]
+        episodes += [self._make_episode(0.3, exec_time=float(i + 5)) for i in range(5)]
+        result = v._check_temporal_improvement(episodes)
+        assert not result.passed
+        assert result.data["delta"] < 0
+
+    @pytest.mark.unit
+    def test_baseline_lift_with_real_improvement(self):
+        from Jotty.core.intelligence.learning.validation import LearningValidator
+
+        v = LearningValidator()
+        # First 3 are baseline (low quality), rest are learned (high quality)
+        episodes = [self._make_episode(0.4, exec_time=float(i)) for i in range(3)]
+        episodes += [self._make_episode(0.85, exec_time=float(i + 3)) for i in range(12)]
+        result = v._check_baseline_lift("test", "test_task", episodes)
+        assert result.passed
+        assert result.data["lift"] > 0
+        assert result.data["cohens_d"] > 0
+
+    @pytest.mark.unit
+    def test_baseline_lift_with_no_improvement(self):
+        from Jotty.core.intelligence.learning.validation import LearningValidator
+
+        v = LearningValidator()
+        # All same quality — flat, no improvement
+        episodes = [self._make_episode(0.7, exec_time=float(i)) for i in range(15)]
+        result = v._check_baseline_lift("test", "test_task", episodes)
+        assert result.passed  # not declining, so passes
+        assert abs(result.data["lift"]) < 0.05
+
+    @pytest.mark.unit
+    def test_holdout_inconclusive_when_no_skill_data(self):
+        from Jotty.core.intelligence.learning.validation import LearningValidator
+
+        v = LearningValidator()
+        episodes = [self._make_episode(0.8, exec_time=float(i)) for i in range(15)]
+        result = v._check_holdout(episodes)
+        assert result.passed  # inconclusive → neutral pass
+
+    @pytest.mark.unit
+    def test_holdout_validates_skill_quality(self):
+        from Jotty.core.intelligence.learning.validation import LearningValidator
+
+        v = LearningValidator()
+        # Training: skill-a episodes are high quality
+        train = [
+            self._make_episode(0.9, exec_time=float(i), action={"skills_used": ["skill-a"]})
+            for i in range(8)
+        ]
+        # Training: skill-b episodes are low quality
+        train += [
+            self._make_episode(0.3, exec_time=float(i + 8), action={"skills_used": ["skill-b"]})
+            for i in range(3)
+        ]
+        # Test: skill-a still does well
+        test = [
+            self._make_episode(0.85, exec_time=float(i + 11), action={"skills_used": ["skill-a"]})
+            for i in range(3)
+        ]
+        test += [
+            self._make_episode(0.35, exec_time=float(i + 14), action={"skills_used": ["skill-b"]})
+            for i in range(2)
+        ]
+        result = v._check_holdout(train + test)
+        assert result.passed
+        assert result.data.get("lift", 0) > 0
+
+    @pytest.mark.unit
+    def test_staleness_passes_when_no_crystal(self):
+        from Jotty.core.intelligence.learning.validation import LearningValidator
+
+        v = LearningValidator()
+        result = v._check_staleness("nonexistent_domain", "nonexistent_task")
+        assert result.passed
+
+    @pytest.mark.unit
+    def test_full_validation_with_too_few_episodes(self):
+        from Jotty.core.intelligence.learning.validation import LearningValidator
+
+        v = LearningValidator()
+        with patch(
+            "Jotty.core.intelligence.learning.learning_store.LearningStore.query_episodes"
+        ) as mock_query:
+            mock_query.return_value = [self._make_episode(0.8)]
+            report = v.validate_domain("sparse_domain", min_episodes=10)
+            assert not report.overall_passed
+            assert report.recommendation == "keep_learning"
+
+    @pytest.mark.unit
+    def test_facade_exposes_validator(self):
+        from Jotty.core.intelligence.learning.facade import get_learning_validator
+
+        validator = get_learning_validator()
+        assert hasattr(validator, "validate_domain")

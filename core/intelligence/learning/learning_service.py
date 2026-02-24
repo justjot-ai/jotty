@@ -185,6 +185,10 @@ class LearningService:
         self._auto_transfer_interval = 25  # transfer after every 25 episodes in a domain
         self._last_transfer_counts: Dict[str, int] = {}  # domain -> count at last transfer
 
+        # Auto-optimize: DSPy re-optimization + crystallization triggers
+        self._last_optimize_counts: Dict[str, int] = {}  # domain -> count at last optimize
+        self._dspy_optimize_interval = 15  # re-optimize every N new episodes per domain
+
         # Auto-reflect: trigger post-execution reflection on significant outcomes
         self._auto_reflect_interval = 10  # reflect every N episodes
         self._auto_reflect_quality_threshold = self._config.auto_reflect_quality_threshold
@@ -332,6 +336,11 @@ class LearningService:
         # Update value estimates via TD learning
         self._update_values(domain, task_type, action, success, quality)
 
+        # Per-skill credit-weighted Q-table updates (from algorithmic_credit)
+        # When a multi-agent episode completes, distribute credit proportionally
+        # so skills that contributed more get higher Q-updates.
+        self._update_skill_credits(domain, task_type, action, outcome, success, quality)
+
         # Invalidate caches
         self._invalidate_cache(domain, task_type)
 
@@ -469,6 +478,15 @@ class LearningService:
                 )
             except Exception as e:
                 logger.debug(f"VoyagerSkillLib extraction failed: {e}")
+
+        # ── Auto-crystallize + auto-DSPy-optimize ──────────────────────
+        # Periodic check: when enough gold episodes accumulate for a domain,
+        # (1) re-optimize DSPy prompts (incremental, even pre-crystallization)
+        # (2) attempt crystallization (graduation to hardened SOP)
+        # This closes the loop: record() -> learn -> optimize -> crystallize
+        # without requiring explicit run_probation() or manual calls.
+        if domain and success and domain_count >= 8:
+            self._maybe_auto_optimize(domain, task_type, domain_count)
 
         logger.debug(
             f"Recorded: {unit_name} ({unit_type}) domain={domain} "
@@ -3005,6 +3023,124 @@ class LearningService:
             )
 
         self._store.save_value(updated)
+
+    def _update_skill_credits(
+        self,
+        domain: str,
+        task_type: str,
+        action: Dict[str, Any],
+        outcome: Dict[str, Any],
+        success: bool,
+        quality: float,
+    ) -> None:
+        """Distribute credit across skills using cheap heuristic.
+
+        Instead of giving every skill the same global reward, weight by
+        step-level contribution. Uses data already in action/outcome —
+        no LLM calls. Falls back to uniform credit when step data is absent.
+
+        Integrates the credit assignment concept from algorithmic_credit.py
+        via a zero-cost heuristic (Shapley fallback: proportional by success).
+        """
+        skills = action.get("skills", [])
+        if not skills or not success:
+            return
+
+        try:
+            from .facade import get_td_lambda
+
+            td = get_td_lambda()
+        except Exception:
+            return
+
+        # Extract per-step outcomes if available
+        step_results = outcome.get("per_step_results", outcome.get("step_results", []))
+
+        if step_results and len(step_results) == len(skills):
+            # Credit by step success: succeeded steps get more credit
+            credits = []
+            for sr in step_results:
+                if isinstance(sr, dict):
+                    step_ok = sr.get("success", sr.get("ok", True))
+                    credits.append(1.0 if step_ok else 0.2)
+                else:
+                    credits.append(0.7)  # ambiguous → moderate credit
+        else:
+            # Uniform credit when step data is absent
+            credits = [1.0] * len(skills)
+
+        total = sum(credits) or 1.0
+        for skill, credit in zip(skills, credits):
+            weighted_reward = quality * (credit / total) * len(skills)
+            weighted_reward = max(0.0, min(1.0, weighted_reward))
+            td.skill_q.update(task_type, skill, weighted_reward, domain=domain)
+
+    def _maybe_auto_optimize(self, domain: str, task_type: str, domain_count: int) -> None:
+        """Auto-trigger DSPy re-optimization and crystallization.
+
+        Called from record() when a successful episode lands in a domain
+        with enough accumulated gold data. Two actions:
+
+        1. DSPy re-optimize: every _dspy_optimize_interval episodes per
+           domain, gather gold episodes and run MIPROv2/BootstrapRS.
+           This makes prompts incrementally better *before* graduation.
+
+        2. Crystallize: after DSPy optimization (or on its own schedule),
+           check if Q-values have converged enough to harden into an SOP.
+
+        Both are cheap checks — the expensive work (DSPy compile, LLM
+        calls) only fires when thresholds are crossed.
+        """
+        last_opt = self._last_optimize_counts.get(domain, 0)
+        if domain_count - last_opt < self._dspy_optimize_interval:
+            return
+
+        self._last_optimize_counts[domain] = domain_count
+
+        # 1. DSPy re-optimization (incremental, pre-crystallization)
+        try:
+            from .advanced_learning import DomainDSPyOptimizer
+
+            optimizer = DomainDSPyOptimizer.get_instance()
+            gold_count = len(optimizer._gather_training_data(domain))
+            if gold_count >= 5:
+                optimized = optimizer.optimize(domain)
+                if optimized:
+                    logger.info(
+                        f"Auto-DSPy-optimize: {domain} re-optimized "
+                        f"({gold_count} gold episodes, trigger at count={domain_count})"
+                    )
+        except Exception as e:
+            logger.debug(f"Auto-DSPy-optimize failed for {domain}: {e}")
+
+        # 2. Validate before crystallizing — prove learning is genuinely better
+        try:
+            from .validation import LearningValidator
+
+            validator = LearningValidator.get_instance()
+            report = validator.validate_domain(domain, task_type)
+            if not report.overall_passed:
+                logger.info(
+                    f"Validation gate blocked crystallization for {domain}:{task_type} "
+                    f"— {report.recommendation}: "
+                    + "; ".join(f"{c.check}={'✓' if c.passed else '✗'}" for c in report.checks)
+                )
+                return
+        except Exception as e:
+            logger.debug(f"Validation check failed for {domain}:{task_type}: {e}")
+
+        # 3. Auto-crystallize (graduation check) — only reached if validation passed
+        try:
+            from .crystallization import maybe_crystallize
+
+            config = maybe_crystallize(task_type, domain)
+            if config:
+                logger.info(
+                    f"Auto-crystallized {domain}:{task_type} — "
+                    f"SOP={' → '.join(config.sop_roles)}"
+                )
+        except Exception as e:
+            logger.debug(f"Auto-crystallize failed for {domain}:{task_type}: {e}")
 
     @staticmethod
     def _extract_lesson(

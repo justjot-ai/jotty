@@ -28,6 +28,33 @@ from Jotty.core.infrastructure.foundation.robust_parsing import (
     AdaptiveWeightGroup,  # type: ignore[import-not-found, import]
 )
 
+
+class _NullTransferStore:
+    """Null object replacing TransferableLearningStore (removed dead code).
+
+    Silently no-ops on all calls so the pipeline doesn't need None guards.
+    """
+
+    experiences: list = []
+
+    class extractor:
+        @staticmethod
+        def extract_task_type(goal: str) -> str:
+            return "general"
+
+    def load(self, *a: Any, **kw: Any) -> bool:
+        return False
+
+    def save(self, *a: Any, **kw: Any) -> None:
+        pass
+
+    def record_experience(self, **kw: Any) -> None:
+        pass
+
+    def get_relevant_context(self, query: str, **kw: Any) -> str:
+        return ""
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -177,13 +204,6 @@ class SwarmLearningPipeline:
 
     def _init_components(self) -> Any:
         """Initialize all learning components."""
-        from Jotty.core.intelligence.learning.predictive_marl import (  # type: ignore[import]
-            DivergenceMemory,
-            LLMTrajectoryPredictor,
-        )
-        from Jotty.core.intelligence.learning.transfer_learning import (
-            TransferableLearningStore,  # type: ignore[import]
-        )
         from Jotty.core.intelligence.memory.consolidation_engine import (
             AgentAbstractor,
             BrainModeConfig,
@@ -199,15 +219,10 @@ class SwarmLearningPipeline:
 
         from ..intelligence.swarm_intelligence import SwarmIntelligence
 
-        # Trajectory prediction (MARL)
+        # Trajectory prediction — removed (predictive_marl was dead code).
+        # LearningService._update_skill_credits() now handles per-agent credit.
         self.trajectory_predictor = None
-        try:
-            self.trajectory_predictor = LLMTrajectoryPredictor(self.config, horizon=5)
-        except Exception as e:
-            logger.warning(f"Trajectory predictor unavailable: {e}")
-
-        # Divergence memory for storing prediction errors
-        self.divergence_memory = DivergenceMemory(self.config)
+        self.divergence_memory = None
 
         # Brain state machine for consolidation
         brain_config = BrainModeConfig()
@@ -223,8 +238,7 @@ class SwarmLearningPipeline:
         # Swarm learner for prompt evolution
         self.swarm_learner = SwarmLearner(self.config)
 
-        # Transferable learning (cross-swarm, cross-goal)
-        self.transfer_learning = TransferableLearningStore(self.config)
+        self.transfer_learning = _NullTransferStore()
 
         # Swarm intelligence (emergent specialization, consensus, routing)
         self.swarm_intelligence = SwarmIntelligence(self.config)

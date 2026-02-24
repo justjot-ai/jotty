@@ -648,25 +648,24 @@ class TestGoldMetric:
         assert score < 0.5, "But not high credit without gold to compare against"
 
 
-class TestDomainTaskPipeline:
-    """Verify the 3-stage DSPy pipeline classes are correctly defined."""
+class TestDomainTaskModule:
+    """Verify DSPy module classes returned by _get_domain_task_classes."""
 
     @pytest.mark.unit
-    def test_pipeline_class_has_three_stages(self):
+    def test_module_has_generate_and_validate(self):
         from Jotty.core.intelligence.learning.advanced_learning import _get_domain_task_classes
 
-        Sig, Module, Pipeline = _get_domain_task_classes()
+        Sig, Module = _get_domain_task_classes()
 
-        pipeline = Pipeline()
-        assert hasattr(pipeline, "generate"), "Pipeline should have generate stage"
-        assert hasattr(pipeline, "validate"), "Pipeline should have validate stage"
-        assert hasattr(pipeline, "refine"), "Pipeline should have refine stage"
+        module = Module()
+        assert hasattr(module, "generate"), "Module should have generate stage"
+        assert hasattr(module, "forward"), "Module should have forward method"
 
     @pytest.mark.unit
     def test_module_still_works_as_before(self):
         from Jotty.core.intelligence.learning.advanced_learning import _get_domain_task_classes
 
-        _, Module, _ = _get_domain_task_classes()
+        _, Module = _get_domain_task_classes()
         module = Module()
         assert hasattr(module, "generate")
 
@@ -674,7 +673,7 @@ class TestDomainTaskPipeline:
     def test_signature_has_correct_fields(self):
         from Jotty.core.intelligence.learning.advanced_learning import _get_domain_task_classes
 
-        Sig, _, _ = _get_domain_task_classes()
+        Sig, _ = _get_domain_task_classes()
 
         input_keys = [
             k
@@ -751,3 +750,212 @@ class TestOptimizerTrainDevSplit:
 
         # Only the high-quality episode should pass the gate
         assert len(examples) == 1
+
+    @pytest.mark.unit
+    def test_optimize_accepts_strategy_parameter(self):
+        """The optimize() method should accept strategy='auto'|'mipro'|'bootstrap'."""
+        import inspect
+        from Jotty.core.intelligence.learning.advanced_learning import DomainDSPyOptimizer
+
+        sig = inspect.signature(DomainDSPyOptimizer.optimize)
+        assert "strategy" in sig.parameters
+        assert sig.parameters["strategy"].default == "auto"
+
+
+class TestSkillCreditDistribution:
+    """Verify per-skill credit-weighted Q-table updates."""
+
+    @pytest.mark.unit
+    def test_credit_weights_by_step_success(self):
+        """Skills with successful steps get more credit than failed ones."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        mock_store = MagicMock()
+        mock_store.get_value.return_value = None
+        mock_store.query_episodes.return_value = []
+        mock_store.get_distilled_lessons.return_value = []
+
+        td = _make_td_lambda()
+
+        with (
+            patch(
+                "Jotty.core.intelligence.learning.learning_store.LearningStore.get_instance",
+                return_value=mock_store,
+            ),
+            patch(
+                "Jotty.core.intelligence.learning.facade.get_td_lambda",
+                return_value=td,
+            ),
+        ):
+            svc = LearningService.__new__(LearningService)
+            svc._store = mock_store
+
+            svc._update_skill_credits(
+                domain="coding",
+                task_type="code_generation",
+                action={"skills": ["good-skill", "bad-skill"]},
+                outcome={
+                    "per_step_results": [
+                        {"success": True},
+                        {"success": False},
+                    ]
+                },
+                success=True,
+                quality=0.8,
+            )
+
+        good_q = td.skill_q.get_q("code_generation", "good-skill", domain="coding")
+        bad_q = td.skill_q.get_q("code_generation", "bad-skill", domain="coding")
+        assert (
+            good_q > bad_q
+        ), f"Successful skill ({good_q}) should have higher Q than failed ({bad_q})"
+
+    @pytest.mark.unit
+    def test_uniform_credit_without_step_data(self):
+        """Without per-step data, credit is distributed uniformly."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        mock_store = MagicMock()
+        mock_store.get_value.return_value = None
+
+        td = _make_td_lambda()
+
+        with (
+            patch(
+                "Jotty.core.intelligence.learning.learning_store.LearningStore.get_instance",
+                return_value=mock_store,
+            ),
+            patch(
+                "Jotty.core.intelligence.learning.facade.get_td_lambda",
+                return_value=td,
+            ),
+        ):
+            svc = LearningService.__new__(LearningService)
+            svc._store = mock_store
+
+            svc._update_skill_credits(
+                domain="research",
+                task_type="research_summary",
+                action={"skills": ["skill-a", "skill-b"]},
+                outcome={"content": "some output"},
+                success=True,
+                quality=0.8,
+            )
+
+        q_a = td.skill_q.get_q("research_summary", "skill-a", domain="research")
+        q_b = td.skill_q.get_q("research_summary", "skill-b", domain="research")
+        assert (
+            abs(q_a - q_b) < 0.01
+        ), f"Without step data, skills should get equal credit ({q_a} vs {q_b})"
+
+    @pytest.mark.unit
+    def test_no_credit_on_failure(self):
+        """Failed episodes should not trigger credit distribution."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        mock_store = MagicMock()
+        mock_store.get_value.return_value = None
+
+        td = _make_td_lambda()
+
+        with (
+            patch(
+                "Jotty.core.intelligence.learning.learning_store.LearningStore.get_instance",
+                return_value=mock_store,
+            ),
+            patch(
+                "Jotty.core.intelligence.learning.facade.get_td_lambda",
+                return_value=td,
+            ),
+        ):
+            svc = LearningService.__new__(LearningService)
+            svc._store = mock_store
+
+            svc._update_skill_credits(
+                domain="coding",
+                task_type="code_generation",
+                action={"skills": ["skill-x"]},
+                outcome={},
+                success=False,
+                quality=0.2,
+            )
+
+        q_x = td.skill_q.get_q("code_generation", "skill-x", domain="coding")
+        assert q_x == 0.5, f"Failed episode should leave Q at default 0.5, got {q_x}"
+
+
+@pytest.mark.unit
+class TestAutoOptimizeTrigger:
+    """Verify that record() auto-triggers DSPy optimization and crystallization."""
+
+    def test_auto_optimize_fires_after_threshold(self):
+        """_maybe_auto_optimize should call DomainDSPyOptimizer.optimize when gold >= 5."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        svc = LearningService.__new__(LearningService)
+        svc._last_optimize_counts = {}
+        svc._dspy_optimize_interval = 15
+
+        mock_optimizer = MagicMock()
+        mock_optimizer._gather_training_data.return_value = [1, 2, 3, 4, 5]  # 5 gold
+        mock_optimizer.optimize.return_value = MagicMock()
+
+        with (
+            patch("Jotty.core.intelligence.learning.learning_service.logger"),
+            patch(
+                "Jotty.core.intelligence.learning.advanced_learning.DomainDSPyOptimizer.get_instance",
+                return_value=mock_optimizer,
+            ),
+            patch(
+                "Jotty.core.intelligence.learning.crystallization.maybe_crystallize",
+                return_value=None,
+            ) as mock_crystal,
+        ):
+            svc._maybe_auto_optimize("coding", "code_gen", domain_count=20)
+
+        mock_optimizer.optimize.assert_called_once_with("coding")
+        mock_crystal.assert_called_once_with("code_gen", "coding")
+
+    def test_auto_optimize_skips_below_interval(self):
+        """Should not fire when domain_count hasn't advanced by _dspy_optimize_interval."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        svc = LearningService.__new__(LearningService)
+        svc._last_optimize_counts = {"coding": 10}
+        svc._dspy_optimize_interval = 15
+
+        mock_optimizer = MagicMock()
+
+        with patch(
+            "Jotty.core.intelligence.learning.advanced_learning.DomainDSPyOptimizer.get_instance",
+            return_value=mock_optimizer,
+        ):
+            svc._maybe_auto_optimize("coding", "code_gen", domain_count=20)
+
+        mock_optimizer.optimize.assert_not_called()
+
+    def test_auto_optimize_skips_low_gold(self):
+        """Should not call optimize when gold episodes < 5."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+
+        svc = LearningService.__new__(LearningService)
+        svc._last_optimize_counts = {}
+        svc._dspy_optimize_interval = 15
+
+        mock_optimizer = MagicMock()
+        mock_optimizer._gather_training_data.return_value = [1, 2]  # only 2
+
+        with (
+            patch("Jotty.core.intelligence.learning.learning_service.logger"),
+            patch(
+                "Jotty.core.intelligence.learning.advanced_learning.DomainDSPyOptimizer.get_instance",
+                return_value=mock_optimizer,
+            ),
+            patch(
+                "Jotty.core.intelligence.learning.crystallization.maybe_crystallize",
+                return_value=None,
+            ),
+        ):
+            svc._maybe_auto_optimize("coding", "code_gen", domain_count=20)
+
+        mock_optimizer.optimize.assert_not_called()

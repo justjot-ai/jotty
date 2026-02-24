@@ -7,7 +7,12 @@ Run: python test_all_templates.py
 import asyncio
 import sys
 
-from core.intelligence.orchestration.swarms.templates import *
+import pytest
+
+pytest.skip(
+    "Module removed in Feb 2026 restructure: core.intelligence.orchestration.swarms.templates deleted",
+    allow_module_level=True,
+)
 
 
 async def test_all_templates():

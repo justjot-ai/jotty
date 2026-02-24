@@ -22,9 +22,6 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 if TYPE_CHECKING:
     from Jotty.core.infrastructure.foundation.configs import LearningConfig  # type: ignore[import]
     from Jotty.core.intelligence.learning.learning_service import LearningService
-    from Jotty.core.intelligence.learning.reasoning_credit import (
-        ReasoningCreditAssigner,  # type: ignore[import]
-    )
     from Jotty.core.intelligence.learning.shaped_rewards import (
         ShapedRewardManager,  # type: ignore[import]
     )
@@ -79,66 +76,44 @@ def get_learning_system(
     return LearningService.get_instance()
 
 
+_td_lambda_instance: Optional["TDLambdaLearner"] = None
+
+
 def get_td_lambda(
     config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
 ) -> "TDLambdaLearner":
     """
-    Return a TDLambdaLearner for temporal-difference learning.
+    Return the singleton TDLambdaLearner for temporal-difference learning.
 
-    Args:
-        config: Optional LearningConfig or SwarmConfig. If None, uses defaults.
-
-    Returns:
-        TDLambdaLearner instance.
+    All callers share one instance so Q-table updates from record(),
+    _update_skill_credits(), and crystallization see the same state.
     """
-    from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+    global _td_lambda_instance
+    if _td_lambda_instance is None:
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
 
-    resolved = _resolve_learning_config(config)
-    return TDLambdaLearner(config=resolved)
+        resolved = _resolve_learning_config(config)
+        _td_lambda_instance = TDLambdaLearner(config=resolved)
+    return _td_lambda_instance
+
+
+def reset_td_lambda() -> None:
+    """Reset the singleton (for testing)."""
+    global _td_lambda_instance
+    _td_lambda_instance = None
 
 
 def get_credit_assigner(
     config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
-) -> "ReasoningCreditAssigner":
+) -> Any:
+    """Return an AlgorithmicCreditAssigner for per-agent credit assignment.
+
+    Uses Shapley value + difference rewards (from algorithmic_credit.py).
+    For cheap inline credit, see LearningService._update_skill_credits().
     """
-    Return a ReasoningCreditAssigner for multi-step reasoning credit.
+    from Jotty.core.intelligence.learning.algorithmic_credit import AlgorithmicCreditAssigner
 
-    Args:
-        config: Optional LearningConfig or SwarmConfig. If None, uses defaults.
-
-    Returns:
-        ReasoningCreditAssigner instance.
-    """
-    from Jotty.core.intelligence.learning.reasoning_credit import ReasoningCreditAssigner
-
-    resolved = _resolve_learning_config(config)
-    return ReasoningCreditAssigner(config=resolved)
-
-
-def get_offline_learner(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
-) -> Dict[str, Any]:
-    """
-    Return offline learning components: OfflineLearner, CounterfactualLearner, PatternDiscovery.
-
-    Args:
-        config: Optional LearningConfig or SwarmConfig. If None, uses defaults.
-
-    Returns:
-        Dict with 'offline_learner', 'counterfactual', and 'pattern_discovery' keys.
-    """
-    from Jotty.core.intelligence.learning.offline_learning import (  # type: ignore[import]
-        CounterfactualLearner,
-        OfflineLearner,
-        PatternDiscovery,
-    )
-
-    resolved = _resolve_learning_config(config)
-    return {
-        "offline_learner": OfflineLearner(config=resolved),
-        "counterfactual": CounterfactualLearner(config=resolved),
-        "pattern_discovery": PatternDiscovery(config=resolved),
-    }
+    return AlgorithmicCreditAssigner(config=config)
 
 
 def get_reward_manager() -> "ShapedRewardManager":
@@ -151,24 +126,6 @@ def get_reward_manager() -> "ShapedRewardManager":
     from Jotty.core.intelligence.learning.shaped_rewards import ShapedRewardManager
 
     return ShapedRewardManager()
-
-
-def get_cooperative_agents() -> Dict[str, type]:
-    """
-    Return cooperative multi-agent components.
-
-    Returns:
-        Dict with 'predictive_agent' and 'nash_solver' keys (class objects).
-    """
-    from Jotty.core.intelligence.learning.predictive_cooperation import (  # type: ignore[import]
-        NashBargainingSolver,
-        PredictiveCooperativeAgent,
-    )
-
-    return {
-        "predictive_agent": PredictiveCooperativeAgent,
-        "nash_solver": NashBargainingSolver,
-    }
 
 
 def validate_output(output: str, domain: str) -> Any:
@@ -212,16 +169,10 @@ def list_components() -> Dict[str, str]:
         "FactDistillation": "Judge-informed lesson extraction (dedup-aware, incremental)",
         # Validation
         "validate_output": "Verification cascade: library parser → structural heuristic (free, <100ms)",
+        "LearningValidator": "Proves learned knowledge beats baseline (holdout, counterfactual, temporal, staleness)",
         # Credit & rewards
-        "ReasoningCreditAssigner": "Credit assignment for multi-step reasoning chains",
+        "AlgorithmicCreditAssigner": "Shapley value + difference rewards for per-agent credit",
         "ShapedRewardManager": "Reward shaping for faster RL convergence",
-        # Offline & patterns
-        "OfflineLearner": "Batch learning from stored episode buffers",
-        "CounterfactualLearner": "What-if analysis for alternative action sequences",
-        "PatternDiscovery": "Discovers recurring patterns in agent behavior",
-        # Cooperative
-        "PredictiveCooperativeAgent": "Multi-agent cooperation with trajectory prediction",
-        "NashBargainingSolver": "Game-theoretic negotiation between agents",
         # Tool feedback
         "ToolLearningFeedback": "Tool execution → learning feedback loop",
     }
@@ -318,6 +269,27 @@ def get_crystallized(task_type: str, domain: str = "") -> Any:
     from .crystallization import load
 
     return load(task_type, domain)
+
+
+def get_learning_validator() -> Any:
+    """Return the singleton LearningValidator.
+
+    Proves that learned knowledge is genuinely better than a naive baseline.
+    Runs five checks: temporal improvement, holdout evaluation, counterfactual
+    analysis, baseline lift, and staleness detection.
+
+    Example:
+        from Jotty.core.intelligence.learning.facade import get_learning_validator
+
+        validator = get_learning_validator()
+        report = validator.validate_domain("coding", "code_generation")
+        print(report.summary)
+        for check in report.checks:
+            print(f"  {'✓' if check.passed else '✗'} {check.check}: {check.detail}")
+    """
+    from .validation import LearningValidator
+
+    return LearningValidator.get_instance()
 
 
 def get_learning_service() -> Any:

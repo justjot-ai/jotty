@@ -529,16 +529,6 @@ class TestLearningFocusedConfigs:
         resolved = _ensure_swarm_config(cfg)
         assert resolved is cfg
 
-    def test_reasoning_credit_accepts_learning_config(self):
-        """ReasoningCreditAssigner accepts LearningConfig."""
-        from Jotty.core.infrastructure.foundation.configs import LearningConfig
-        from Jotty.core.intelligence.learning.reasoning_credit import _ensure_swarm_config
-
-        cfg = LearningConfig(reasoning_weight=0.5, evidence_weight=0.3)
-        resolved = _ensure_swarm_config(cfg)
-        assert resolved.reasoning_weight == 0.5
-        assert resolved.evidence_weight == 0.3
-
     def test_adaptive_components_accept_learning_config(self):
         """Adaptive components accept LearningConfig."""
         from Jotty.core.infrastructure.foundation.configs import LearningConfig
@@ -548,15 +538,6 @@ class TestLearningFocusedConfigs:
         resolved = _ensure_swarm_config(cfg)
         assert resolved.alpha == 0.02
         assert resolved.alpha_min == 0.005
-
-    def test_offline_learning_accepts_learning_config(self):
-        """Offline learning components accept LearningConfig."""
-        from Jotty.core.infrastructure.foundation.configs import LearningConfig
-        from Jotty.core.intelligence.learning.offline_learning import _ensure_swarm_config
-
-        cfg = LearningConfig(episode_buffer_size=500)
-        resolved = _ensure_swarm_config(cfg)
-        assert resolved.episode_buffer_size == 500
 
 
 # =============================================================================

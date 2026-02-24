@@ -500,14 +500,8 @@ JSON only:""",
 
         try:
             from Jotty.core.intelligence.learning.learning_service import LearningService
-            from Jotty.core.intelligence.learning.transfer_learning import (
-                TransferableLearningStore,  # type: ignore[import]
-            )
 
-            self._transfer_store = TransferableLearningStore()
-            store_path = os.path.join("Jotty", "outputs", "transfer_store.json")
-            if os.path.exists(store_path):
-                self._transfer_store.load(store_path)  # type: ignore[attr-defined]
+            self._transfer_store = None
 
             # Use LearningService singleton (SQLite-backed, auto-persisted)
             self._learning_coordinator = LearningService.get_instance()

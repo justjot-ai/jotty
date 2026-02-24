@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.registry.skills_registry import get_skills_registry
+from Jotty.core.capabilities.registry import get_skills_registry
 
 
 def test_weather_skill_usage():

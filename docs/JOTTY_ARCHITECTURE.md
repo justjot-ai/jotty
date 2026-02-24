@@ -107,7 +107,7 @@ Single entry point combining two sub-registries:
 registry = get_unified_registry()
 
 # Backend (Skills = "Hands")
-registry.list_skills()                    # 273 skills
+registry.list_skills()                    # 198 skills
 registry.discover("get stock quote")      # Semantic discovery
 registry.get_claude_tools(['web-search']) # Convert to Claude tool format
 
@@ -118,7 +118,7 @@ registry.ui.convert_to_a2ui('chart', data)
 
 ### SkillsRegistry (`core/capabilities/registry/skills_registry.py`)
 
-Manages 273 skills loaded from `skills/` directories. Each skill has:
+Manages 198 skills loaded from `skills/` directories. Each skill has:
 - `tools.py`: Tool function implementations
 - `SKILL.md`: Metadata (name, description, capabilities, dependencies)
 - Optional `skill.yaml`: Schema definitions
@@ -389,7 +389,8 @@ Every `JottyError` accepts `message`, `context` (dict), and `original_error` (fo
 ## Key Design Patterns
 
 ### Lazy Initialization
-Heavy imports (DSPy, ML libraries) are deferred until first use to keep startup under 2 seconds:
+Heavy imports (DSPy, ML libraries) are deferred until first use, targeting
+startup under ~2 seconds in typical configs. Verify locally:
 ```python
 _dspy_module = None
 def _get_dspy():
@@ -438,7 +439,7 @@ class _ConfigView:
 
 ## Skills System
 
-273 skills organized in `skills/` directories:
+198 skills organized in `skills/` directories:
 
 | Category | Skills | Examples |
 |----------|--------|---------|

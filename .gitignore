@@ -69,3 +69,4 @@ tests/e2e/results/
 MagicMock/
 scripts/eval_results/
 artifacts/
+.venv/

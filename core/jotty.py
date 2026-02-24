@@ -58,14 +58,6 @@ from .intelligence.learning.algorithmic_credit import (
     DifferenceRewardEstimator as ImpactEstimator,
 )
 from .intelligence.learning.algorithmic_credit import ShapleyValueEstimator as ContributionEstimator
-
-# Predictive Cooperation
-from .intelligence.learning.predictive_cooperation import (
-    CooperationPrinciples,
-    CooperationReasoner,
-    NashBargainingSolver,
-    PredictiveCooperativeAgent,
-)
 from .intelligence.learning.q_learning import LLMQPredictor as RewardLearner
 
 # Learning Components
@@ -153,7 +145,7 @@ def create_cortex(config: Optional[SwarmConfig] = None) -> Cortex:
     """
     if config is None:
         config = SwarmConfig()
-    return Cortex(config)  # type: ignore[call-arg]
+    return Cortex(config)  # type: ignore[arg-type, call-arg]
 
 
 def create_axon() -> Axon:
@@ -173,7 +165,7 @@ def create_roadmap(goal: str) -> Roadmap:
     The Roadmap tracks tasks with state, enables checkpointing,
     and supports dynamic updates during execution.
     """
-    roadmap = Roadmap(main_goal=goal)
+    roadmap = Roadmap(main_goal=goal)  # type: ignore[call-arg]
     return roadmap
 
 
@@ -223,11 +215,6 @@ __all__ = [
     "Catalog",
     "Vault",
     "Chronicle",
-    # Cooperation
-    "CooperationPrinciples",
-    "NashBargainingSolver",
-    "CooperationReasoner",
-    "PredictiveCooperativeAgent",
     "ContextGradient",
     "ContextApplier",
     "ContextUpdate",

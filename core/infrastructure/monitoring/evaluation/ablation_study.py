@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
+from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig as SwarmConfig
+
 from .benchmark import Benchmark
 from .evaluation_protocol import EvaluationProtocol, EvaluationReport
 
@@ -213,7 +215,7 @@ class AblationStudy:
         if self.baseline_config is None:
             # Create default config
 
-            config = SwarmConfig()  # type: ignore[name-defined]
+            config = SwarmConfig()
         else:
             # Copy config (simple copy for now)
             import copy
@@ -638,7 +640,7 @@ class ConfigTuner:
         """Build a SwarmConfig with the given overrides applied."""
         if self.baseline_config is None:
 
-            config = SwarmConfig()  # type: ignore[name-defined]
+            config = SwarmConfig()
         else:
             config = copy.deepcopy(self.baseline_config)
 

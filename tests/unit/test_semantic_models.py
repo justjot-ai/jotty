@@ -9,46 +9,15 @@ Tests cover:
 All tests are offline, unit-level, and use mocks where needed.
 """
 
-from datetime import datetime, timedelta
-from unittest.mock import patch
-
 import pytest
 
-# LookML models imports
-from Jotty.core.capabilities.semantic.lookml.models import (
-    Dimension,
-    DimensionType,
-    Explore,
-    Join,
-    JoinType,
-    LookMLModel,
-    Measure,
-    View,
-)
-from Jotty.core.capabilities.semantic.lookml.models import MeasureType as LookMLMeasureType
-from Jotty.core.capabilities.semantic.lookml.models import Relationship as LookMLRelationship
-
-# Semantic models imports
-from Jotty.core.capabilities.semantic.models import (
-    Column,
-    ColumnType,
-    ForeignKey,
-    Index,
-    MeasureType,
-    Relationship,
-    RelationType,
-    Schema,
-    Table,
+pytest.skip(
+    "Module removed in Feb 2026 restructure: Jotty.core.capabilities.semantic moved to skills/semantic_layer/ (external package)",
+    allow_module_level=True,
 )
 
-# Date preprocessor imports
-from Jotty.core.capabilities.semantic.query.date_preprocessor import (
-    BaseDatePreprocessor,
-    DateFormat,
-    DatePreprocessor,
-    DatePreprocessorFactory,
-    SQLDatePreprocessor,
-)
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
 # =============================================================================
 # Test Semantic Models - Enums

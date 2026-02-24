@@ -16,8 +16,8 @@ from Jotty.core.intelligence.reasoning.agents.memory_integration import (
     retrieve_improvements_from_memory,
     store_improvement_to_memory,
 )
-from core.foundation.data_structures import MemoryLevel, SwarmConfig
-from core.memory.cortex import SwarmMemory
+from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
+from Jotty.core.intelligence.memory.cortex import SwarmMemory
 
 
 async def test_memory_integration():

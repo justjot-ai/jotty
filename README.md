@@ -1,45 +1,106 @@
--- Atomic token bucket update
--- 1. Calculate tokens to add based on elapsed time
--- 2. Update bucket with new token count
--- 3. Attempt to consume token for request
--- 4. Return success/failure with remaining tokens
+# Jotty
 
-RateLimiter(redis_client, key_prefix, rate, capacity, window_size_seconds)
+Jotty is a multi-agent AI framework with swarms, skills, memory/learning, and multiple interfaces (CLI, API, web, messaging). It provides a stable SDK, a layered core, and tooling for orchestrating autonomous workflows.
 
-if limiter.allow_request('user_123'):
-    process_request()
-else:
-    return_rate_limit_error()
+## What This Repo Contains
 
-remaining = limiter.get_remaining_tokens('user_123')
-response_headers['X-RateLimit-Remaining'] = str(remaining)
+- `apps/` - Interface apps (API server, CLI, web, Telegram, WhatsApp)
+- `sdk/` - Public SDK used by apps
+- `core/` - Core framework (interface, capabilities, intelligence, infrastructure)
+- `skills/` - Skill definitions loaded by the registry
+- `docs/` - Architecture + subsystem docs
+- `tests/` - Test suite and fixtures
 
-# Admin override or quota reset
-limiter.reset_bucket('premium_user_456')
+## Architecture (High-Level)
 
-# Conservative API limits
-conservative_limiter = RateLimiter(
-    redis_client=redis_client,
-    key_prefix='api_v1',
-    rate=10,           # 10 requests/second
-    capacity=50,       # Burst of 50
-    window_size_seconds=60
-)
+Jotty follows a layered architecture to keep apps stable while the core evolves:
 
-# High-throughput service
-high_throughput_limiter = RateLimiter(
-    redis_client=redis_client,
-    key_prefix='internal_api',
-    rate=1000,         # 1000 requests/second
-    capacity=5000,     # Large burst capacity
-    window_size_seconds=30
-)
+```
+apps/  ->  sdk/  ->  core/interface/  ->  core/intelligence/
+```
 
-# Strict rate limiting
-strict_limiter = RateLimiter(
-    redis_client=redis_client,
-    key_prefix='public_api',
-    rate=5,            # 5 requests/second
-    capacity=5,        # No burst allowance
-    window_size_seconds=60
-)
+- Apps should import from the SDK.
+- The SDK uses the internal API in `core/interface/`.
+- Orchestration, learning, and memory live under `core/intelligence/`.
+
+For details, see `docs/JOTTY_ARCHITECTURE.md`.
+
+## Quick Start (Dev)
+
+```bash
+pip install -r requirements.txt
+```
+
+Common environment variables (see `CLAUDE.md` for the full list):
+
+```bash
+export ANTHROPIC_API_KEY="your-key"
+export OPENAI_API_KEY="your-key"   # optional
+```
+
+Run a CLI session:
+
+```bash
+python -m Jotty.apps.cli
+```
+
+Run the web server (HTTP/WS gateway):
+
+```bash
+python web.py
+```
+
+## Usage Examples
+
+### Chat + Workflow via SDK
+
+```python
+from Jotty import Jotty
+
+j = Jotty()
+response = await j.chat("Hello")
+result = await j.run("Research AI trends and summarize")
+```
+
+### Swarm Orchestration
+
+```python
+from Jotty import Orchestrator
+
+swarm = Orchestrator(agents="Researcher + Writer + Reviewer")
+result = await swarm.run(goal="Write a 500-word article on quantum computing")
+```
+
+### Capability Discovery
+
+```python
+from Jotty import capabilities
+
+caps = capabilities()
+print(caps.keys())
+```
+
+## Documentation
+
+- `docs/GETTING_STARTED.md`
+- `docs/JOTTY_ARCHITECTURE.md`
+- `docs/API_REFERENCE.md`
+- `sdk/README.md`
+- `tests/README.md`
+
+## Counts (Auto-Derived)
+
+Current counts (from repo tree):
+
+- Skills: 198
+- Swarms: 6
+
+Refresh counts:
+
+```bash
+python scripts/count_capabilities.py
+```
+
+## Contributing & Tests
+
+See `CONTRIBUTING.md` and `tests/README.md` for test instructions and markers.

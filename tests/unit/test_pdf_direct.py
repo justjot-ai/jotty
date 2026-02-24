@@ -9,9 +9,14 @@ Tests PDF generation with properly formatted LaTeX math to ensure it works.
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+import pytest
 
-from core.tools.content_generation import ContentGenerators, Document, SectionType
+pytest.skip(
+    "Module removed in Feb 2026 restructure: core.tools.content_generation moved to skills/document-tools/ (external package)",
+    allow_module_level=True,
+)
+
+sys.path.insert(0, str(Path(__file__).parent))
 
 
 def test_pdf_generation():

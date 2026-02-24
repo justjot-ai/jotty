@@ -19,11 +19,11 @@ import os
 import time
 
 import pytest
-from core.foundation.data_structures import MemoryLevel, SwarmConfig
-from core.learning.adaptive_components import AdaptiveLearningRate
-from core.learning.td_lambda import TDLambdaLearner
-from core.memory.cortex import SwarmMemory
-from core.orchestration.swarm_intelligence import SwarmIntelligence
+from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
+from Jotty.core.intelligence.learning.adaptive_components import AdaptiveLearningRate
+from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+from Jotty.core.intelligence.memory.cortex import SwarmMemory
+from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import SwarmIntelligence
 
 logger = logging.getLogger(__name__)
 

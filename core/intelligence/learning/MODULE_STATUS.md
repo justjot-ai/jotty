@@ -1,49 +1,72 @@
 # Learning Module Status
 
-Last audited: 2026-02-08
+Last audited: 2026-02-24
 
 ## Module Status (by actual usage)
 
-### ACTIVE — Instantiated in production code paths
+### ACTIVE — Core learning pipeline (reported via benchmarks; verify locally)
+
+| Module | Lines | Status | Used by |
+|--------|-------|--------|---------|
+| `td_lambda.py` | ~2,400 | **Reported** | TDLambdaLearner, SkillQTable, StepQTable — central learning engine with convergence tracking |
+| `crystallization.py` | ~520 | **Reported** | should_crystallize, crystallize, run_probation — graduation pipeline |
+| `advanced_learning.py` | ~1,100 | **Reported** | DomainDSPyOptimizer (MIPROv2 + BootstrapRS), _gold_metric, Reflexion, VoyagerSkillLib |
+| `learning_service.py` | ~3,000 | **Active** | Central service: episodes, Q-tables, distillation, DSPy integration |
+| `learning_store.py` | ~800 | **Active** | SQLite persistence for episodes, lessons, Q-tables |
+| `facade.py` | ~200 | **Active** | get_td_lambda, get_learning_service, get_reward_manager |
+
+### SUPPORT — Internal utilities for active modules
 
 | Module | Lines | Used by |
 |--------|-------|---------|
-| `learning.py` | 28 | Re-exports from td_lambda, adaptive_components, health_budget, reasoning_credit |
-| `td_lambda.py` | 722 | TDLambdaLearner used in agent_runner, jotty.py |
-| `q_learning.py` | 1,634 | LLMQPredictor used in learning_coordinator, jotty.py |
-| `shaped_rewards.py` | 378 | ShapedRewardManager used in agent_runner |
-| `algorithmic_credit.py` | 530 | ShapleyValueEstimator, DifferenceRewardEstimator, AlgorithmicCreditAssigner used in jotty.py, algorithmic_foundations.py |
-| `transfer_learning.py` | 1,026 | TransferableLearningStore used in learning_pipeline |
-| `learning_coordinator.py` | 819 | LearningCoordinator used in learning_pipeline |
-| `predictive_marl.py` | 734 | CooperativeCreditAssigner, LLMTrajectoryPredictor used in learning_pipeline |
-
-### SUPPORT — Used internally by active modules only
-
-| Module | Lines | Used by |
-|--------|-------|---------|
-| `adaptive_components.py` | 279 | Used by td_lambda.py, learning.py (AdaptiveLearningRate, IntermediateRewardCalculator) |
-| `health_budget.py` | 340 | Used by learning.py (LearningHealthMonitor, DynamicBudgetManager) |
+| `adaptive_components.py` | 279 | td_lambda.py (AdaptiveLearningRate, IntermediateRewardCalculator) |
+| `health_budget.py` | 340 | LearningHealthMonitor, DynamicBudgetManager |
 | `base_classes.py` | 246 | Base dataclasses for learning types |
 | `utils.py` | 513 | Shared utilities |
 
-### UNUSED — Never instantiated outside learning/
+### INTEGRATED — Wired into production execution paths
 
-| Module | Lines | Notes |
-|--------|-------|-------|
-| `reasoning_credit.py` | 233 | ReasoningCreditAssigner imported but never instantiated. Credit overlap with algorithmic_credit. |
-| `predictive_cooperation.py` | 537 | CooperationReasoner, NashBargainingSolver, PredictiveCooperativeAgent — 0 instantiations |
-| `rl_components.py` | 423 | RLComponents — 0 external imports |
-| `base_learning_manager.py` | 267 | BaseLearningManager interfaces — 0 external instantiations |
-| `offline_learning.py` | 645 | CounterfactualLearner, OfflineLearner, PatternDiscovery — only used through utils.py |
+Modules that were previously "aspirational" but are now reported to be called in
+real execution paths. Confirmed by code tracing (grep for call sites).
 
-### CONSOLIDATION OPPORTUNITIES
+| Module | Lines | Integration Point | How |
+|--------|-------|-------------------|-----|
+| `shaped_rewards.py` | 401 | `agent_runner.py:351` | `ShapedRewardManager` instantiated when learning enabled; `.check_rewards()` on every step; `.get_total_reward()` for final episode reward |
+| `q_learning.py` | 1,791 | `swarm_manager.py:193` | `LLMQPredictor` lazy-created; `.predict_q_value()` in `swarm_roadmap.py:714` for ε-greedy task selection; buffer persisted via `vault.py` |
+| `algorithmic_credit.py` | 869 | `learning_service.py:_update_skill_credits()` | Per-skill credit-weighted Q-table updates using cheap heuristic (step success). Full Shapley available for offline analysis. |
 
-1. **reasoning_credit → algorithmic_credit**: Both do credit assignment. ReasoningCreditAssigner can merge into algorithmic_credit.
-2. **predictive_cooperation → predictive_marl**: Both do multi-agent prediction. CooperationReasoner overlaps conceptually.
-3. **rl_components + base_learning_manager**: Pure interfaces with no external users. Could merge or archive.
-4. **offline_learning**: Large but only internally referenced. Could be lazy-loaded.
+### DEAD CODE — Duplicates of reported modules
 
-### Total: 9,534 lines across 18 files
-### Active: ~5,571 lines (8 files) — 58% of total
-### Unused: ~2,105 lines (5 files) — 22% of total
-### Support: ~1,378 lines (4 files) — 14% of total
+These modules contain valid algorithms but every capability they provide is
+already covered by an active module. Marked with `STATUS: DEAD CODE` docstrings
+pointing to the replacement module.
+
+| Module | Lines | Replaced By |
+|--------|-------|-------------|
+| `predictive_cooperation.py` | 523 | `algorithmic_credit.py` (Shapley) + `shaped_rewards.py` (intermediate rewards) |
+| `transfer_learning.py` | ~1,000 | `td_lambda.py` hierarchical domain keys (domain-specific → base fallback) |
+| `predictive_marl.py` | ~734 | `algorithmic_credit.py` + `td_lambda.py` |
+| `learning_coordinator.py` | ~819 | `LearningService` (central service coordinates everything) |
+| `reasoning_credit.py` | 233 | `algorithmic_credit.py` (strict superset) |
+| `rl_components.py` | 423 | `td_lambda.py` + `q_learning.py` + `shaped_rewards.py` |
+| `base_learning_manager.py` | 245 | No external implementations; abstract interfaces unused |
+| `offline_learning.py` | 645 | `LearningService._extract_patterns()` + `algorithmic_credit.DifferenceRewardEstimator` |
+
+### Benchmark Results (2026-02-24)
+
+Last audit reported all 4 core tests passing across 4 domains (16/16).
+Re-run locally to confirm:
+
+| Domain | Skill Ranking | Convergence | Gold Metric | Crystallization |
+|--------|:---:|:---:|:---:|:---:|
+| coding | PASS | PASS | PASS | PASS |
+| research | PASS | PASS | PASS | PASS |
+| writing | PASS | PASS | PASS | PASS |
+| data_analysis | PASS | PASS | PASS | PASS |
+
+### Summary
+
+- **Active+Support+Integrated**: ~11,500 lines (reported active/integrated; see audit above)
+- **Dead Code**: ~4,600 lines (valid algorithms, fully replaced by active modules)
+- **Total**: ~16,100 lines across 20+ files
+- **Effective code**: 71% active, 29% dead (all dead code has replacement pointers)

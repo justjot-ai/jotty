@@ -893,7 +893,7 @@ class DomainDSPyOptimizer:
                         }
                     ],
                 )
-                output = resp.content[0].text.strip()
+                output = getattr(resp.content[0], "text", "").strip()
                 vr = validate_output(output, domain) if output else None
                 if vr and vr.valid:
                     self.add_gold_examples(domain, [{"task": task_desc, "output": output}])
@@ -984,12 +984,16 @@ class DomainDSPyOptimizer:
         max_labeled: int = 8,
         num_candidate_programs: int = 6,
         metric=None,
+        strategy: str = "auto",
     ):
-        """Run BootstrapFewShotWithRandomSearch optimization for a domain.
+        """Optimize a DSPy module for a domain using gold episodes.
 
-        Tries `num_candidate_programs` random demo configurations, keeps
-        the best. 80/20 train/dev split for unbiased evaluation.
-        Module includes cheap programmatic validation + one retry.
+        Args:
+            strategy: Which DSPy optimizer to use:
+                - "auto": MIPROv2 if >=8 examples (rewrites instructions + demos),
+                  falls back to BootstrapFewShotWithRandomSearch otherwise.
+                - "mipro": Force MIPROv2 (instruction + demo optimization).
+                - "bootstrap": Force BootstrapFewShotWithRandomSearch (demo-only).
         """
         import dspy
 
@@ -1007,7 +1011,7 @@ class DomainDSPyOptimizer:
         if metric is None:
             metric = _gold_metric
 
-        # 80/20 train/dev split — dev set used for unbiased candidate evaluation
+        # 80/20 train/dev split
         import random as _rng
 
         shuffled = list(examples)
@@ -1022,20 +1026,41 @@ class DomainDSPyOptimizer:
             )
 
             teacher_lm = UnifiedLMProvider.create_lm(provider="anthropic", model="sonnet")
+            student_lm = UnifiedLMProvider.create_lm(provider="anthropic", model="haiku")
 
-            optimizer = dspy.BootstrapFewShotWithRandomSearch(
-                metric=metric,
-                max_bootstrapped_demos=max_bootstrapped,
-                max_labeled_demos=min(len(trainset), max_labeled),
-                num_candidate_programs=num_candidate_programs,
-            )
+            # Pick optimizer strategy
+            use_mipro = strategy == "mipro" or (strategy == "auto" and len(trainset) >= 8)
 
-            with dspy.context(lm=teacher_lm):
-                optimized = optimizer.compile(module, trainset=trainset[:12])
+            if use_mipro:
+                optimizer = dspy.MIPROv2(
+                    metric=metric,
+                    prompt_model=teacher_lm,
+                    task_model=student_lm,
+                    max_bootstrapped_demos=max_bootstrapped,
+                    max_labeled_demos=min(len(trainset), max_labeled),
+                    auto="light",
+                    verbose=False,
+                )
+                optimized = optimizer.compile(
+                    module,
+                    trainset=trainset[:16],
+                    valset=devset,
+                )
+                opt_name = "MIPROv2"
+            else:
+                optimizer = dspy.BootstrapFewShotWithRandomSearch(
+                    metric=metric,
+                    max_bootstrapped_demos=max_bootstrapped,
+                    max_labeled_demos=min(len(trainset), max_labeled),
+                    num_candidate_programs=num_candidate_programs,
+                )
+                with dspy.context(lm=teacher_lm):
+                    optimized = optimizer.compile(module, trainset=trainset[:12])
+                opt_name = "BootstrapRS"
 
             # Evaluate on held-out dev set
             dev_scores = []
-            with dspy.context(lm=teacher_lm):
+            with dspy.context(lm=student_lm):
                 for ex in devset:
                     try:
                         pred = optimized(
@@ -1050,10 +1075,9 @@ class DomainDSPyOptimizer:
             save_path = str(self._save_dir / f"{domain}_task_module.json")
             optimized.save(save_path)
             logger.info(
-                f"DomainDSPyOptimizer: optimized {domain} — "
+                f"DomainDSPyOptimizer: {opt_name} optimized {domain} — "
                 f"train={len(trainset)}, dev={len(devset)}, "
-                f"dev_score={avg_dev:.2f}, "
-                f"{num_candidate_programs} candidates, saved to {save_path}"
+                f"dev_score={avg_dev:.2f}, saved to {save_path}"
             )
             return optimized
 

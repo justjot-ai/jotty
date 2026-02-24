@@ -15,16 +15,10 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+pytest.skip(
+    "skill_generator module removed in Feb 2026 restructure",
+    allow_module_level=True,
 )
-
-# Add Jotty to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from core.foundation.unified_lm_provider import UnifiedLMProvider
-from core.registry.skill_generator import get_skill_generator
-from core.registry.skills_registry import get_skills_registry
 
 
 def test_generation_with_usage():

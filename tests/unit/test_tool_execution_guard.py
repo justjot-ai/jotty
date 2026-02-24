@@ -4,15 +4,15 @@ Unit tests for ToolExecutionGuard.
 Tests wrapping behavior, interceptor recording, provider inference, and async support.
 """
 
-import asyncio
-from unittest.mock import MagicMock, patch
-
 import pytest
 
-from Jotty.core.infrastructure.integration.tool_execution_guard import (
-    ToolExecutionGuard,
-    _infer_provider,
+pytest.skip(
+    "Module removed in Feb 2026 restructure: Jotty.core.infrastructure.integration.tool_execution_guard deleted",
+    allow_module_level=True,
 )
+
+import asyncio
+from unittest.mock import MagicMock, patch
 
 
 @pytest.mark.unit

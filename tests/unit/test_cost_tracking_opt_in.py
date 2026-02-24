@@ -15,9 +15,12 @@ from pathlib import Path
 jotty_path = Path(__file__).parent.parent
 sys.path.insert(0, str(jotty_path))
 
-from core.foundation.data_structures import SwarmConfig
-from core.llm.unified import UnifiedLLM
-from core.monitoring import CostTracker, ExecutionStatus, MonitoringFramework
+from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+from Jotty.core.infrastructure.monitoring.metrics import (
+    CostTracker,
+    ExecutionStatus,
+    MonitoringFramework,
+)
 
 
 def test_cost_tracker_disabled():

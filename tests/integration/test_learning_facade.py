@@ -1,5 +1,5 @@
 """
-Tests for the Learning Subsystem Facade (Phase 2a).
+Tests for the Learning Subsystem Facade.
 
 Verifies each learning accessor returns the correct type.
 All tests use mocks where needed and run offline.
@@ -14,57 +14,24 @@ class TestLearningFacade:
 
     def test_get_learning_system_returns_learning_service(self):
         from Jotty.core.intelligence.learning.facade import get_learning_system
-
-        service = get_learning_system()
         from Jotty.core.intelligence.learning.learning_service import LearningService
 
-        assert isinstance(service, LearningService)
-
-    def test_get_learning_system_default_config(self):
-        from Jotty.core.intelligence.learning.facade import get_learning_system
-
         service = get_learning_system()
-        from Jotty.core.intelligence.learning.learning_service import LearningService
-
         assert isinstance(service, LearningService)
 
     def test_get_td_lambda_returns_learner(self):
         from Jotty.core.intelligence.learning.facade import get_td_lambda
-
-        learner = get_td_lambda()
         from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
 
+        learner = get_td_lambda()
         assert isinstance(learner, TDLambdaLearner)
 
     def test_get_credit_assigner_returns_assigner(self):
         from Jotty.core.intelligence.learning.facade import get_credit_assigner
+        from Jotty.core.intelligence.learning.algorithmic_credit import AlgorithmicCreditAssigner
 
         assigner = get_credit_assigner()
-        from Jotty.core.intelligence.learning.reasoning_credit import ReasoningCreditAssigner
-
-        assert isinstance(assigner, ReasoningCreditAssigner)
-
-    def test_get_offline_learner_returns_dict(self):
-        from Jotty.core.intelligence.learning.facade import get_offline_learner
-
-        result = get_offline_learner()
-        assert isinstance(result, dict)
-        assert "offline_learner" in result
-        assert "counterfactual" in result
-        assert "pattern_discovery" in result
-
-    def test_get_offline_learner_types(self):
-        from Jotty.core.intelligence.learning.facade import get_offline_learner
-        from Jotty.core.intelligence.learning.offline_learning import (
-            CounterfactualLearner,
-            OfflineLearner,
-            PatternDiscovery,
-        )
-
-        result = get_offline_learner()
-        assert isinstance(result["offline_learner"], OfflineLearner)
-        assert isinstance(result["counterfactual"], CounterfactualLearner)
-        assert isinstance(result["pattern_discovery"], PatternDiscovery)
+        assert isinstance(assigner, AlgorithmicCreditAssigner)
 
     def test_get_reward_manager_returns_manager(self):
         from Jotty.core.intelligence.learning.facade import get_reward_manager
@@ -72,17 +39,6 @@ class TestLearningFacade:
 
         manager = get_reward_manager()
         assert isinstance(manager, ShapedRewardManager)
-
-    def test_get_cooperative_agents_returns_classes(self):
-        from Jotty.core.intelligence.learning.facade import get_cooperative_agents
-        from Jotty.core.intelligence.learning.predictive_cooperation import (
-            NashBargainingSolver,
-            PredictiveCooperativeAgent,
-        )
-
-        result = get_cooperative_agents()
-        assert result["predictive_agent"] is PredictiveCooperativeAgent
-        assert result["nash_solver"] is NashBargainingSolver
 
     def test_list_components_returns_dict(self):
         from Jotty.core.intelligence.learning.facade import list_components
@@ -98,11 +54,8 @@ class TestLearningFacade:
         expected = [
             "LearningService",
             "TDLambdaLearner",
-            "ReasoningCreditAssigner",
-            "OfflineLearner",
+            "AlgorithmicCreditAssigner",
             "ShapedRewardManager",
-            "PredictiveCooperativeAgent",
-            "NashBargainingSolver",
         ]
         for name in expected:
             assert name in components, f"Missing component: {name}"

@@ -4,16 +4,15 @@ Tests for core/use_cases/base.py
 Covers: UseCaseType, UseCaseConfig, UseCaseResult, BaseUseCase.
 """
 
+import pytest
+
+pytest.skip(
+    "Module removed in Feb 2026 restructure: Jotty.core.intelligence.orchestration.use_cases eliminated during LAYER3_CLEANUP",
+    allow_module_level=True,
+)
+
 import time
 from unittest.mock import MagicMock
-
-import pytest
-from Jotty.core.intelligence.orchestration.use_cases.base import (
-    BaseUseCase,
-    UseCaseConfig,
-    UseCaseResult,
-    UseCaseType,
-)
 
 # ===========================================================================
 # UseCaseType Enum

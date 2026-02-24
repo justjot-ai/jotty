@@ -35,23 +35,11 @@ logger = logging.getLogger(__name__)
 # RE-EXPORTS FROM EXISTING MODULES (DRY - don't duplicate)
 # =============================================================================
 
-# PatternExtractor from transfer_learning
-try:
-    from .transfer_learning import PatternExtractor
-except ImportError:
-    PatternExtractor = None  # type: ignore[assignment, misc]
-
-# PrioritizedEpisodeBuffer from offline_learning
-try:
-    from .offline_learning import PrioritizedEpisodeBuffer
-except ImportError:
-    PrioritizedEpisodeBuffer = None  # type: ignore[assignment, misc]
-
-# SemanticEmbedder from transfer_learning (for similarity)
-try:
-    from .transfer_learning import SemanticEmbedder
-except ImportError:
-    SemanticEmbedder = None  # type: ignore[assignment, misc]
+# These were re-exported from transfer_learning / offline_learning,
+# both now removed (dead code). Set to None for any residual references.
+PatternExtractor = None  # type: ignore[assignment]
+PrioritizedEpisodeBuffer = None  # type: ignore[assignment]
+SemanticEmbedder = None  # type: ignore[assignment]
 
 
 # =============================================================================
