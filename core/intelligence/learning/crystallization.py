@@ -72,36 +72,70 @@ class CrystallizedConfig:
             )
             parts.append(f"SKILL BINDINGS:\n{bindings}")
 
-        # Prefer live hierarchical retrieval over baked-in prompt_guidance
-        # so sub-domain filtering works at runtime.
-        live_lessons = ""
-        if goal and self.domain:
-            try:
-                from .facade import get_learning_service
+        # Prefer DSPy-optimized few-shot demos over raw text lessons.
+        # The optimized module contains bootstrapped examples selected by
+        # BootstrapFewShot — much more effective than plain text injection.
+        dspy_available = False
+        try:
+            from .advanced_learning import DomainDSPyOptimizer
 
-                svc = get_learning_service()
-                lessons = svc.retrieve_distilled_lessons(
-                    domain=self.domain or self.task_type,
-                    goal=goal,
-                    top_k=5,
+            optimizer = DomainDSPyOptimizer.get_instance()
+            if optimizer.has_optimized(self.domain or self.task_type):
+                dspy_available = True
+                parts.append(
+                    "DSPY OPTIMIZED: A BootstrapFewShot-optimized DSPy module is "
+                    f"available for domain '{self.domain or self.task_type}'. "
+                    "Use it for generation tasks — it contains proven few-shot "
+                    "examples from successful episodes."
                 )
-                if lessons:
-                    live_lessons = "\n".join(
-                        f"- {l['lesson']}" for l in lessons if isinstance(l, dict)
-                    )
-            except Exception:
-                pass
+        except Exception:
+            pass
 
-        if live_lessons:
-            parts.append(f"DOMAIN LESSONS (for this specific task):\n{live_lessons}")
-        elif self.prompt_guidance:
-            parts.append(f"DOMAIN LESSONS:\n{self.prompt_guidance[:800]}")
+        # Still provide text lessons as fallback/supplement
+        if not dspy_available:
+            live_lessons = ""
+            if goal and self.domain:
+                try:
+                    from .facade import get_learning_service
+
+                    svc = get_learning_service()
+                    lessons = svc.retrieve_distilled_lessons(
+                        domain=self.domain or self.task_type,
+                        goal=goal,
+                        top_k=5,
+                    )
+                    if lessons:
+                        live_lessons = "\n".join(
+                            f"- {l['lesson']}" for l in lessons if isinstance(l, dict)
+                        )
+                except Exception:
+                    pass
+
+            if live_lessons:
+                parts.append(f"DOMAIN LESSONS (for this specific task):\n{live_lessons}")
+            elif self.prompt_guidance:
+                parts.append(f"DOMAIN LESSONS:\n{self.prompt_guidance[:800]}")
 
         if self.role_confidence:
             low = [r for r, c in self.role_confidence.items() if c < 0.7]
             if low:
                 parts.append(f"LOW-CONFIDENCE ROLES (explore alternatives): {', '.join(low)}")
         return "\n\n".join(parts)
+
+    def get_dspy_module(self):
+        """Load the DSPy-optimized module for this domain, if available.
+
+        Returns the optimized module or None. Callers can use this to
+        directly invoke the domain-specific DSPy module instead of
+        a raw LLM call.
+        """
+        try:
+            from .advanced_learning import DomainDSPyOptimizer
+
+            optimizer = DomainDSPyOptimizer.get_instance()
+            return optimizer.load_optimized(self.domain or self.task_type)
+        except Exception:
+            return None
 
 
 # =============================================================================
@@ -337,6 +371,19 @@ def crystallize(
         f"Crystallized {key}: {len(skill_names)} skills, "
         f"SOP={' → '.join(sop_roles)}, success={config.success_rate:.0%}"
     )
+
+    # Run DSPy BootstrapFewShot optimization for this domain.
+    # Uses successful episodes + gold data + distilled lessons as training set.
+    try:
+        from .advanced_learning import DomainDSPyOptimizer
+
+        optimizer = DomainDSPyOptimizer.get_instance()
+        optimized = optimizer.optimize(domain or task_type)
+        if optimized:
+            logger.info(f"DSPy module optimized for {domain or task_type}")
+    except Exception as e:
+        logger.debug(f"DSPy optimization during crystallization failed (non-fatal): {e}")
+
     return config
 
 

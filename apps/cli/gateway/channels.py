@@ -219,6 +219,13 @@ class ChannelRouter:
         exec_context = None
         if SDK_TYPES_AVAILABLE:
             try:
+                # Resolve trust level from channel + user
+                _trust_level = "owner"  # Default for direct/local access
+                if self._trust_manager and hasattr(self._trust_manager, "resolve_trust_level"):
+                    _trust_level = self._trust_manager.resolve_trust_level(
+                        event.channel, event.user_id
+                    ).value
+
                 exec_context = ExecutionContext(
                     mode=ExecutionMode.CHAT,
                     channel=SDKChannelType(event.channel.value),
@@ -229,6 +236,7 @@ class ChannelRouter:
                     message_id=event.message_id,
                     reply_to=event.reply_to,
                     raw_data=event.raw_data,
+                    trust_level=_trust_level,
                 )
             except Exception as e:
                 logger.debug(f"Could not create ExecutionContext: {e}")

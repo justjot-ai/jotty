@@ -183,7 +183,7 @@ def list_components() -> Dict[str, str]:
         "LearningService": "Unified learning service (SQLite-backed, record/query/reflect/transfer/judge/distill)",
         "TDLambdaLearner": "TD(λ) RL with SkillQTable + StepQTable per domain",
         "CrystallizedConfig": "Hardened SOP from graduated agent (probation → crystallization)",
-        "LLMJudge": "Sonnet-based quality evaluator (5 dimensions: accuracy/completeness/structure/actionability/depth)",
+        "LLM Judge": "Sonnet-based quality evaluator in LearningService.llm_judge_quality_with_feedback()",
         "FactDistillation": "Judge-informed lesson extraction (dedup-aware, incremental)",
         # Credit & rewards
         "ReasoningCreditAssigner": "Credit assignment for multi-step reasoning chains",

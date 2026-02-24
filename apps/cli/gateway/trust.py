@@ -28,6 +28,18 @@ from .channels import ChannelType
 logger = logging.getLogger(__name__)
 
 
+class TrustLevel(Enum):
+    """Trust level assigned to sessions based on channel + user.
+
+    Determines which tools/skills are available. Higher trust = more tools.
+    Inspired by OpenClaw's session-based tool sandboxing.
+    """
+
+    OWNER = "owner"  # Full access — CLI, SDK, direct API
+    TRUSTED = "trusted"  # Allowlisted users — most tools, no destructive ops
+    UNTRUSTED = "untrusted"  # Unknown users / group chats — read-only + safe tools
+
+
 class TrustPolicy(Enum):
     """Trust policies for channels."""
 
@@ -349,6 +361,96 @@ class TrustManager:
             "pairing_required": False,
             "response": "You are not authorized to send messages. Contact an administrator.",
         }
+
+    # -----------------------------------------------------------------
+    # Trust-Level Tool Sandboxing
+    # -----------------------------------------------------------------
+
+    # Default channel → trust level mapping.
+    # OWNER channels = direct local access (CLI, SDK).
+    # TRUSTED = authenticated messaging (Telegram DMs, Slack).
+    # UNTRUSTED = open channels or unverified users.
+    DEFAULT_CHANNEL_TRUST: Dict[str, TrustLevel] = {
+        # Owner-level (local)
+        ChannelType.CLI.value: TrustLevel.OWNER,
+        ChannelType.SDK.value: TrustLevel.OWNER,
+        # Trusted (authenticated messaging)
+        ChannelType.TELEGRAM.value: TrustLevel.TRUSTED,
+        ChannelType.WHATSAPP.value: TrustLevel.TRUSTED,
+        ChannelType.SLACK.value: TrustLevel.TRUSTED,
+        ChannelType.DISCORD.value: TrustLevel.TRUSTED,
+        ChannelType.SIGNAL.value: TrustLevel.TRUSTED,
+        # Untrusted (open)
+        ChannelType.WEB.value: TrustLevel.UNTRUSTED,
+        ChannelType.WEBSOCKET.value: TrustLevel.UNTRUSTED,
+        ChannelType.HTTP.value: TrustLevel.UNTRUSTED,
+    }
+
+    # Tool allowlists per trust level. OWNER gets everything.
+    # Skills not in a level's allowlist are blocked for that level.
+    # An empty set means "allow all" (OWNER default).
+    TOOL_ALLOWLISTS: Dict[TrustLevel, Optional[Set[str]]] = {
+        TrustLevel.OWNER: None,  # None = unrestricted
+        TrustLevel.TRUSTED: {
+            # Safe tools for authenticated users
+            "web-search",
+            "calculator",
+            "claude-cli-llm",
+            "openai-llm",
+            "groq-llm",
+            "content-generation",
+            "data-profile",
+            "research",
+            "summarize",
+            "translate",
+            "code-review",
+            "file-operations",  # read + write within workspace
+        },
+        TrustLevel.UNTRUSTED: {
+            # Read-only / generation tools — no file ops, no shell
+            "web-search",
+            "calculator",
+            "claude-cli-llm",
+            "summarize",
+            "translate",
+            "content-generation",
+        },
+    }
+
+    def resolve_trust_level(
+        self, channel: ChannelType, user_id: Optional[str] = None
+    ) -> TrustLevel:
+        """Determine trust level for a channel + user combination.
+
+        Logic:
+        1. CLI / SDK → always OWNER
+        2. Allowlisted user on messaging channel → TRUSTED
+        3. Non-allowlisted user on messaging channel → UNTRUSTED
+        4. Open channels (web, HTTP) → UNTRUSTED
+        """
+        channel_key = channel.value if isinstance(channel, ChannelType) else str(channel)
+        base_trust = self.DEFAULT_CHANNEL_TRUST.get(channel_key, TrustLevel.UNTRUSTED)
+
+        # Owner channels are always owner-level
+        if base_trust == TrustLevel.OWNER:
+            return TrustLevel.OWNER
+
+        # For messaging channels, check if user is allowlisted
+        if user_id and self.is_allowed(channel, user_id):
+            return TrustLevel.TRUSTED
+
+        return TrustLevel.UNTRUSTED
+
+    def is_tool_allowed(self, trust_level: TrustLevel, skill_name: str) -> bool:
+        """Check if a skill/tool is allowed at the given trust level."""
+        allowlist = self.TOOL_ALLOWLISTS.get(trust_level)
+        if allowlist is None:
+            return True  # OWNER — unrestricted
+        return skill_name.lower() in allowlist
+
+    def get_allowed_tools(self, trust_level: TrustLevel) -> Optional[Set[str]]:
+        """Get the set of allowed tools for a trust level. None means unrestricted."""
+        return self.TOOL_ALLOWLISTS.get(trust_level)
 
     @property
     def stats(self) -> Dict[str, Any]:

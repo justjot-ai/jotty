@@ -228,6 +228,7 @@ async def run_test(goal: str, test_name: str) -> dict:
             goal,
             learn=True,
             status_callback=status_callback,
+            discussion_paradigm="fanout",
         )
         elapsed = time.time() - start
 
@@ -260,31 +261,18 @@ async def main():
 
     results = []
 
-    # Test 1: Simple query (fast path)
+    # Complex multi-agent: truly parallel sub-goals
     r = await run_test(
-        "What are the three main types of machine learning?", "Simple Query → Fast Path"
+        "I need a comprehensive competitive analysis report. Do ALL of these in parallel: "
+        "1) Research the current state of AI code assistants (Cursor, GitHub Copilot, Windsurf, Cline) — features, pricing, market share. "
+        "2) Analyze the technical architecture differences between these tools — how they handle context, which LLMs they use, their IDE integration approach. "
+        "3) Write a SWOT analysis for a new AI coding startup entering this market. "
+        "4) Create a go-to-market strategy with pricing recommendations based on the competitive landscape.",
+        "Multi-Agent: Competitive Analysis (4 parallel tasks)",
     )
     results.append(r)
 
-    show_learning("after Test 1")
-
-    # Test 2: Comparison task (should trigger skill orchestration)
-    r = await run_test(
-        "Compare Python vs Rust for web APIs: performance, ecosystem, developer experience",
-        "Comparison → Skill Orchestration",
-    )
-    results.append(r)
-
-    show_learning("after Test 2")
-
-    # Test 3: Same domain — learning from Test 2 should influence this
-    r = await run_test(
-        "Compare React vs Vue for dashboards: performance, learning curve, ecosystem",
-        "Similar Comparison → Learning Applies",
-    )
-    results.append(r)
-
-    show_learning("after Test 3 — should show accumulated learning")
+    show_learning("after multi-agent test")
 
     # Summary
     header("SUMMARY")

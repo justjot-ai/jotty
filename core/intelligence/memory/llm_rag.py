@@ -1170,35 +1170,64 @@ class LLMRAGRetriever:
                 query=query, memories=candidate_memories, goal=goal
             )
 
-        # Step 2: Hybrid scoring — LLM semantic (70%) + BM25 keyword (30%)
-        relevance_scores = self.scorer.score_batch(
-            query=query, memories=candidate_memories, context_hints=context_hints
-        )
-        bm25_scores = self.bm25_scorer.score_batch(query=query, memories=candidate_memories)
+        # Step 2: Hybrid scoring with graceful degradation cascade
+        # Tier 1: LLM semantic + BM25 keyword (best quality)
+        # Tier 2: BM25 keyword only (if LLM fails)
+        # Tier 3: Pre-ranked order by recency/value (if all scoring fails)
+        relevance_scores: Dict[str, float] = {}
+        bm25_scores: Dict[str, float] = {}
+        _scoring_tier = "hybrid"
+
+        try:
+            relevance_scores = self.scorer.score_batch(
+                query=query, memories=candidate_memories, context_hints=context_hints
+            )
+        except Exception as e:
+            logger.warning("LLM scoring failed, falling back to BM25-only: %s", e)
+            _scoring_tier = "bm25_only"
+
+        try:
+            bm25_scores = self.bm25_scorer.score_batch(query=query, memories=candidate_memories)
+        except Exception as e:
+            logger.warning("BM25 scoring failed: %s", e)
+            if _scoring_tier == "bm25_only":
+                # Both LLM and BM25 failed — use preranked order (recency + value)
+                logger.warning("All scoring failed, using preranked recency/value order")
+                _scoring_tier = "preranked"
 
         # Step 3: Combine scores (hybrid relevance + value)
         scored_memories = []
-        for memory in candidate_memories:
-            llm_score = relevance_scores.get(memory.key, 0.5)
-            bm25_score = bm25_scores.get(memory.key, 0.0)
-            # Hybrid: 70% LLM semantic + 30% BM25 keyword
-            relevance = 0.7 * llm_score + 0.3 * bm25_score
+        if _scoring_tier == "preranked":
+            # Tier 3 fallback: use preranker ordering directly
+            for i, (memory, prerank_score) in enumerate(candidates[: budget_tokens // 50]):
+                scored_memories.append((memory, prerank_score))
+            scored_memories.sort(key=lambda x: x[1], reverse=True)
+        else:
+            for memory in candidate_memories:
+                llm_score = relevance_scores.get(memory.key, 0.5)
+                bm25_score = bm25_scores.get(memory.key, 0.0)
+                # Hybrid: 70% LLM semantic + 30% BM25 keyword
+                # When LLM unavailable: BM25-only (bm25_score drives relevance)
+                if _scoring_tier == "bm25_only":
+                    relevance = bm25_score if bm25_score > 0 else 0.3
+                else:
+                    relevance = 0.7 * llm_score + 0.3 * bm25_score
 
-            # Get value with optional transfer
-            if goal_hierarchy and self.config.enable_goal_hierarchy:
-                value = memory.get_value_with_transfer(
-                    goal=goal,
-                    goal_hierarchy=goal_hierarchy,
-                    transfer_weight=self.config.goal_transfer_weight,
-                )
-            else:
-                value = memory.get_value(goal)
+                # Get value with optional transfer
+                if goal_hierarchy and self.config.enable_goal_hierarchy:
+                    value = memory.get_value_with_transfer(
+                        goal=goal,
+                        goal_hierarchy=goal_hierarchy,
+                        transfer_weight=self.config.goal_transfer_weight,
+                    )
+                else:
+                    value = memory.get_value(goal)
 
-            # Combined score: relevance primary, value secondary
-            combined = 0.7 * relevance + 0.3 * value
+                # Combined score: relevance primary, value secondary
+                combined = 0.7 * relevance + 0.3 * value
 
-            if combined >= self.config.rag_relevance_threshold:
-                scored_memories.append((memory, combined))
+                if combined >= self.config.rag_relevance_threshold:
+                    scored_memories.append((memory, combined))
 
         # Sort by combined score
         scored_memories.sort(key=lambda x: x[1], reverse=True)

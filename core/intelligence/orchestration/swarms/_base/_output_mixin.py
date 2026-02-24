@@ -132,8 +132,9 @@ class OutputMixin:
         prefix: str,
         pdf_path: Optional[str] = None,
         html_path: Optional[str] = None,
+        md_path: Optional[str] = None,
     ) -> Any:
-        """Send summary message + PDF/HTML files to Telegram.
+        """Send summary message + PDF/HTML/MD files to Telegram.
 
         This is the shared delivery logic. Each swarm builds its own
         ``summary_message`` via ``_build_telegram_summary()`` and passes
@@ -143,10 +144,11 @@ class OutputMixin:
             topic: Topic name.
             student_name: Student name.
             summary_message: Pre-built Markdown summary message.
-            full_content: Full markdown text (used as fallback if no PDF).
+            full_content: Full markdown text (used as fallback if no PDF/MD).
             prefix: File prefix for temp markdown file.
             pdf_path: Path to generated PDF (if any).
             html_path: Path to generated HTML (if any).
+            md_path: Path to generated Markdown (if any).
         """
         if not TELEGRAM_AVAILABLE:
             logger.warning("Telegram tools not available")
@@ -195,12 +197,24 @@ class OutputMixin:
                 else:
                     logger.error(f"HTML send failed: {file_result.get('error')}")
 
-            # Fallback: send markdown if no PDF
-            if not has_pdf:
+            # Send Markdown file (saved .md or temp fallback)
+            has_md = md_path and Path(md_path).exists()
+            if has_md:
+                file_result = await send_telegram_file_tool(
+                    {
+                        "file_path": md_path,
+                        "caption": f"{topic} - Lesson for {student_name} (Markdown)",
+                    }
+                )
+                if file_result.get("success"):
+                    logger.info("Sent markdown to Telegram")
+                else:
+                    logger.error(f"Markdown send failed: {file_result.get('error')}")
+            elif not has_pdf and full_content:
+                # Fallback: create temp markdown if no PDF and no saved .md
                 safe_topic = topic.replace(" ", "_").replace(":", "")[:40]
                 temp_path = Path(f"/tmp/{prefix}_{safe_topic}_{student_name.replace(' ', '_')}.md")
-                with open(temp_path, "w") as f:
-                    f.write(full_content)
+                temp_path.write_text(full_content, encoding="utf-8")
 
                 file_result = await send_telegram_file_tool(
                     {
@@ -209,7 +223,7 @@ class OutputMixin:
                     }
                 )
                 if file_result.get("success"):
-                    logger.info("Sent markdown to Telegram")
+                    logger.info("Sent markdown fallback to Telegram")
 
                 try:
                     temp_path.unlink()

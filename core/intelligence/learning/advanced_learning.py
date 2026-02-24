@@ -2,165 +2,34 @@
 Advanced Learning Components
 ============================
 
-Closes 5 gaps + integrates 3 research techniques into Jotty's learning system:
+Research-backed techniques integrated into Jotty's learning system:
 
-1. LLMJudge         — LLM-based quality scoring via Haiku (augments heuristic)
-2. Reflexion        — Natural language failure reflection (Shinn et al. 2023)
-3. FewShotCurator   — Auto-curate best episodes as DSPy few-shot examples
-4. MCTSPlanner      — Language Agent Tree Search for multi-step planning (LATS)
-5. VoyagerSkillLib  — Auto-extract reusable skill patterns from successes
+1. Reflexion        — Natural language failure reflection (Shinn et al. 2023)
+2. FewShotCurator   — Auto-curate best episodes as DSPy few-shot examples
+3. DomainDSPyOptimizer — BootstrapFewShotWithRandomSearch per crystallized domain
+4. VoyagerSkillLib  — Auto-extract reusable skill patterns from successes
 
-Each component integrates with existing infrastructure:
+Infrastructure integration:
 - LearningStore (SQLite) for persistence
 - LearningService for episode recording
 - TDLambdaLearner for value updates
-- SwarmTaskBoard for task planning
 - DSPy for structured LLM interaction
+
+Note: LLM-as-Judge lives in LearningService.llm_judge_quality_with_feedback()
+(Sonnet, 5-dimension rubric, structural digest) — not duplicated here.
 """
 
 from __future__ import annotations
 
 import logging
-import math
 import uuid
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# 1. LLM-AS-JUDGE — Replaces pure-heuristic quality scoring
-# =============================================================================
-
-
-@dataclass
-class JudgeVerdict:
-    """Result from LLM quality judge."""
-
-    quality: float  # 0.0 - 1.0
-    reasoning: str
-    aspects: Dict[str, float] = field(default_factory=dict)
-    source: str = "llm"  # "llm" or "heuristic" (fallback)
-
-
-class LLMJudge:
-    """LLM-based quality judge using a cheap model (Haiku).
-
-    Falls back to heuristic scoring when LLM is unavailable or fails.
-    Uses DSPy ChainOfThought for structured output.
-
-    Integration: Called from LearningService.record() to upgrade
-    quality scores, and from _post_execute_learning for episode grading.
-    """
-
-    _instance: Optional["LLMJudge"] = None
-
-    def __init__(self, config: Any = None) -> None:
-        self._lm: Any = None
-        self._judge_module: Any = None
-        self._init_attempts = 0
-        self._config = config
-        if self._config is None:
-            try:
-                from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
-
-                self._config = LearningConfig()
-            except Exception:
-                self._config = None
-
-    @classmethod
-    def get_instance(cls) -> "LLMJudge":
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
-
-    def _ensure_init(self) -> bool:
-        """Lazy-init the DSPy judge module. Returns True if ready."""
-        if self._judge_module is not None:
-            return True
-        if self._init_attempts > 2:
-            return False
-        self._init_attempts += 1
-        try:
-            import dspy
-
-            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
-                get_fast_lm,
-            )
-
-            self._lm = get_fast_lm()
-
-            class QualityJudgeSignature(dspy.Signature):
-                """Judge the quality of an AI-generated response for a given goal.
-                Score from 0.0 (terrible) to 1.0 (excellent).
-                Consider: accuracy, completeness, structure, depth, actionability."""
-
-                goal: str = dspy.InputField(desc="The original task/goal")
-                response_excerpt: str = dspy.InputField(desc="First 2000 chars of the response")
-                quality_score: float = dspy.OutputField(desc="Quality score 0.0-1.0")
-                reasoning: str = dspy.OutputField(desc="Brief reasoning for score")
-
-            self._judge_module = dspy.ChainOfThought(QualityJudgeSignature)
-            return True
-        except Exception as e:
-            logger.debug(f"LLMJudge init failed: {e}")
-            return False
-
-    def judge(self, goal: str, response: str, heuristic_score: float = 0.0) -> JudgeVerdict:
-        """Score response quality using LLM, with heuristic fallback.
-
-        The final score blends LLM and heuristic scores (70/30) for
-        robustness — the heuristic catches structural issues the LLM
-        might miss, while the LLM catches semantic quality.
-
-        Args:
-            goal: The original task/goal
-            response: The full response text
-            heuristic_score: Pre-computed heuristic score (from analyze_response)
-
-        Returns:
-            JudgeVerdict with blended quality score
-        """
-        if not response or not self._ensure_init():
-            return JudgeVerdict(
-                quality=heuristic_score, reasoning="LLM judge unavailable", source="heuristic"
-            )
-
-        try:
-            import dspy
-
-            excerpt = response[:2000]
-            with dspy.context(lm=self._lm):
-                result = self._judge_module(goal=goal, response_excerpt=excerpt)
-
-            llm_score = float(result.quality_score)
-            llm_score = max(0.0, min(1.0, llm_score))
-
-            # Blend LLM + heuristic for robustness (config-driven)
-            _w_llm = 0.7
-            _w_heur = 0.3
-            if self._config is not None:
-                _w_llm = getattr(self._config, "judge_llm_weight", 0.7)
-                _w_heur = getattr(self._config, "judge_heuristic_weight", 0.3)
-            blended = _w_llm * llm_score + _w_heur * heuristic_score
-            return JudgeVerdict(
-                quality=round(blended, 3),
-                reasoning=str(result.reasoning)[:300],
-                aspects={"llm_raw": llm_score, "heuristic": heuristic_score},
-                source="llm",
-            )
-        except Exception as e:
-            logger.debug(f"LLMJudge scoring failed, using heuristic: {e}")
-            return JudgeVerdict(
-                quality=heuristic_score,
-                reasoning=f"Fallback to heuristic: {e}",
-                source="heuristic",
-            )
-
-
-# =============================================================================
-# 2. REFLEXION — Natural language failure reflection (Shinn et al.)
+# 1. REFLEXION — Natural language failure reflection (Shinn et al.)
 # =============================================================================
 
 
@@ -321,7 +190,7 @@ class Reflexion:
 
 
 # =============================================================================
-# 3. FEW-SHOT CURATOR — Auto-curate best episodes as DSPy examples
+# 2. FEW-SHOT CURATOR — Auto-curate best episodes as DSPy examples
 # =============================================================================
 
 
@@ -498,223 +367,327 @@ class FewShotCurator:
 
 
 # =============================================================================
-# 4. MCTS PLANNER — Language Agent Tree Search (LATS)
+# 3. DOMAIN DSPy OPTIMIZER — BootstrapFewShotWithRandomSearch per domain
 # =============================================================================
 
 
-@dataclass
-class MCTSNode:
-    """Node in the MCTS search tree."""
+def _get_domain_task_classes():
+    """Lazy-create DSPy signature and module classes (avoids import-time dspy dependency)."""
+    import dspy
 
-    state: Dict[str, Any]
-    action: str = ""  # Action that led to this node
-    parent: Optional["MCTSNode"] = None
-    children: List["MCTSNode"] = field(default_factory=list)
-    value: float = 0.0
-    visits: int = 0
-    depth: int = 0
+    class DomainTaskSignature(dspy.Signature):
+        """Execute a domain-specific task and produce high-quality output."""
 
-    @property
-    def ucb(self) -> float:
-        """UCB1 score for tree policy selection."""
-        if self.visits == 0:
-            return float("inf")
-        if self.parent is None or self.parent.visits == 0:
-            return self.value
-        exploitation = self.value / self.visits
-        exploration = 1.41 * math.sqrt(math.log(self.parent.visits) / self.visits)
-        return exploitation + exploration
+        task_description: str = dspy.InputField(desc="What to generate or do")
+        domain: str = dspy.InputField(desc="Domain (e.g. plantuml, mermaid, coding)")
+        output: str = dspy.OutputField(desc="Complete, high-quality output for the task")
 
+    class ValidationSignature(dspy.Signature):
+        """Validate domain output and identify specific errors to fix."""
 
-class MCTSPlanner:
-    """Language Agent Tree Search (LATS) for multi-step planning.
+        original_task: str = dspy.InputField(desc="The original task description")
+        generated_output: str = dspy.InputField(desc="The generated output to validate")
+        domain: str = dspy.InputField(desc="Domain (e.g. plantuml, mermaid)")
+        is_valid: bool = dspy.OutputField(desc="Whether the output is structurally valid")
+        errors: str = dspy.OutputField(desc="List of specific errors found, or 'none'")
 
-    Uses LLM to:
-    1. EXPAND: Generate possible next actions from current state
-    2. EVALUATE: Score the quality of a plan path
-    3. BACKPROPAGATE: Update node values up the tree
-    4. SELECT: UCB1 to choose which branch to explore
+    class RefinementSignature(dspy.Signature):
+        """Fix errors in generated output based on validation feedback."""
 
-    Integration:
-    - SwarmTaskBoard.get_next_task() can use plan() for multi-step lookahead
-    - Agents can use plan() for complex decomposition before acting
-    - Results feed back into TDLambdaLearner for value learning
+        original_task: str = dspy.InputField(desc="The original task description")
+        draft_output: str = dspy.InputField(desc="The draft output with errors")
+        validation_errors: str = dspy.InputField(desc="Specific errors to fix")
+        domain: str = dspy.InputField(desc="Domain (e.g. plantuml, mermaid)")
+        output: str = dspy.OutputField(desc="Corrected output with all errors fixed")
 
-    Designed for moderate budgets (5-20 LLM calls), not exhaustive search.
-    """
+    class DomainTaskModule(dspy.Module):
+        """Single-stage: generate only. Optimized via BootstrapFewShot."""
 
-    def __init__(
-        self,
-        max_iterations: int = 10,
-        max_depth: int = 5,
-        n_expand: int = 3,
-    ) -> None:
-        self.max_iterations = max_iterations
-        self.max_depth = max_depth
-        self.n_expand = n_expand  # Actions to generate per expansion
-        self._lm: Any = None
-        self._expand_module: Any = None
-        self._eval_module: Any = None
+        def __init__(self):
+            super().__init__()
+            self.generate = dspy.ChainOfThought(DomainTaskSignature)
 
-    def _ensure_init(self) -> bool:
-        if self._expand_module is not None:
-            return True
-        try:
-            import dspy
+        def forward(self, task_description: str, domain: str):
+            return self.generate(task_description=task_description, domain=domain)
 
-            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
-                get_fast_lm,
+    class DomainTaskPipeline(dspy.Module):
+        """Multi-stage: Generate -> Validate -> Refine (self-healing).
+
+        Stage 1: Generate initial output (ChainOfThought)
+        Stage 2: Validate the output for structural/syntax errors
+        Stage 3: If errors found, refine and fix them
+
+        Each stage is independently optimizable by DSPy.
+        """
+
+        def __init__(self):
+            super().__init__()
+            self.generate = dspy.ChainOfThought(DomainTaskSignature)
+            self.validate = dspy.Predict(ValidationSignature)
+            self.refine = dspy.ChainOfThought(RefinementSignature)
+
+        def forward(self, task_description: str, domain: str):
+            # Stage 1: Generate
+            gen_result = self.generate(task_description=task_description, domain=domain)
+            draft = gen_result.output
+
+            # Stage 2: Validate
+            val_result = self.validate(
+                original_task=task_description,
+                generated_output=draft,
+                domain=domain,
             )
 
-            self._lm = get_fast_lm()
-
-            class ExpandSignature(dspy.Signature):
-                """Given a goal and current plan path, generate the next
-                possible actions. Return exactly N actions, one per line."""
-
-                goal: str = dspy.InputField()
-                plan_so_far: str = dspy.InputField(desc="Actions taken so far (one per line)")
-                n_actions: int = dspy.InputField(desc="Number of candidate actions to generate")
-                candidate_actions: str = dspy.OutputField(
-                    desc="Candidate next actions, one per line"
+            # Stage 3: Refine if errors found
+            if not val_result.is_valid or (
+                val_result.errors and val_result.errors.lower() != "none"
+            ):
+                refined = self.refine(
+                    original_task=task_description,
+                    draft_output=draft,
+                    validation_errors=val_result.errors,
+                    domain=domain,
                 )
+                return refined
 
-            class EvalSignature(dspy.Signature):
-                """Evaluate how promising a plan path is for achieving the goal.
-                Score from 0.0 (will fail) to 1.0 (very likely to succeed)."""
+            return gen_result
 
-                goal: str = dspy.InputField()
-                plan_path: str = dspy.InputField(desc="Full sequence of planned actions")
-                success_probability: float = dspy.OutputField(desc="Probability of success 0.0-1.0")
+    return DomainTaskSignature, DomainTaskModule, DomainTaskPipeline
 
-            self._expand_module = dspy.Predict(ExpandSignature)
-            self._eval_module = dspy.Predict(EvalSignature)
-            return True
-        except Exception as e:
-            logger.debug(f"MCTSPlanner init failed: {e}")
-            return False
 
-    def plan(self, goal: str, context: str = "") -> List[str]:
-        """Run MCTS to find the best action sequence for a goal.
+class DomainDSPyOptimizer:
+    """Optimize a DSPy module for a specific domain using gold examples.
+
+    Combines three data sources:
+    1. Successful episodes from LearningStore (probation runs)
+    2. Distilled lessons (compact, high-signal)
+    3. External gold data (web research examples, teacher-crafted)
+
+    The optimized module is saved per domain and loaded by the
+    crystallized agent at inference time.
+
+    Usage:
+        optimizer = DomainDSPyOptimizer()
+
+        # Add external gold data (from web research, teacher)
+        optimizer.add_gold_examples("plantuml", [
+            {"task": "Generate sequence diagram for auth flow",
+             "output": "@startuml\nparticipant User\n...@enduml"},
+        ])
+
+        # Optimize (uses episodes + gold data + distilled lessons)
+        module = optimizer.optimize("plantuml")
+
+        # Use at inference
+        result = module(task_description="Generate class diagram", domain="plantuml")
+    """
+
+    _instance: Optional["DomainDSPyOptimizer"] = None
+    _gold_data: Dict[str, List[Dict[str, str]]]  # domain → [{task, output}]
+
+    def __init__(self):
+        from pathlib import Path
+
+        self._save_dir = Path.home() / "jotty" / "learning" / "dspy_optimized"
+        self._gold_data = {}
+        self._save_dir.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def get_instance(cls) -> "DomainDSPyOptimizer":
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def add_gold_examples(self, domain: str, examples: List[Dict[str, str]]) -> None:
+        """Register external gold examples for a domain.
 
         Args:
-            goal: What to achieve
-            context: Additional context (past reflections, learned context)
-
-        Returns:
-            Ordered list of action strings (best plan found)
+            domain: Domain key (e.g. "plantuml", "mermaid")
+            examples: List of {task: str, output: str} dicts
         """
-        if not self._ensure_init():
-            return [goal]  # Fallback: treat goal as single action
+        if domain not in self._gold_data:
+            self._gold_data[domain] = []
+        self._gold_data[domain].extend(examples)
+        logger.info(
+            f"DomainDSPyOptimizer: added {len(examples)} gold examples "
+            f"for {domain} (total={len(self._gold_data[domain])})"
+        )
 
-        root = MCTSNode(state={"goal": goal, "context": context})
+    def _gather_training_data(self, domain: str, min_quality: float = 0.6) -> List:
+        """Gather DSPy Examples from all sources for a domain."""
+        import dspy
 
-        for _ in range(self.max_iterations):
-            # SELECT — walk tree using UCB1
-            node = self._select(root)
+        examples = []
 
-            if node.depth >= self.max_depth:
-                # At max depth, just evaluate
-                value = self._evaluate(node, goal)
-                self._backpropagate(node, value)
-                continue
-
-            # EXPAND — generate child actions
-            children = self._expand(node, goal)
-            if not children:
-                break
-
-            # EVALUATE — score the best new child
-            best_child = children[0]
-            value = self._evaluate(best_child, goal)
-
-            # BACKPROPAGATE — update values up the tree
-            self._backpropagate(best_child, value)
-
-        return self._extract_best_plan(root)
-
-    def _select(self, node: MCTSNode) -> MCTSNode:
-        """Walk tree using UCB1 until reaching a leaf."""
-        while node.children:
-            node = max(node.children, key=lambda n: n.ucb)
-        return node
-
-    def _expand(self, node: MCTSNode, goal: str) -> List[MCTSNode]:
-        """Generate child nodes by asking LLM for possible next actions."""
+        # Source 1: Successful episodes from LearningStore
         try:
-            import dspy
+            from .learning_store import LearningStore
 
-            plan_so_far = self._path_to_string(node)
-            with dspy.context(lm=self._lm):
-                result = self._expand_module(
-                    goal=goal,
-                    plan_so_far=plan_so_far or "(no steps yet)",
-                    n_actions=self.n_expand,
-                )
+            store = LearningStore.get_instance()
+            episodes = store.query_episodes(domain=domain, success_only=True, limit=30)
+            episodes = [ep for ep in episodes if ep.quality >= min_quality]
+            episodes.sort(key=lambda e: e.quality, reverse=True)
 
-            actions = [a.strip() for a in str(result.candidate_actions).split("\n") if a.strip()]
-            actions = actions[: self.n_expand]
-
-            children = []
-            for action in actions:
-                child = MCTSNode(
-                    state={**node.state, f"step_{node.depth + 1}": action},
-                    action=action,
-                    parent=node,
-                    depth=node.depth + 1,
-                )
-                node.children.append(child)
-                children.append(child)
-
-            return children
+            for ep in episodes[:15]:
+                goal = ep.context.get("task", ep.context.get("goal", ""))
+                output = ep.outcome.get("content", ep.outcome.get("summary", ""))
+                if goal and output and len(output) > 30:
+                    examples.append(
+                        dspy.Example(
+                            task_description=str(goal)[:500],
+                            domain=domain,
+                            output=str(output)[:3000],
+                        ).with_inputs("task_description", "domain")
+                    )
         except Exception as e:
-            logger.debug(f"MCTS expand failed: {e}")
-            return []
+            logger.debug(f"DomainDSPyOptimizer: episode fetch failed: {e}")
 
-    def _evaluate(self, node: MCTSNode, goal: str) -> float:
-        """Evaluate a node's plan path using LLM."""
+        # Source 2: External gold data (web research + teacher)
+        for item in self._gold_data.get(domain, []):
+            task = item.get("task", item.get("description", ""))
+            output = item.get("output", item.get("plantuml_code", ""))
+            if task and output:
+                examples.append(
+                    dspy.Example(
+                        task_description=str(task)[:500],
+                        domain=domain,
+                        output=str(output)[:3000],
+                    ).with_inputs("task_description", "domain")
+                )
+
+        # Source 3: Distilled lessons as extra context
         try:
-            import dspy
+            from .learning_store import LearningStore
 
-            plan_path = self._path_to_string(node)
-            with dspy.context(lm=self._lm):
-                result = self._eval_module(goal=goal, plan_path=plan_path)
-            score = float(result.success_probability)
-            return max(0.0, min(1.0, score))
-        except Exception:
-            return 0.5  # Neutral default
+            store = LearningStore.get_instance()
+            lessons = store.get_distilled_lessons(
+                domain=domain, min_confidence=0.5, limit=10, hierarchical=True
+            )
+            for lesson in lessons:
+                if lesson.lesson and lesson.applicability:
+                    examples.append(
+                        dspy.Example(
+                            task_description=f"[Lesson] {lesson.applicability}",
+                            domain=domain,
+                            output=lesson.lesson,
+                        ).with_inputs("task_description", "domain")
+                    )
+        except Exception as e:
+            logger.debug(f"DomainDSPyOptimizer: lesson fetch failed: {e}")
 
-    def _backpropagate(self, node: MCTSNode, value: float) -> None:
-        """Update values from leaf to root."""
-        current: Optional[MCTSNode] = node
-        while current is not None:
-            current.visits += 1
-            current.value += value
-            current = current.parent
+        logger.info(
+            f"DomainDSPyOptimizer: gathered {len(examples)} training examples " f"for {domain}"
+        )
+        return examples
 
-    def _path_to_string(self, node: MCTSNode) -> str:
-        """Extract action sequence from root to this node."""
-        actions = []
-        current: Optional[MCTSNode] = node
-        while current is not None:
-            if current.action:
-                actions.append(current.action)
-            current = current.parent
-        actions.reverse()
-        return "\n".join(f"{i + 1}. {a}" for i, a in enumerate(actions))
+    def optimize(
+        self,
+        domain: str,
+        max_bootstrapped: int = 4,
+        max_labeled: int = 8,
+        num_candidate_programs: int = 6,
+        metric=None,
+    ):
+        """Run BootstrapFewShotWithRandomSearch optimization for a domain.
 
-    def _extract_best_plan(self, root: MCTSNode) -> List[str]:
-        """Extract the highest-value path from root."""
-        plan = []
-        node = root
-        while node.children:
-            node = max(node.children, key=lambda n: n.value / max(n.visits, 1))
-            plan.append(node.action)
-        return plan if plan else [root.state.get("goal", "")]
+        Uses the 3-stage DomainTaskPipeline (generate→validate→refine)
+        and tries `num_candidate_programs` random configurations, keeping
+        the best. Sonnet acts as teacher, Haiku as student at inference.
+        """
+        import dspy
+
+        _, _, Pipeline = _get_domain_task_classes()
+        module = Pipeline()
+        examples = self._gather_training_data(domain)
+
+        if len(examples) < 3:
+            logger.warning(
+                f"DomainDSPyOptimizer: only {len(examples)} examples for "
+                f"{domain}, skipping optimization"
+            )
+            return module
+
+        if metric is None:
+
+            def metric(example, prediction, trace=None):
+                pred = getattr(prediction, "output", "")
+                if not pred or len(pred) < 20:
+                    return 0.0
+                gold = getattr(example, "output", "")
+                score = 0.3
+                if len(pred) > 50:
+                    score += 0.2
+                gold_words = set(gold.lower().split())
+                pred_words = set(pred.lower().split())
+                if gold_words:
+                    overlap = len(gold_words & pred_words) / len(gold_words)
+                    score += 0.5 * min(overlap, 1.0)
+                return min(score, 1.0)
+
+        try:
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                UnifiedLMProvider,
+            )
+
+            teacher_lm = UnifiedLMProvider.create_lm(provider="anthropic", model="sonnet")
+
+            optimizer = dspy.BootstrapFewShotWithRandomSearch(
+                metric=metric,
+                max_bootstrapped_demos=max_bootstrapped,
+                max_labeled_demos=min(len(examples), max_labeled),
+                num_candidate_programs=num_candidate_programs,
+            )
+
+            with dspy.context(lm=teacher_lm):
+                optimized = optimizer.compile(module, trainset=examples[:12])
+
+            save_path = str(self._save_dir / f"{domain}_task_pipeline.json")
+            optimized.save(save_path)
+            logger.info(
+                f"DomainDSPyOptimizer: optimized {domain} pipeline with "
+                f"{len(examples)} examples ({num_candidate_programs} candidates), "
+                f"saved to {save_path}"
+            )
+            return optimized
+
+        except Exception as e:
+            logger.warning(f"DomainDSPyOptimizer: optimization failed: {e}")
+            return module
+
+    def load_optimized(self, domain: str):
+        """Load a previously optimized module from disk."""
+        # Try pipeline first (new format), fall back to legacy module
+        pipeline_path = self._save_dir / f"{domain}_task_pipeline.json"
+        legacy_path = self._save_dir / f"{domain}_task_module.json"
+
+        if pipeline_path.exists():
+            path, use_pipeline = pipeline_path, True
+        elif legacy_path.exists():
+            path, use_pipeline = legacy_path, False
+        else:
+            return None
+
+        try:
+            _, Module, Pipeline = _get_domain_task_classes()
+            module = Pipeline() if use_pipeline else Module()
+            module.load(str(path))
+            logger.debug(
+                f"DomainDSPyOptimizer: loaded optimized {'pipeline' if use_pipeline else 'module'} for {domain}"
+            )
+            return module
+        except Exception as e:
+            logger.debug(f"DomainDSPyOptimizer: load failed for {domain}: {e}")
+            return None
+
+    def has_optimized(self, domain: str) -> bool:
+        """Check if an optimized module exists for this domain."""
+        return (self._save_dir / f"{domain}_task_pipeline.json").exists() or (
+            self._save_dir / f"{domain}_task_module.json"
+        ).exists()
 
 
 # =============================================================================
-# 5. VOYAGER-STYLE SKILL LIBRARY — Auto-extract reusable patterns
+# 4. VOYAGER-STYLE SKILL LIBRARY — Auto-extract reusable patterns
 # =============================================================================
 
 
@@ -824,70 +797,3 @@ class VoyagerSkillLib:
         except Exception as e:
             logger.debug(f"VoyagerSkillLib retrieval failed: {e}")
             return []
-
-
-# =============================================================================
-# UNIFIED CONTEXT BUILDER — Assembles all learning signals for prompt injection
-# =============================================================================
-
-
-def build_advanced_learning_context(
-    unit_name: str,
-    domain: str = "",
-    task_type: str = "",
-    goal: str = "",
-    max_lines: int = 15,
-) -> str:
-    """Build a comprehensive learning context string for prompt injection.
-
-    Combines signals from all advanced learning components:
-    1. Past reflections (Reflexion)
-    2. Proven skill patterns (VoyagerSkillLib)
-    3. Distilled lessons (FewShotCurator)
-
-    This augments the existing get_learned_context() from td_lambda.py.
-
-    Args:
-        unit_name: Current agent/swarm name
-        domain: Current domain
-        task_type: Current task type
-        goal: Current goal
-        max_lines: Maximum output lines
-
-    Returns:
-        Formatted context string for prompt injection
-    """
-    lines: List[str] = []
-
-    # 1. Reflexion: past failure lessons
-    try:
-        reflexion = Reflexion.get_instance()
-        reflections = reflexion.get_relevant_reflections(unit_name, limit=3)
-        for r in reflections[:3]:
-            lines.append(r)
-    except Exception:
-        pass
-
-    # 2. VoyagerSkillLib: proven strategies
-    try:
-        skill_lib = VoyagerSkillLib.get_instance()
-        patterns = skill_lib.get_applicable_patterns(domain, task_type, limit=3)
-        for p in patterns[:3]:
-            conf = p["confidence"]
-            lines.append(f"[Proven strategy, {conf:.0%} confidence] {p['strategy'][:150]}")
-    except Exception:
-        pass
-
-    # 3. Distilled lessons
-    try:
-        curator = FewShotCurator.get_instance()
-        examples = curator.get_distilled_examples(domain=domain, n=3)
-        for ex in examples[:3]:
-            lines.append(f"[Learned lesson] {ex.lesson[:150]}")
-    except Exception:
-        pass
-
-    if not lines:
-        return ""
-
-    return "ADVANCED LEARNING CONTEXT:\n" + "\n".join(f"- {line}" for line in lines[:max_lines])

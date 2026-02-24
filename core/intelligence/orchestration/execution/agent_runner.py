@@ -832,44 +832,89 @@ class AgentRunner:
             logger.info(f" Context {i}: {p[:500]}")
         return parts
 
+    # Patterns that signal high-value content worth preserving before compaction
+    _FLUSH_PRIORITY_MARKERS = (
+        "RESULT:",
+        "CONCLUSION:",
+        "FINDING:",
+        "ANSWER:",
+        "OUTPUT:",
+        "SUCCESS:",
+        "ERROR:",
+        "SUMMARY:",
+        "KEY INSIGHT:",
+        "✅",
+        "❌",
+        "⚠️",
+        "📊",
+    )
+
     def _extract_and_flush_to_memory(self, parts: List[str], agent: Any) -> None:
         """
         Pre-compaction memory flush: extract key facts before compression.
 
         Called right before compress_parts() drops middle content, so that
         important information is persisted to episodic memory and not permanently lost.
+
+        Strategy (priority-based, inspired by OpenClaw's flush-before-compaction):
+        1. Scan ALL parts for high-value markers (results, conclusions, errors)
+        2. Fall back to most recent parts if no markers found
+        3. Store structured content to episodic memory
+
         Fire-and-forget: wrapped in try/except, never blocks execution.
         """
         try:
-            # Only flush if content is substantial (>2000 tokens ~ 8000 chars)
             total_chars = sum(len(p) for p in parts)
             if total_chars < 8000:
                 return
 
-            # Extract last meaningful content (assistant output + tool results)
-            key_facts = []
-            for p in reversed(parts[-3:]):  # Last 3 parts most likely to have recent work
-                snippet = p[:500].strip()
-                if snippet:
-                    key_facts.append(snippet)
+            memory = getattr(agent, "memory", None)
+            if memory is None or not hasattr(memory, "store"):
+                return
 
-            if not key_facts:
+            # Pass 1: Extract lines containing high-value markers
+            priority_lines: list[str] = []
+            for part in parts:
+                for line in part.split("\n"):
+                    stripped = line.strip()
+                    if not stripped or len(stripped) < 10:
+                        continue
+                    upper = stripped.upper()
+                    if any(
+                        marker in upper or marker in stripped
+                        for marker in self._FLUSH_PRIORITY_MARKERS
+                    ):
+                        priority_lines.append(stripped[:300])
+                        if len(priority_lines) >= 15:
+                            break
+                if len(priority_lines) >= 15:
+                    break
+
+            # Pass 2: If few markers found, grab tail of recent parts (most recent work)
+            if len(priority_lines) < 3:
+                for part in reversed(parts[-3:]):
+                    snippet = part[-500:].strip()
+                    if snippet and len(snippet) > 20:
+                        priority_lines.append(snippet)
+
+            if not priority_lines:
                 return
 
             flush_content = (
-                "[Pre-compaction flush] Key context before compression:\n"
-                + "\n---\n".join(key_facts)
+                "[Pre-compaction flush] Key findings before context compression:\n"
+                + "\n---\n".join(priority_lines[:15])
             )
 
-            # Store to episodic memory if agent has memory
-            memory = getattr(agent, "memory", None)
-            if memory is not None and hasattr(memory, "store"):
-                memory.store(
-                    flush_content[:2000],
-                    level="episodic",
-                    metadata={"source": "pre_compaction_flush"},
-                )
-                logger.debug(f"Pre-compaction flush: saved {len(flush_content)} chars to memory")
+            memory.store(
+                flush_content[:2500],
+                level="episodic",
+                metadata={"source": "pre_compaction_flush", "chars_before": total_chars},
+            )
+            logger.debug(
+                "Pre-compaction flush: saved %d priority lines (%d chars) to memory",
+                len(priority_lines),
+                len(flush_content),
+            )
         except Exception as e:
             logger.debug(f"Pre-compaction memory flush skipped: {e}")
 

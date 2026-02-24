@@ -408,6 +408,26 @@ class AutonomousAgent(BaseAgent):
                 too_hard=True,
             )
 
+        # Step 3c: If a DSPy-optimized module is available, use it for
+        # the core generation (bypasses the generic planner for the main
+        # output — the module contains BootstrapFewShot-optimized prompts
+        # with proven few-shot examples from successful episodes).
+        dspy_module = _crystal.get("dspy_module") if _crystal else None
+        if dspy_module:
+            try:
+                _status("DSPy", "using BootstrapFewShot-optimized module")
+                dspy_result = await self._run_dspy_module(
+                    dspy_module, task, _crystal.get("_domain", ""), _status
+                )
+                if dspy_result:
+                    learning_context = (
+                        (learning_context or "")
+                        + "\n\nDSPy module output (use as primary):\n"
+                        + str(dspy_result)[:2000]
+                    ).strip()
+            except Exception as e:
+                logger.debug(f"DSPy module execution failed (falling back to plan): {e}")
+
         # Step 4: Create plan or go direct
         steps, skill_names = await self._create_or_skip_plan(
             task,
@@ -611,10 +631,53 @@ class AutonomousAgent(BaseAgent):
                 },
             }
 
+        # Check for DSPy-optimized module (BootstrapFewShot with gold examples)
+        dspy_module = config.get_dspy_module()
+
         return {
             "skills": matched,
             "sop_hint": config.to_plan_hint(goal=task),
+            "dspy_module": dspy_module,
+            "_domain": config.domain or config.task_type,
         }
+
+    async def _run_dspy_module(
+        self,
+        module: Any,
+        task: str,
+        domain: str,
+        status: StatusReporter,
+    ) -> Optional[str]:
+        """Execute a DSPy-optimized module for domain-specific generation.
+
+        The module was optimized via BootstrapFewShot with gold examples
+        from successful episodes + web research. It runs on the student
+        model (Haiku) but with teacher-bootstrapped few-shot demos.
+
+        Returns the generated output string, or None on failure.
+        """
+        try:
+            import dspy
+
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                UnifiedLMProvider,
+            )
+
+            student_lm = UnifiedLMProvider.create_lm(provider="anthropic", model="haiku")
+
+            status("DSPy exec", f"running optimized module for {domain}")
+            with dspy.context(lm=student_lm):
+                result = module(task_description=task, domain=domain)
+
+            output = getattr(result, "output", "")
+            if output and len(output) > 20:
+                logger.info(f"DSPy module produced {len(output)} chars for {domain}")
+                return output
+            return None
+
+        except Exception as e:
+            logger.debug(f"DSPy module execution failed: {e}")
+            return None
 
     async def _select_and_optimize_skills(
         self,

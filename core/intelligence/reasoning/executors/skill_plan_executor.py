@@ -81,6 +81,9 @@ class SkillPlanExecutor:
         self._excluded_skills: set = set()
         self._current_task: str = ""  # Original task text (set during plan_and_execute)
         self._learning_context: Optional[str] = None  # Set via execute_step or plan_and_execute
+        # Trust-level tool sandboxing: set by the owning agent from ExecutionContext.
+        # None = unrestricted (default). Set[str] = only these skills allowed.
+        self._allowed_skills: Optional[set] = None
 
         # Skill selection cache: task_type → selected skill names
         # Avoids redundant LLM calls when the same type of task is seen again.
@@ -652,6 +655,19 @@ class SkillPlanExecutor:
                 "success": False,
                 "error": f"Tool not found: {step.tool_name}",
             }
+
+        # Trust-level sandboxing: block skills not in allowlist
+        if self._allowed_skills is not None:
+            if step.skill_name.lower() not in self._allowed_skills:
+                logger.warning(
+                    "Skill '%s' blocked by trust-level sandboxing (allowed: %s)",
+                    step.skill_name,
+                    self._allowed_skills,
+                )
+                return {
+                    "success": False,
+                    "error": f"Skill '{step.skill_name}' not permitted at current trust level",
+                }
 
         # Build ToolSchema for type-aware resolution + auto-wiring
         tool_schema = None

@@ -59,6 +59,13 @@ from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Type
 
 from .._base.swarm_learning import AgentRole, SwarmBaseConfig, SwarmLearning, SwarmResult
 from .._base.swarm_types import _safe_join, _safe_num, _split_field
+from .approval_gates import (
+    ApprovalCheckpoint,
+    ApprovalGate,
+    ApprovalStatus,
+    GateResult,
+    get_checkpoint_store,
+)
 from .team_coordinator import CoordinationPattern, TeamCoordinator, TeamResult
 
 logger = logging.getLogger(__name__)
@@ -253,6 +260,8 @@ class SwarmTemplate(SwarmLearning):
     AGENT_TEAM: ClassVar[Optional[TeamCoordinator]] = None
     # Subclasses set this to a DSPy Signature for typed I/O contracts
     SWARM_SIGNATURE: ClassVar[Optional[Type]] = None
+    # Subclasses define approval gates for human-in-the-loop checkpoints
+    APPROVAL_GATES: ClassVar[Dict[str, ApprovalGate]] = {}
 
     # Template constants — subclasses override to use run_domain()
     TASK_TYPE: ClassVar[str] = ""
@@ -926,6 +935,73 @@ class SwarmTemplate(SwarmLearning):
         return None
 
     # =========================================================================
+    # APPROVAL GATES (Human-in-the-loop checkpoints)
+    # =========================================================================
+
+    async def check_approval_gate(
+        self,
+        gate_name: str,
+        checkpoint_data: Dict[str, Any] | None = None,
+        original_args: Dict[str, Any] | None = None,
+    ) -> GateResult:
+        """Check an approval gate, pausing execution if approval is needed.
+
+        Call this between phases in _execute_domain(). If the gate requires
+        approval and none has been given yet, execution pauses and a resume
+        token is returned.
+
+        If the swarm was resumed with a pre-approved checkpoint for this gate,
+        execution continues immediately.
+
+        Args:
+            gate_name: Name matching a key in APPROVAL_GATES.
+            checkpoint_data: State to persist for resumption.
+            original_args: Original execute() args (for replay on resume).
+
+        Returns:
+            GateResult with paused=True if waiting, approved=True if cleared.
+        """
+        gate = self.APPROVAL_GATES.get(gate_name)
+        if not gate:
+            # No gate defined — pass through
+            return GateResult(paused=False, approved=True)
+
+        # Check if we're resuming from this gate (set by execute())
+        resume_checkpoint: Optional[ApprovalCheckpoint] = getattr(self, "_resume_checkpoint", None)
+        if resume_checkpoint and resume_checkpoint.gate_name == gate_name:
+            if resume_checkpoint.status == ApprovalStatus.APPROVED:
+                logger.info("Approval gate '%s': resumed with approval", gate_name)
+                self._resume_checkpoint = None  # Clear so it's one-shot
+                return GateResult(paused=False, approved=True, checkpoint=resume_checkpoint)
+            elif resume_checkpoint.status == ApprovalStatus.REJECTED:
+                logger.info("Approval gate '%s': resumed with rejection", gate_name)
+                self._resume_checkpoint = None
+                return GateResult(
+                    paused=False,
+                    approved=False,
+                    checkpoint=resume_checkpoint,
+                    rejection_reason=resume_checkpoint.rejection_reason,
+                )
+
+        # No pre-approval — create checkpoint and pause
+        checkpoint = ApprovalCheckpoint(
+            gate_name=gate_name,
+            swarm_class=self.__class__.__name__,
+            checkpoint_data=checkpoint_data or {},
+            original_args=original_args or {},
+        )
+
+        store = get_checkpoint_store()
+        token = store.save(checkpoint)
+
+        logger.info(
+            "Approval gate '%s' hit — execution paused. Resume token: %s",
+            gate_name,
+            token,
+        )
+        return GateResult(paused=True, resume_token=token, checkpoint=checkpoint)
+
+    # =========================================================================
     # EXECUTION TEMPLATE
     # =========================================================================
 
@@ -934,17 +1010,49 @@ class SwarmTemplate(SwarmLearning):
         Execute the swarm with integrated learning.
 
         This is a template method that:
-        1. Initializes agents + LearningService
-        2. Starts a learning episode (LearningService)
-        3. Runs pre-execute learning (legacy hooks)
-        4. Calls _execute_domain() for domain logic
-        5. Ends the learning episode with outcome
-        6. Returns result
+        1. Checks for resume_token (approval gate continuation)
+        2. Initializes agents + LearningService
+        3. Starts a learning episode (LearningService)
+        4. Runs pre-execute learning (legacy hooks)
+        5. Calls _execute_domain() for domain logic
+        6. Ends the learning episode with outcome
+        7. Returns result
 
         Subclasses implement _execute_domain() for their logic.
         They can use coordinate() within _execute_domain() to
         leverage coordination patterns.
+
+        Pass resume_token="..." to continue from an approved gate.
         """
+        # Handle resume from approval gate
+        resume_token = kwargs.pop("resume_token", None)
+        if resume_token:
+            store = get_checkpoint_store()
+            checkpoint = store.load_from_token(resume_token)
+            if checkpoint is None:
+                return SwarmResult(
+                    success=False,
+                    swarm_name=self.__class__.__name__,
+                    domain="",
+                    output={},
+                    execution_time=0.0,
+                    error="Invalid or expired resume token",
+                )
+            if checkpoint.status == ApprovalStatus.PENDING:
+                return SwarmResult(
+                    success=False,
+                    swarm_name=self.__class__.__name__,
+                    domain="",
+                    output={},
+                    execution_time=0.0,
+                    error=f"Checkpoint '{checkpoint.gate_name}' still pending approval",
+                )
+            # Attach checkpoint so check_approval_gate() can find it
+            self._resume_checkpoint = checkpoint
+            # Restore original args
+            if checkpoint.original_args:
+                kwargs.update(checkpoint.original_args)
+
         self._init_agents()
         self._learning_recorded = False  # Reset per-execution
 

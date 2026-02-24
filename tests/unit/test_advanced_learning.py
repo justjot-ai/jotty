@@ -1,15 +1,13 @@
 """
 Tests for advanced learning components.
 
-Tests: UCB in SkillQTable, LLMJudge, Reflexion, FewShotCurator,
-       MCTSPlanner, VoyagerSkillLib, build_advanced_learning_context.
+Tests: UCB in SkillQTable, Reflexion, FewShotCurator, VoyagerSkillLib.
 
 All tests are offline — no real LLM calls. DSPy modules are mocked.
 """
 
 from __future__ import annotations
 
-import math
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -73,64 +71,6 @@ class TestSkillQTableUCB:
         restored = SkillQTable.from_dict(data)
         assert restored.ucb_c == 2.0
         assert restored.get_q("coding", "python") == q.get_q("coding", "python")
-
-
-# =============================================================================
-# LLMJudge
-# =============================================================================
-
-
-class TestLLMJudge:
-    """Test LLM-based quality judge."""
-
-    @pytest.mark.unit
-    def test_fallback_to_heuristic_when_no_lm(self):
-        from Jotty.core.intelligence.learning.advanced_learning import LLMJudge
-
-        judge = LLMJudge()
-        judge._init_attempts = 10  # Force failure
-        verdict = judge.judge("test goal", "some response", heuristic_score=0.65)
-        assert verdict.quality == 0.65
-        assert verdict.source == "heuristic"
-
-    @pytest.mark.unit
-    def test_empty_response_returns_heuristic(self):
-        from Jotty.core.intelligence.learning.advanced_learning import LLMJudge
-
-        judge = LLMJudge()
-        verdict = judge.judge("test", "", heuristic_score=0.5)
-        assert verdict.quality == 0.5
-        assert verdict.source == "heuristic"
-
-    @pytest.mark.unit
-    def test_judge_with_mocked_dspy(self):
-        from Jotty.core.intelligence.learning.advanced_learning import LLMJudge
-
-        judge = LLMJudge()
-        mock_module = MagicMock()
-        mock_module.return_value = MagicMock(
-            quality_score=0.85,
-            reasoning="Well structured response",
-        )
-        judge._judge_module = mock_module
-        judge._lm = MagicMock()
-
-        with patch("dspy.context"):
-            verdict = judge.judge("Build API", "Here is a REST API..." * 100, 0.6)
-
-        assert verdict.source == "llm"
-        # Blended: config-driven weights (default 0.6/0.4)
-        # 0.6 * 0.85 + 0.4 * 0.6 = 0.75
-        assert abs(verdict.quality - 0.75) < 0.01
-
-    @pytest.mark.unit
-    def test_singleton_pattern(self):
-        from Jotty.core.intelligence.learning.advanced_learning import LLMJudge
-
-        a = LLMJudge.get_instance()
-        b = LLMJudge.get_instance()
-        assert a is b
-        LLMJudge._instance = None  # Clean up
 
 
 # =============================================================================
@@ -256,66 +196,6 @@ class TestFewShotCurator:
 
 
 # =============================================================================
-# MCTSPlanner
-# =============================================================================
-
-
-class TestMCTSPlanner:
-    """Test LATS-style MCTS planning."""
-
-    @pytest.mark.unit
-    def test_fallback_when_no_lm(self):
-        from Jotty.core.intelligence.learning.advanced_learning import MCTSPlanner
-
-        planner = MCTSPlanner()
-        plan = planner.plan("Build a microservices architecture")
-        assert len(plan) >= 1
-        assert plan[0] == "Build a microservices architecture"
-
-    @pytest.mark.unit
-    def test_plan_with_mocked_dspy(self):
-        from Jotty.core.intelligence.learning.advanced_learning import MCTSPlanner
-
-        planner = MCTSPlanner(max_iterations=3, max_depth=2, n_expand=2)
-
-        mock_expand = MagicMock()
-        mock_expand.return_value = MagicMock(
-            candidate_actions="Design the API schema\nSet up the database"
-        )
-        mock_eval = MagicMock()
-        mock_eval.return_value = MagicMock(success_probability=0.8)
-
-        planner._expand_module = mock_expand
-        planner._eval_module = mock_eval
-        planner._lm = MagicMock()
-
-        with patch("dspy.context"):
-            plan = planner.plan("Build REST API")
-
-        assert len(plan) >= 1
-        assert any("API" in step or "database" in step.lower() for step in plan)
-
-    @pytest.mark.unit
-    def test_mcts_node_ucb(self):
-        from Jotty.core.intelligence.learning.advanced_learning import MCTSNode
-
-        parent = MCTSNode(state={"goal": "test"}, visits=10, value=5.0)
-        child = MCTSNode(state={"goal": "test"}, action="step1", parent=parent, visits=2, value=1.0)
-        parent.children.append(child)
-
-        # UCB = value/visits + 1.41 * sqrt(ln(parent.visits) / visits)
-        expected = 1.0 / 2 + 1.41 * math.sqrt(math.log(10) / 2)
-        assert abs(child.ucb - expected) < 0.01
-
-    @pytest.mark.unit
-    def test_unvisited_node_has_infinite_ucb(self):
-        from Jotty.core.intelligence.learning.advanced_learning import MCTSNode
-
-        node = MCTSNode(state={}, visits=0)
-        assert node.ucb == float("inf")
-
-
-# =============================================================================
 # VoyagerSkillLib
 # =============================================================================
 
@@ -380,69 +260,3 @@ class TestVoyagerSkillLib:
         assert result == "skill_existing"
         assert abs(mock_pattern.confidence - 0.85) < 1e-9
         assert mock_pattern.evidence_count == 4
-
-
-# =============================================================================
-# build_advanced_learning_context
-# =============================================================================
-
-
-class TestBuildAdvancedContext:
-    """Test unified context builder."""
-
-    @pytest.mark.unit
-    def test_returns_empty_when_no_data(self):
-        from Jotty.core.intelligence.learning.advanced_learning import (
-            build_advanced_learning_context,
-        )
-
-        with (
-            patch("Jotty.core.intelligence.learning.advanced_learning.Reflexion") as mock_refl_cls,
-            patch(
-                "Jotty.core.intelligence.learning.advanced_learning.VoyagerSkillLib"
-            ) as mock_voy_cls,
-            patch(
-                "Jotty.core.intelligence.learning.advanced_learning.FewShotCurator"
-            ) as mock_cur_cls,
-        ):
-            mock_refl_cls.get_instance.return_value.get_relevant_reflections.return_value = []
-            mock_voy_cls.get_instance.return_value.get_applicable_patterns.return_value = []
-            mock_cur_cls.get_instance.return_value.get_distilled_examples.return_value = []
-
-            result = build_advanced_learning_context("TestAgent", "coding")
-
-        assert result == ""
-
-    @pytest.mark.unit
-    def test_includes_reflections_and_patterns(self):
-        from Jotty.core.intelligence.learning.advanced_learning import (
-            build_advanced_learning_context,
-        )
-
-        with (
-            patch("Jotty.core.intelligence.learning.advanced_learning.Reflexion") as mock_refl_cls,
-            patch(
-                "Jotty.core.intelligence.learning.advanced_learning.VoyagerSkillLib"
-            ) as mock_voy_cls,
-            patch(
-                "Jotty.core.intelligence.learning.advanced_learning.FewShotCurator"
-            ) as mock_cur_cls,
-        ):
-            mock_refl_cls.get_instance.return_value.get_relevant_reflections.return_value = [
-                "[Past failure] API timed out → Fix: Add retry logic"
-            ]
-            mock_voy_cls.get_instance.return_value.get_applicable_patterns.return_value = [
-                {
-                    "strategy": "Use pipeline pattern",
-                    "confidence": 0.9,
-                    "evidence": 5,
-                    "description": "REST API",
-                }
-            ]
-            mock_cur_cls.get_instance.return_value.get_distilled_examples.return_value = []
-
-            result = build_advanced_learning_context("TestAgent", "coding")
-
-        assert "ADVANCED LEARNING CONTEXT" in result
-        assert "retry logic" in result
-        assert "pipeline pattern" in result

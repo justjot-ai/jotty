@@ -191,6 +191,10 @@ class ExecutionContext:
     streaming: bool = False  # Enable streaming
     response_format: ResponseFormat = ResponseFormat.MARKDOWN
 
+    # Trust level (set by gateway based on channel + user)
+    # Values: "owner", "trusted", "untrusted" (str to avoid circular import)
+    trust_level: str = "owner"
+
     # Metadata
     metadata: Dict[str, Any] = field(default_factory=dict)
     raw_data: Dict[str, Any] = field(default_factory=dict)
@@ -217,6 +221,7 @@ class ExecutionContext:
             "max_steps": self.max_steps,
             "streaming": self.streaming,
             "response_format": self.response_format.value,
+            "trust_level": self.trust_level,
             "metadata": self.metadata,
         }
 

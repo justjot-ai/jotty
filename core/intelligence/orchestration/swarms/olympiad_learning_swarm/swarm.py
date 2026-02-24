@@ -501,6 +501,7 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
                 result.get("complete_content", ""),
                 pdf_path=pdf_path,  # type: ignore[arg-type]
                 html_path=html_path,  # type: ignore[arg-type]
+                md_path=md_path,  # type: ignore[arg-type]
             )
 
         return final_result
@@ -1774,8 +1775,9 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
         full_content: str,
         pdf_path: Optional[str] = None,
         html_path: Optional[str] = None,
+        md_path: Optional[str] = None,
     ) -> Any:
-        """Send lesson summary + PDF + HTML to Telegram."""
+        """Send lesson summary + PDF + HTML + MD to Telegram."""
         summary = self._build_telegram_summary(topic, student_name, content, pdf_path, html_path)
         await self._deliver_to_telegram(
             topic=topic,
@@ -1785,6 +1787,7 @@ class OlympiadLearningSwarm(OutputMixin, SwarmTemplate):
             prefix="olympiad",
             pdf_path=pdf_path,
             html_path=html_path,
+            md_path=md_path,
         )
 
     # =========================================================================
