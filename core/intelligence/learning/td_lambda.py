@@ -1490,6 +1490,9 @@ class SkillQTable(_DomainKeyMixin):
         # Recency tracking for staleness-aware updates
         self._last_updated: Dict[str, Dict[str, int]] = {}
         self._global_counter: int = 0
+        # Convergence tracking: rolling window of |TD error| per domain key
+        self._td_errors: Dict[str, List[float]] = {}
+        self._TD_WINDOW: int = 20
 
     def get_q(self, task_type: str, skill: str, domain: str = "") -> float:
         """Get Q-value with domain fallback. Default 0.5 (optimistic)."""
@@ -1548,7 +1551,15 @@ class SkillQTable(_DomainKeyMixin):
             # Track last update
             self._last_updated.setdefault(key, {})[skill] = self._global_counter
 
-        logger.debug(f"Q-update: ({keys_to_update[0]}, {skill}): TD={td_error:.3f}")
+        # Track |TD error| for convergence detection
+        primary_key = keys_to_update[0]
+        if primary_key not in self._td_errors:
+            self._td_errors[primary_key] = []
+        self._td_errors[primary_key].append(abs(td_error))
+        if len(self._td_errors[primary_key]) > self._TD_WINDOW:
+            self._td_errors[primary_key] = self._td_errors[primary_key][-self._TD_WINDOW :]
+
+        logger.debug(f"Q-update: ({primary_key}, {skill}): TD={td_error:.3f}")
         return td_error
 
     def select(self, task_type: str, available_skills: List[str], domain: str = "") -> List[str]:
@@ -1597,6 +1608,64 @@ class SkillQTable(_DomainKeyMixin):
         """Return all unique composite keys (task_type or task_type:domain)."""
         return sorted(self._q.keys())
 
+    def get_convergence_stats(self, task_type: str, domain: str = "") -> Dict[str, Any]:
+        """Check if Q-values for a domain have converged (stabilized).
+
+        Convergence = the rolling mean |TD error| has dropped below epsilon
+        AND has low variance (not oscillating). This prevents premature
+        crystallization when Q-values happen to cross a threshold but are
+        still moving.
+
+        Returns:
+            dict with keys: converged, mean_td_error, td_variance,
+            window_size, threshold
+        """
+        key = self._make_key(task_type, domain)
+        errors = self._td_errors.get(key, [])
+        if not errors and ":" in key:
+            errors = self._td_errors.get(self._base_key(key), [])
+
+        # Also merge sibling task_types for same domain
+        if domain:
+            for other_key, other_errors in self._td_errors.items():
+                if other_key != key and other_key.endswith(f":{domain}"):
+                    errors = errors + other_errors
+
+        if len(errors) < self._TD_WINDOW // 2:
+            return {
+                "converged": False,
+                "mean_td_error": float("inf"),
+                "td_variance": float("inf"),
+                "window_size": len(errors),
+                "threshold": 0.08,
+                "reason": f"too few updates ({len(errors)} < {self._TD_WINDOW // 2})",
+            }
+
+        recent = errors[-self._TD_WINDOW :]
+        mean_td = sum(recent) / len(recent)
+        variance = sum((e - mean_td) ** 2 for e in recent) / len(recent)
+
+        # Convergence: mean |TD error| < 0.08 AND variance < 0.01
+        # These thresholds mean Q-values are changing by <8% on average
+        # and not oscillating significantly.
+        converged = mean_td < 0.08 and variance < 0.01
+        return {
+            "converged": converged,
+            "mean_td_error": round(mean_td, 4),
+            "td_variance": round(variance, 6),
+            "window_size": len(recent),
+            "threshold": 0.08,
+            "reason": (
+                "converged"
+                if converged
+                else (
+                    f"mean_td={mean_td:.3f} (need <0.08)"
+                    if mean_td >= 0.08
+                    else f"variance={variance:.4f} (need <0.01)"
+                )
+            ),
+        }
+
     def to_dict(self) -> Dict:
         return {
             "q": self._q,
@@ -1607,6 +1676,7 @@ class SkillQTable(_DomainKeyMixin):
             "ucb_c": self.ucb_c,
             "last_updated": self._last_updated,
             "global_counter": self._global_counter,
+            "td_errors": self._td_errors,
         }
 
     @classmethod
@@ -1621,6 +1691,7 @@ class SkillQTable(_DomainKeyMixin):
         obj._counts = data.get("counts", {})
         obj._last_updated = data.get("last_updated", {})
         obj._global_counter = data.get("global_counter", 0)
+        obj._td_errors = data.get("td_errors", {})
         return obj
 
 

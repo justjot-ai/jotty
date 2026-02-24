@@ -288,7 +288,17 @@ def should_crystallize(
         stats["reasons"].append(f"roles with low Q: {[r['role'] for r in low_roles]}")
         return False, stats
 
-    stats["reasons"].append("all checks passed")
+    # 5. Q-value convergence — verify Q-values have stabilized, not just
+    # crossed the threshold. Prevents premature crystallization from
+    # lucky runs that happen to push Q-values above threshold while
+    # still actively changing.
+    convergence = td.skill_q.get_convergence_stats(task_type, domain=domain)
+    stats["convergence"] = convergence
+    if not convergence["converged"]:
+        stats["reasons"].append(f"Q-values not converged: {convergence['reason']}")
+        return False, stats
+
+    stats["reasons"].append("all checks passed (including convergence)")
     return True, stats
 
 

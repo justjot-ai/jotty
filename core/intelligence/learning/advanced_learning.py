@@ -21,6 +21,7 @@ Note: LLM-as-Judge lives in LearningService.llm_judge_quality_with_feedback()
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
@@ -372,7 +373,7 @@ class FewShotCurator:
 
 
 def _get_domain_task_classes():
-    """Lazy-create DSPy signature and module classes (avoids import-time dspy dependency)."""
+    """Lazy-create DSPy signature and module (avoids import-time dspy dependency)."""
     import dspy
 
     class DomainTaskSignature(dspy.Signature):
@@ -382,77 +383,425 @@ def _get_domain_task_classes():
         domain: str = dspy.InputField(desc="Domain (e.g. plantuml, mermaid, coding)")
         output: str = dspy.OutputField(desc="Complete, high-quality output for the task")
 
-    class ValidationSignature(dspy.Signature):
-        """Validate domain output and identify specific errors to fix."""
-
-        original_task: str = dspy.InputField(desc="The original task description")
-        generated_output: str = dspy.InputField(desc="The generated output to validate")
-        domain: str = dspy.InputField(desc="Domain (e.g. plantuml, mermaid)")
-        is_valid: bool = dspy.OutputField(desc="Whether the output is structurally valid")
-        errors: str = dspy.OutputField(desc="List of specific errors found, or 'none'")
-
-    class RefinementSignature(dspy.Signature):
-        """Fix errors in generated output based on validation feedback."""
-
-        original_task: str = dspy.InputField(desc="The original task description")
-        draft_output: str = dspy.InputField(desc="The draft output with errors")
-        validation_errors: str = dspy.InputField(desc="Specific errors to fix")
-        domain: str = dspy.InputField(desc="Domain (e.g. plantuml, mermaid)")
-        output: str = dspy.OutputField(desc="Corrected output with all errors fixed")
-
     class DomainTaskModule(dspy.Module):
-        """Single-stage: generate only. Optimized via BootstrapFewShot."""
+        """ChainOfThought generation + cheap programmatic validation + one retry.
 
-        def __init__(self):
-            super().__init__()
-            self.generate = dspy.ChainOfThought(DomainTaskSignature)
-
-        def forward(self, task_description: str, domain: str):
-            return self.generate(task_description=task_description, domain=domain)
-
-    class DomainTaskPipeline(dspy.Module):
-        """Multi-stage: Generate -> Validate -> Refine (self-healing).
-
-        Stage 1: Generate initial output (ChainOfThought)
-        Stage 2: Validate the output for structural/syntax errors
-        Stage 3: If errors found, refine and fix them
-
-        Each stage is independently optimizable by DSPy.
+        No extra LLM calls for validation — just checks structural markers
+        (e.g. @startuml/@enduml for PlantUML) and retries once with a hint.
         """
 
         def __init__(self):
             super().__init__()
             self.generate = dspy.ChainOfThought(DomainTaskSignature)
-            self.validate = dspy.Predict(ValidationSignature)
-            self.refine = dspy.ChainOfThought(RefinementSignature)
 
         def forward(self, task_description: str, domain: str):
-            # Stage 1: Generate
-            gen_result = self.generate(task_description=task_description, domain=domain)
-            draft = gen_result.output
+            result = self.generate(task_description=task_description, domain=domain)
+            output = getattr(result, "output", "")
 
-            # Stage 2: Validate
-            val_result = self.validate(
-                original_task=task_description,
-                generated_output=draft,
-                domain=domain,
+            vr = validate_output(output, domain)
+            if not vr.valid:
+                hint = vr.issue or "Output failed validation."
+                retry_desc = f"{task_description}\n\nCRITICAL: {hint}"
+                result = self.generate(task_description=retry_desc, domain=domain)
+
+            return result
+
+    return DomainTaskSignature, DomainTaskModule
+
+
+_STOPWORDS = frozenset(
+    "a an the is are was were be been being have has had do does did will would "
+    "shall should may might can could of in to for on with at by from as into "
+    "through during before after above below between under again further then "
+    "once here there when where why how all both each few more most other some "
+    "such no nor not only own same so than too very and but or if".split()
+)
+
+
+def _gold_metric(example, prediction, trace=None) -> float:
+    """Quality-aware DSPy metric: structural quality + key-term F1 + coherence.
+
+    Replaces naive word-overlap with a 4-dimension score:
+      1. Key-term F1 (content preservation, stop-words excluded)
+      2. Structural quality (formatting, sentence structure)
+      3. Length appropriateness (within reasonable range of gold)
+      4. Coherence (lexical diversity, no degenerate repetition)
+    """
+    pred = getattr(prediction, "output", "")
+    if not pred or len(pred) < 20:
+        return 0.0
+    gold = getattr(example, "output", "")
+    if not gold:
+        return 0.3 if len(pred) > 50 else 0.1
+
+    # 1. Key-term F1 (stop-words removed, lowercased)
+    gold_terms = {w for w in gold.lower().split() if w not in _STOPWORDS and len(w) > 2}
+    pred_terms = {w for w in pred.lower().split() if w not in _STOPWORDS and len(w) > 2}
+    if gold_terms and pred_terms:
+        recall = len(gold_terms & pred_terms) / len(gold_terms)
+        precision = len(gold_terms & pred_terms) / len(pred_terms)
+        f1 = 2 * precision * recall / max(precision + recall, 1e-9)
+    elif gold_terms:
+        f1 = 0.0
+    else:
+        f1 = 0.5
+
+    # 2. Structural quality (formatting signals present in output)
+    structure = 0.0
+    if any(marker in pred for marker in ("\n", "- ", "* ", "1.", "## ", "```")):
+        structure += 0.5
+    sentences = [s.strip() for s in pred.split(".") if len(s.strip()) > 10]
+    if len(sentences) >= 2:
+        structure += 0.3
+    # Domain-specific validation (library → structural cascade)
+    domain_str = getattr(example, "domain", "")
+    if domain_str:
+        vr = validate_output(pred, domain_str)
+        if vr.valid:
+            structure += 0.2 * vr.confidence  # library=1.0 → full credit, structural=0.5 → half
+        elif vr.method == "library" and vr.confidence >= 0.9:
+            return 0.0  # definitive parser says invalid → zero score
+    structure = min(structure, 1.0)
+
+    # 3. Length appropriateness (0.3x-3x of gold is acceptable range)
+    ratio = len(pred) / max(len(gold), 1)
+    if 0.3 <= ratio <= 3.0:
+        length_score = 1.0 - 0.3 * abs(ratio - 1.0)
+    else:
+        length_score = max(0.0, 0.5 - 0.2 * abs(ratio - 1.0))
+    length_score = max(0.0, min(1.0, length_score))
+
+    # 4. Coherence (lexical diversity — catches degenerate repetition)
+    words = pred.lower().split()
+    uniqueness = len(set(words)) / max(len(words), 1) if words else 0
+    coherence = min(1.0, uniqueness / 0.4) if uniqueness < 0.4 else 1.0
+
+    score = 0.35 * f1 + 0.25 * structure + 0.20 * length_score + 0.20 * coherence
+    return round(min(score, 1.0), 4)
+
+
+@dataclasses.dataclass
+class ValidationResult:
+    """Structured result from output validation cascade.
+
+    Used by DSPy metric, DomainTaskModule retry, and episode recording.
+    """
+
+    valid: bool
+    method: str  # "library", "structural", "none"
+    confidence: float  # 0.0-1.0: how certain we are (1.0 = definitive parser)
+    errors: List[str] = dataclasses.field(default_factory=list)
+
+    @property
+    def issue(self) -> str:
+        """Backward-compat: single error string (or empty)."""
+        return "; ".join(self.errors) if self.errors else ""
+
+
+# ---------------------------------------------------------------------------
+# Per-domain library validators (Level 1)
+# Each returns ValidationResult. Only called when the library is available.
+# ---------------------------------------------------------------------------
+
+
+def _validate_python(code: str) -> ValidationResult:
+    """ast.parse() — definitive syntax check."""
+    import ast as _ast
+
+    try:
+        _ast.parse(code)
+        return ValidationResult(valid=True, method="library", confidence=1.0)
+    except SyntaxError as e:
+        return ValidationResult(
+            valid=False,
+            method="library",
+            confidence=1.0,
+            errors=[f"Python syntax error: {e.msg} (line {e.lineno})"],
+        )
+
+
+def _validate_sql(code: str) -> ValidationResult:
+    """sqlglot.transpile() — dialect-aware SQL parsing."""
+    try:
+        import sqlglot
+
+        sqlglot.transpile(code)
+        return ValidationResult(valid=True, method="library", confidence=0.95)
+    except Exception as e:
+        return ValidationResult(
+            valid=False,
+            method="library",
+            confidence=0.95,
+            errors=[f"SQL syntax error: {str(e)[:200]}"],
+        )
+
+
+def _validate_json(text: str) -> ValidationResult:
+    """json.loads() — definitive JSON check."""
+    import json as _json
+
+    try:
+        _json.loads(text)
+        return ValidationResult(valid=True, method="library", confidence=1.0)
+    except _json.JSONDecodeError as e:
+        return ValidationResult(
+            valid=False,
+            method="library",
+            confidence=1.0,
+            errors=[f"JSON error: {e.msg} (pos {e.pos})"],
+        )
+
+
+def _validate_yaml(text: str) -> ValidationResult:
+    """yaml.safe_load() — definitive YAML check."""
+    try:
+        import yaml as _yaml
+
+        _yaml.safe_load(text)
+        return ValidationResult(valid=True, method="library", confidence=1.0)
+    except Exception as e:
+        return ValidationResult(
+            valid=False,
+            method="library",
+            confidence=1.0,
+            errors=[f"YAML error: {str(e)[:200]}"],
+        )
+
+
+def _validate_html(text: str) -> ValidationResult:
+    """html.parser — permissive but catches gross errors."""
+    from html.parser import HTMLParser
+
+    class _StrictParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.errors: List[str] = []
+            self._stack: List[str] = []
+            _VOID = {
+                "br",
+                "hr",
+                "img",
+                "input",
+                "meta",
+                "link",
+                "area",
+                "base",
+                "col",
+                "embed",
+                "source",
+                "track",
+                "wbr",
+            }
+            self._void = _VOID
+
+        def handle_starttag(self, tag, attrs):
+            if tag.lower() not in self._void:
+                self._stack.append(tag.lower())
+
+        def handle_endtag(self, tag):
+            if self._stack and self._stack[-1] == tag.lower():
+                self._stack.pop()
+            elif tag.lower() not in self._void:
+                self.errors.append(f"Unexpected closing </{tag}>")
+
+    parser = _StrictParser()
+    try:
+        parser.feed(text)
+        if parser.errors:
+            return ValidationResult(
+                valid=False,
+                method="library",
+                confidence=0.7,
+                errors=parser.errors[:5],
             )
+        return ValidationResult(valid=True, method="library", confidence=0.7)
+    except Exception as e:
+        return ValidationResult(
+            valid=False,
+            method="library",
+            confidence=0.7,
+            errors=[f"HTML parse error: {str(e)[:200]}"],
+        )
 
-            # Stage 3: Refine if errors found
-            if not val_result.is_valid or (
-                val_result.errors and val_result.errors.lower() != "none"
-            ):
-                refined = self.refine(
-                    original_task=task_description,
-                    draft_output=draft,
-                    validation_errors=val_result.errors,
-                    domain=domain,
-                )
-                return refined
 
-            return gen_result
+def _validate_plantuml_server(code: str) -> Optional[ValidationResult]:
+    """Validate PlantUML by rendering via the public HTTP server.
 
-    return DomainTaskSignature, DomainTaskModule, DomainTaskPipeline
+    Uses /svg endpoint (text-based, so we can detect error messages).
+    Returns None if the server is unreachable (fall back to structural).
+    """
+    import urllib.error
+    import urllib.request
+    import zlib
+
+    def _plantuml_encode(text: str) -> str:
+        compressed = zlib.compress(text.encode("utf-8"))[2:-4]
+        _ENCODING = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
+        result = []
+        for i in range(0, len(compressed), 3):
+            b1 = compressed[i]
+            b2 = compressed[i + 1] if i + 1 < len(compressed) else 0
+            b3 = compressed[i + 2] if i + 2 < len(compressed) else 0
+            result.append(_ENCODING[b1 >> 2])
+            result.append(_ENCODING[((b1 & 0x3) << 4) | (b2 >> 4)])
+            result.append(_ENCODING[((b2 & 0xF) << 2) | (b3 >> 6)])
+            result.append(_ENCODING[b3 & 0x3F])
+        return "".join(result)
+
+    try:
+        encoded = _plantuml_encode(code)
+        url = f"http://www.plantuml.com/plantuml/svg/{encoded}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Jotty/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+        if "Syntax Error" in body or "ErrorURLEncoder" in body:
+            return ValidationResult(
+                valid=False,
+                method="library",
+                confidence=0.95,
+                errors=["PlantUML server reported syntax error in diagram."],
+            )
+        if "<svg" in body:
+            return ValidationResult(valid=True, method="library", confidence=0.95)
+        return None
+    except urllib.error.HTTPError as e:
+        if 400 <= e.code < 500:
+            return ValidationResult(
+                valid=False,
+                method="library",
+                confidence=0.95,
+                errors=[f"PlantUML server rejected diagram (HTTP {e.code})."],
+            )
+        return None  # 5xx = server issue, fall back
+    except Exception:
+        return None  # network error, fall back
+
+
+# ---------------------------------------------------------------------------
+# Validator registry: domain → library validator function
+# ---------------------------------------------------------------------------
+_LIBRARY_VALIDATORS: Dict[str, Any] = {
+    "python": _validate_python,
+    "sql": _validate_sql,
+    "json": _validate_json,
+    "yaml": _validate_yaml,
+    "html": _validate_html,
+}
+
+
+def validate_output(output: str, domain: str) -> ValidationResult:
+    """Verification cascade: library (L1) → structural heuristic (L2).
+
+    L1: Library parser (definitive, free, <100ms)
+    L2: Keyword/structure checks (heuristic, free, <1ms)
+
+    LLM judge (L3) is intentionally separate — lives in
+    LearningService.llm_judge_quality_with_feedback() and is only called
+    for episode recording / graduation decisions (not in hot loops).
+    """
+    if not output or len(output) < 20:
+        return ValidationResult(
+            valid=False,
+            method="structural",
+            confidence=0.8,
+            errors=["Output is too short. Generate complete output."],
+        )
+
+    d = domain.lower().split(":")[0]
+
+    # --- Level 1: Library validator (when available) ---
+    # Extract code blocks for mixed-content outputs
+    code = _extract_code_block(output, d)
+
+    library_result: Optional[ValidationResult] = None
+
+    if d in _LIBRARY_VALIDATORS:
+        library_result = _LIBRARY_VALIDATORS[d](code)
+        if not library_result.valid:
+            return library_result
+
+    if d == "plantuml":
+        server_result = _validate_plantuml_server(code)
+        if server_result is not None:
+            return server_result  # server is authoritative (valid or invalid)
+        # server unreachable — fall through to structural
+
+    # If a library already validated OK, return that (preserves its confidence)
+    if library_result and library_result.valid:
+        return library_result
+
+    # --- Level 2: Structural heuristic (fallback when no library available) ---
+    if d == "plantuml" and "@startuml" not in output:
+        return ValidationResult(
+            valid=False,
+            method="structural",
+            confidence=0.5,
+            errors=["Missing @startuml/@enduml wrapper. Wrap code in @startuml...@enduml."],
+        )
+    if d == "mermaid" and not any(
+        kw in output
+        for kw in (
+            "graph ",
+            "sequenceDiagram",
+            "classDiagram",
+            "flowchart",
+            "erDiagram",
+            "gantt",
+            "pie",
+            "stateDiagram",
+        )
+    ):
+        return ValidationResult(
+            valid=False,
+            method="structural",
+            confidence=0.5,
+            errors=["Missing Mermaid diagram type declaration."],
+        )
+    if d == "sql" and not any(
+        kw in output.upper()
+        for kw in ("SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "WITH")
+    ):
+        return ValidationResult(
+            valid=False,
+            method="structural",
+            confidence=0.4,
+            errors=["No SQL keywords found."],
+        )
+
+    return ValidationResult(valid=True, method="structural", confidence=0.5)
+
+
+def _extract_code_block(output: str, domain: str) -> str:
+    """Extract fenced code block from output if present, else return raw output.
+
+    Handles ```lang ... ``` wrapping common in LLM responses.
+    """
+    import re as _re
+
+    patterns = [
+        _re.compile(r"```(?:\w+)?\s*\n(.*?)```", _re.DOTALL),
+    ]
+    # For PlantUML, also try @startuml...@enduml extraction
+    if domain == "plantuml":
+        m = _re.search(r"(@startuml.*?@enduml)", output, _re.DOTALL)
+        if m:
+            return m.group(1)
+
+    for pat in patterns:
+        m = pat.search(output)
+        if m:
+            return m.group(1).strip()
+
+    return output
+
+
+def _check_output(output: str, domain: str) -> str:
+    """Backward-compatible wrapper: returns issue string or empty.
+
+    Delegates to validate_output() cascade (library → structural).
+    """
+    result = validate_output(output, domain)
+    return result.issue
 
 
 class DomainDSPyOptimizer:
@@ -499,21 +848,69 @@ class DomainDSPyOptimizer:
         return cls._instance
 
     def add_gold_examples(self, domain: str, examples: List[Dict[str, str]]) -> None:
-        """Register external gold examples for a domain.
-
-        Args:
-            domain: Domain key (e.g. "plantuml", "mermaid")
-            examples: List of {task: str, output: str} dicts
-        """
+        """Register external gold examples for a domain."""
         if domain not in self._gold_data:
             self._gold_data[domain] = []
         self._gold_data[domain].extend(examples)
         logger.info(
-            f"DomainDSPyOptimizer: added {len(examples)} gold examples "
-            f"for {domain} (total={len(self._gold_data[domain])})"
+            f"DomainDSPyOptimizer: +{len(examples)} gold for {domain} "
+            f"(total={len(self._gold_data[domain])})"
         )
 
-    def _gather_training_data(self, domain: str, min_quality: float = 0.6) -> List:
+    def generate_gold_from_llm(
+        self,
+        domain: str,
+        tasks: List[str],
+        model: str = "claude-sonnet-4-20250514",
+    ) -> int:
+        """Generate gold examples by calling a strong LLM.
+
+        The single highest-ROI way to get training data: have Sonnet/Opus
+        produce perfect outputs, then use those to train Haiku via DSPy.
+
+        Args:
+            domain: Domain key (e.g. "plantuml", "mermaid")
+            tasks: List of task description strings
+            model: Strong model to use as teacher
+
+        Returns:
+            Number of valid examples added
+        """
+        import anthropic
+
+        client = anthropic.Anthropic()
+        added = 0
+
+        for task_desc in tasks:
+            try:
+                resp = client.messages.create(
+                    model=model,
+                    max_tokens=4096,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": f"{task_desc}\n\nOutput ONLY the code/content, no explanation.",
+                        }
+                    ],
+                )
+                output = resp.content[0].text.strip()
+                vr = validate_output(output, domain) if output else None
+                if vr and vr.valid:
+                    self.add_gold_examples(domain, [{"task": task_desc, "output": output}])
+                    added += 1
+                    logger.debug(
+                        f"Gold gen OK ({vr.method}, conf={vr.confidence:.2f}): {task_desc[:60]}"
+                    )
+                else:
+                    errs = vr.errors if vr else ["empty output"]
+                    logger.debug(f"Gold gen REJECTED ({errs}): {task_desc[:60]}")
+            except Exception as e:
+                logger.debug(f"Gold gen failed: {e}")
+
+        logger.info(f"generate_gold_from_llm: {added}/{len(tasks)} valid for {domain}")
+        return added
+
+    def _gather_training_data(self, domain: str, min_quality: float = 0.7) -> List:
         """Gather DSPy Examples from all sources for a domain."""
         import dspy
 
@@ -590,14 +987,14 @@ class DomainDSPyOptimizer:
     ):
         """Run BootstrapFewShotWithRandomSearch optimization for a domain.
 
-        Uses the 3-stage DomainTaskPipeline (generate→validate→refine)
-        and tries `num_candidate_programs` random configurations, keeping
-        the best. Sonnet acts as teacher, Haiku as student at inference.
+        Tries `num_candidate_programs` random demo configurations, keeps
+        the best. 80/20 train/dev split for unbiased evaluation.
+        Module includes cheap programmatic validation + one retry.
         """
         import dspy
 
-        _, _, Pipeline = _get_domain_task_classes()
-        module = Pipeline()
+        _, DomainTaskModule = _get_domain_task_classes()
+        module = DomainTaskModule()
         examples = self._gather_training_data(domain)
 
         if len(examples) < 3:
@@ -608,21 +1005,16 @@ class DomainDSPyOptimizer:
             return module
 
         if metric is None:
+            metric = _gold_metric
 
-            def metric(example, prediction, trace=None):
-                pred = getattr(prediction, "output", "")
-                if not pred or len(pred) < 20:
-                    return 0.0
-                gold = getattr(example, "output", "")
-                score = 0.3
-                if len(pred) > 50:
-                    score += 0.2
-                gold_words = set(gold.lower().split())
-                pred_words = set(pred.lower().split())
-                if gold_words:
-                    overlap = len(gold_words & pred_words) / len(gold_words)
-                    score += 0.5 * min(overlap, 1.0)
-                return min(score, 1.0)
+        # 80/20 train/dev split — dev set used for unbiased candidate evaluation
+        import random as _rng
+
+        shuffled = list(examples)
+        _rng.shuffle(shuffled)
+        split = max(3, int(len(shuffled) * 0.8))
+        trainset = shuffled[:split]
+        devset = shuffled[split:] if split < len(shuffled) else shuffled[-1:]
 
         try:
             from Jotty.core.infrastructure.foundation.unified_lm_provider import (
@@ -634,19 +1026,34 @@ class DomainDSPyOptimizer:
             optimizer = dspy.BootstrapFewShotWithRandomSearch(
                 metric=metric,
                 max_bootstrapped_demos=max_bootstrapped,
-                max_labeled_demos=min(len(examples), max_labeled),
+                max_labeled_demos=min(len(trainset), max_labeled),
                 num_candidate_programs=num_candidate_programs,
             )
 
             with dspy.context(lm=teacher_lm):
-                optimized = optimizer.compile(module, trainset=examples[:12])
+                optimized = optimizer.compile(module, trainset=trainset[:12])
 
-            save_path = str(self._save_dir / f"{domain}_task_pipeline.json")
+            # Evaluate on held-out dev set
+            dev_scores = []
+            with dspy.context(lm=teacher_lm):
+                for ex in devset:
+                    try:
+                        pred = optimized(
+                            task_description=ex.task_description,
+                            domain=ex.domain,
+                        )
+                        dev_scores.append(metric(ex, pred))
+                    except Exception:
+                        dev_scores.append(0.0)
+            avg_dev = sum(dev_scores) / max(len(dev_scores), 1)
+
+            save_path = str(self._save_dir / f"{domain}_task_module.json")
             optimized.save(save_path)
             logger.info(
-                f"DomainDSPyOptimizer: optimized {domain} pipeline with "
-                f"{len(examples)} examples ({num_candidate_programs} candidates), "
-                f"saved to {save_path}"
+                f"DomainDSPyOptimizer: optimized {domain} — "
+                f"train={len(trainset)}, dev={len(devset)}, "
+                f"dev_score={avg_dev:.2f}, "
+                f"{num_candidate_programs} candidates, saved to {save_path}"
             )
             return optimized
 
@@ -656,34 +1063,22 @@ class DomainDSPyOptimizer:
 
     def load_optimized(self, domain: str):
         """Load a previously optimized module from disk."""
-        # Try pipeline first (new format), fall back to legacy module
-        pipeline_path = self._save_dir / f"{domain}_task_pipeline.json"
-        legacy_path = self._save_dir / f"{domain}_task_module.json"
-
-        if pipeline_path.exists():
-            path, use_pipeline = pipeline_path, True
-        elif legacy_path.exists():
-            path, use_pipeline = legacy_path, False
-        else:
+        path = self._save_dir / f"{domain}_task_module.json"
+        if not path.exists():
             return None
-
         try:
-            _, Module, Pipeline = _get_domain_task_classes()
-            module = Pipeline() if use_pipeline else Module()
+            _, DomainTaskModule = _get_domain_task_classes()
+            module = DomainTaskModule()
             module.load(str(path))
-            logger.debug(
-                f"DomainDSPyOptimizer: loaded optimized {'pipeline' if use_pipeline else 'module'} for {domain}"
-            )
+            logger.debug(f"DomainDSPyOptimizer: loaded {path.name}")
             return module
         except Exception as e:
-            logger.debug(f"DomainDSPyOptimizer: load failed for {domain}: {e}")
+            logger.debug(f"DomainDSPyOptimizer: load failed: {e}")
             return None
 
     def has_optimized(self, domain: str) -> bool:
         """Check if an optimized module exists for this domain."""
-        return (self._save_dir / f"{domain}_task_pipeline.json").exists() or (
-            self._save_dir / f"{domain}_task_module.json"
-        ).exists()
+        return (self._save_dir / f"{domain}_task_module.json").exists()
 
 
 # =============================================================================

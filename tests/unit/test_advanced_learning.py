@@ -1,7 +1,8 @@
 """
 Tests for advanced learning components.
 
-Tests: UCB in SkillQTable, Reflexion, FewShotCurator, VoyagerSkillLib.
+Tests: UCB in SkillQTable, Reflexion, FewShotCurator, VoyagerSkillLib,
+       ValidationResult + validate_output cascade.
 
 All tests are offline — no real LLM calls. DSPy modules are mocked.
 """
@@ -260,3 +261,264 @@ class TestVoyagerSkillLib:
         assert result == "skill_existing"
         assert abs(mock_pattern.confidence - 0.85) < 1e-9
         assert mock_pattern.evidence_count == 4
+
+
+# =============================================================================
+# Validation Cascade: validate_output + library validators
+# =============================================================================
+
+
+class TestValidationCascade:
+    """Test the 4-level verification cascade (library → structural → LLM → human).
+
+    Only L1 (library) and L2 (structural) are tested here — they're free and fast.
+    L3 (LLM judge) lives in LearningService and is tested separately.
+    """
+
+    @pytest.mark.unit
+    def test_validation_result_dataclass(self):
+        from Jotty.core.intelligence.learning.advanced_learning import ValidationResult
+
+        r = ValidationResult(valid=True, method="library", confidence=1.0)
+        assert r.valid is True
+        assert r.issue == ""
+
+        r2 = ValidationResult(
+            valid=False,
+            method="library",
+            confidence=1.0,
+            errors=["bad syntax", "missing token"],
+        )
+        assert r2.valid is False
+        assert "bad syntax" in r2.issue
+        assert "missing token" in r2.issue
+
+    @pytest.mark.unit
+    def test_too_short_output(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        r = validate_output("hi", "python")
+        assert r.valid is False
+        assert "too short" in r.issue.lower()
+
+    @pytest.mark.unit
+    def test_empty_output(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        r = validate_output("", "sql")
+        assert r.valid is False
+
+    # --- Python (ast.parse) ---
+
+    @pytest.mark.unit
+    def test_python_valid(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        code = "def calculate_total(items):\n    return sum(i.price for i in items)"
+        r = validate_output(code, "python")
+        assert r.valid is True
+        assert r.method == "library"
+        assert r.confidence >= 0.9
+
+    @pytest.mark.unit
+    def test_python_syntax_error(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        code = "def calculate_total(items):\n    return sum(i.price for i in items"
+        r = validate_output(code, "python")
+        assert r.valid is False
+        assert r.method == "library"
+        assert r.confidence == 1.0
+        assert "syntax error" in r.issue.lower()
+
+    # --- SQL (sqlglot) ---
+
+    @pytest.mark.unit
+    def test_sql_valid(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        sql = "SELECT u.name, COUNT(*) FROM users u JOIN orders o ON u.id = o.uid GROUP BY u.name"
+        r = validate_output(sql, "sql")
+        assert r.valid is True
+        assert r.method == "library"
+
+    @pytest.mark.unit
+    def test_sql_syntax_error(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        sql = "SELECTT name FROMM users WHEREE id > 100 AND status = active"
+        r = validate_output(sql, "sql")
+        assert r.valid is False
+        assert r.confidence >= 0.9
+
+    # --- JSON ---
+
+    @pytest.mark.unit
+    def test_json_valid(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        j = '{"users": [{"name": "Alice", "age": 30}], "total": 1}'
+        r = validate_output(j, "json")
+        assert r.valid is True
+        assert r.method == "library"
+        assert r.confidence == 1.0
+
+    @pytest.mark.unit
+    def test_json_invalid(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        j = '{"users": [{"name": "Alice", age: 30}], "total": 1}'
+        r = validate_output(j, "json")
+        assert r.valid is False
+        assert r.confidence == 1.0
+
+    # --- YAML ---
+
+    @pytest.mark.unit
+    def test_yaml_valid(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        y = "name: test\nversion: 1.0\nitems:\n  - alpha\n  - beta\n  - gamma"
+        r = validate_output(y, "yaml")
+        assert r.valid is True
+        assert r.method == "library"
+
+    # --- HTML ---
+
+    @pytest.mark.unit
+    def test_html_valid(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        h = "<html><head><title>T</title></head><body><p>Hello</p></body></html>"
+        r = validate_output(h, "html")
+        assert r.valid is True
+
+    @pytest.mark.unit
+    def test_html_unclosed_tag(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        h = "<html><body><div><p>Unclosed div</p></body></html>"
+        r = validate_output(h, "html")
+        assert r.valid is False
+        assert r.method == "library"
+
+    # --- Mermaid (structural only) ---
+
+    @pytest.mark.unit
+    def test_mermaid_valid_flowchart(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        m = "graph TD\n  A[Start] --> B{Decision}\n  B -->|Yes| C[End]"
+        r = validate_output(m, "mermaid")
+        assert r.valid is True
+        assert r.method == "structural"
+
+    @pytest.mark.unit
+    def test_mermaid_missing_type(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        m = "Some random text about a diagram concept without diagram keywords present"
+        r = validate_output(m, "mermaid")
+        assert r.valid is False
+
+    # --- PlantUML (structural, server mocked) ---
+
+    @pytest.mark.unit
+    def test_plantuml_missing_wrapper(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        with patch(
+            "Jotty.core.intelligence.learning.advanced_learning._validate_plantuml_server",
+            return_value=None,
+        ):
+            text = "class User has name field and login method connecting to database"
+            r = validate_output(text, "plantuml")
+            assert r.valid is False
+            assert "startuml" in r.issue.lower()
+
+    @pytest.mark.unit
+    def test_plantuml_valid_with_server(self):
+        from Jotty.core.intelligence.learning.advanced_learning import (
+            ValidationResult,
+            validate_output,
+        )
+
+        server_ok = ValidationResult(valid=True, method="library", confidence=0.95)
+        with patch(
+            "Jotty.core.intelligence.learning.advanced_learning._validate_plantuml_server",
+            return_value=server_ok,
+        ):
+            text = "@startuml\nclass User {\n  +name: String\n}\n@enduml"
+            r = validate_output(text, "plantuml")
+            assert r.valid is True
+            assert r.method == "library"
+            assert r.confidence == 0.95
+
+    @pytest.mark.unit
+    def test_plantuml_server_rejects(self):
+        from Jotty.core.intelligence.learning.advanced_learning import (
+            ValidationResult,
+            validate_output,
+        )
+
+        server_err = ValidationResult(
+            valid=False,
+            method="library",
+            confidence=0.95,
+            errors=["PlantUML server rejected diagram (HTTP 400)."],
+        )
+        with patch(
+            "Jotty.core.intelligence.learning.advanced_learning._validate_plantuml_server",
+            return_value=server_err,
+        ):
+            text = "@startuml\nclasss User {{{\n  broken syntax here!!\n}\n@enduml"
+            r = validate_output(text, "plantuml")
+            assert r.valid is False
+            assert r.confidence == 0.95
+
+    # --- Unknown domain (graceful fallback) ---
+
+    @pytest.mark.unit
+    def test_unknown_domain_passes_if_long_enough(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        r = validate_output("This is a long enough text for an unknown domain.", "exotic")
+        assert r.valid is True
+        assert r.method == "structural"
+
+    # --- Code extraction from markdown fences ---
+
+    @pytest.mark.unit
+    def test_code_in_markdown_fence(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        text = "Here is the code:\n```python\ndef foo():\n    return 42\n```"
+        r = validate_output(text, "python")
+        assert r.valid is True
+
+    # --- Backward compatibility ---
+
+    @pytest.mark.unit
+    def test_check_output_backward_compat(self):
+        from Jotty.core.intelligence.learning.advanced_learning import _check_output
+
+        assert _check_output("def foo(): return 42\nprint(foo())", "python") == ""
+        assert (
+            "syntax error"
+            in _check_output(
+                "def calculate_total(items):\n    return sum(i.price for i in items",
+                "python",
+            ).lower()
+        )
+
+    # --- Subdomain stripping ---
+
+    @pytest.mark.unit
+    def test_subdomain_stripped(self):
+        from Jotty.core.intelligence.learning.advanced_learning import validate_output
+
+        r = validate_output(
+            "graph TD\n  A --> B\n  B --> C\n  C --> D",
+            "mermaid:flowchart",
+        )
+        assert r.valid is True

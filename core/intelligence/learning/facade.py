@@ -171,6 +171,31 @@ def get_cooperative_agents() -> Dict[str, type]:
     }
 
 
+def validate_output(output: str, domain: str) -> Any:
+    """Verification cascade: library parser (L1) → structural heuristic (L2).
+
+    Returns ValidationResult with .valid, .method, .confidence, .errors.
+
+    Use this for quick, free validation. For semantic quality scoring,
+    use get_learning_service().llm_judge_quality_with_feedback() (L3).
+
+    Example:
+        from Jotty.core.intelligence.learning.facade import validate_output
+
+        result = validate_output("SELECT * FROM users", "sql")
+        print(result.valid)       # True
+        print(result.method)      # "library"
+        print(result.confidence)  # 0.95
+
+        result = validate_output("def foo(:", "python")
+        print(result.valid)       # False
+        print(result.errors)      # ["Python syntax error: ..."]
+    """
+    from .advanced_learning import validate_output as _validate
+
+    return _validate(output, domain)
+
+
 def list_components() -> Dict[str, str]:
     """
     List all learning subsystem components with descriptions.
@@ -185,6 +210,8 @@ def list_components() -> Dict[str, str]:
         "CrystallizedConfig": "Hardened SOP from graduated agent (probation → crystallization)",
         "LLM Judge": "Sonnet-based quality evaluator in LearningService.llm_judge_quality_with_feedback()",
         "FactDistillation": "Judge-informed lesson extraction (dedup-aware, incremental)",
+        # Validation
+        "validate_output": "Verification cascade: library parser → structural heuristic (free, <100ms)",
         # Credit & rewards
         "ReasoningCreditAssigner": "Credit assignment for multi-step reasoning chains",
         "ShapedRewardManager": "Reward shaping for faster RL convergence",
