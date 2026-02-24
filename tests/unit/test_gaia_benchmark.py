@@ -23,7 +23,7 @@ import pytest
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.infrastructure.monitoring.evaluation import (
+from Jotty.core.infrastructure.monitoring.evaluation import (
     Benchmark,
     BenchmarkMetrics,
     BenchmarkResult,

@@ -84,6 +84,7 @@ def _make_mock_planner():
     planner._fast_lm = None
     planner._fast_model = "haiku"
     planner._use_typed_predictor = False
+    planner._fewshot_applied = False
 
     # Reset class-level semaphore so tests are isolated
     TaskPlanner._llm_semaphore = None

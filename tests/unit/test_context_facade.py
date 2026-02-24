@@ -20,11 +20,12 @@ class TestContextFacade:
         assert isinstance(mgr, SmartContextManager)
 
     def test_get_context_guard_returns_guard(self):
+        from Jotty.core.infrastructure.context.context_manager import SmartContextManager
         from Jotty.core.infrastructure.context.facade import get_context_guard
-        from Jotty.core.infrastructure.context.global_context_guard import GlobalContextGuard
 
         guard = get_context_guard()
-        assert isinstance(guard, GlobalContextGuard)
+        # get_context_guard is now a deprecated alias for get_context_manager
+        assert isinstance(guard, SmartContextManager)
 
     def test_get_content_gate_returns_gate(self):
         from Jotty.core.infrastructure.context.content_gate import ContentGate
@@ -46,9 +47,7 @@ class TestContextFacade:
         components = list_components()
         expected = [
             "SmartContextManager",
-            "GlobalContextGuard",
             "ContentGate",
-            "LLMContextManager",
             "AgenticCompressor",
         ]
         for name in expected:

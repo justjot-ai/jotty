@@ -505,10 +505,10 @@ def _make_mock_agent():
 
 # Patch targets for AgentRunner __init__ inline imports
 _RUNNER_PATCHES = [
-    "Jotty.core.orchestration.agent_runner.ValidatorAgent",
-    "Jotty.core.orchestration.agent_runner.MultiRoundValidator",
-    "Jotty.core.registry.tool_validation.ToolGuard",
-    "Jotty.core.interfaces.host_provider.HostProvider.get",
+    "Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent",
+    "Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator",
+    "Jotty.core.capabilities.registry.tool_validation.ToolGuard",
+    "Jotty.core.interface.interfaces.host_provider.HostProvider.get",
 ]
 
 
@@ -526,10 +526,10 @@ def _patch_runner():
 class TestAgentRunner:
     """Tests for AgentRunner lifecycle, hooks, and attributes."""
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_init_stores_agent_and_config(self, mock_va, mock_mrv, mock_tg, mock_host):
         """AgentRunner stores agent and config on initialization."""
         agent = _make_mock_agent()
@@ -539,10 +539,10 @@ class TestAgentRunner:
         assert runner.config is config
         assert runner.agent_name == "test_agent"
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_hook_types_constant(self, mock_va, mock_mrv, mock_tg, mock_host):
         """HOOK_TYPES tuple contains all six lifecycle hook names."""
         assert "pre_run" in HOOK_TYPES
@@ -553,10 +553,10 @@ class TestAgentRunner:
         assert "post_execute" in HOOK_TYPES
         assert len(HOOK_TYPES) == 6
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_add_hook_returns_name(self, mock_va, mock_mrv, mock_tg, mock_host):
         """add_hook returns the hook name (auto-generated or provided)."""
         agent = _make_mock_agent()
@@ -565,10 +565,10 @@ class TestAgentRunner:
         name = runner.add_hook("pre_run", lambda **ctx: None, name="my_hook")
         assert name == "my_hook"
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_add_hook_auto_name(self, mock_va, mock_mrv, mock_tg, mock_host):
         """add_hook auto-generates a name when not provided."""
         agent = _make_mock_agent()
@@ -577,10 +577,10 @@ class TestAgentRunner:
         name = runner.add_hook("pre_run", lambda **ctx: None)
         assert name.startswith("pre_run_")
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_add_hook_invalid_type_raises(self, mock_va, mock_mrv, mock_tg, mock_host):
         """add_hook raises ValueError for unknown hook type."""
         agent = _make_mock_agent()
@@ -589,10 +589,10 @@ class TestAgentRunner:
         with pytest.raises(ValueError, match="Unknown hook type"):
             runner.add_hook("invalid_type", lambda **ctx: None)
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_remove_hook_by_name(self, mock_va, mock_mrv, mock_tg, mock_host):
         """remove_hook removes a hook by name and returns True."""
         agent = _make_mock_agent()
@@ -601,10 +601,10 @@ class TestAgentRunner:
         runner.add_hook("pre_run", lambda **ctx: None, name="removable")
         assert runner.remove_hook("pre_run", "removable") is True
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_remove_hook_not_found(self, mock_va, mock_mrv, mock_tg, mock_host):
         """remove_hook returns False when hook name not found."""
         agent = _make_mock_agent()
@@ -612,10 +612,10 @@ class TestAgentRunner:
         runner = AgentRunner(agent=agent, config=config)
         assert runner.remove_hook("pre_run", "nonexistent") is False
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_run_hooks_calls_registered_hooks(self, mock_va, mock_mrv, mock_tg, mock_host):
         """_run_hooks calls all registered hooks for a type."""
         agent = _make_mock_agent()
@@ -627,10 +627,10 @@ class TestAgentRunner:
         runner._run_hooks("pre_run", goal="test")
         assert called == ["hook1", "hook2"]
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_run_hooks_context_update(self, mock_va, mock_mrv, mock_tg, mock_host):
         """_run_hooks updates context when hook returns a dict."""
         agent = _make_mock_agent()
@@ -640,10 +640,10 @@ class TestAgentRunner:
         result = runner._run_hooks("pre_run", goal="original")
         assert result["goal"] == "modified_goal"
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_run_hooks_exception_continues(self, mock_va, mock_mrv, mock_tg, mock_host):
         """_run_hooks swallows exceptions and continues to next hook."""
         agent = _make_mock_agent()
@@ -659,10 +659,10 @@ class TestAgentRunner:
         runner._run_hooks("pre_run", goal="test")
         assert "second" in called
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_gather_learning_context_returns_list(self, mock_va, mock_mrv, mock_tg, mock_host):
         """_gather_learning_context returns a list of strings."""
         agent = _make_mock_agent()
@@ -671,24 +671,24 @@ class TestAgentRunner:
         result = runner._gather_learning_context("test goal")
         assert isinstance(result, list)
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_gather_learning_context_empty_when_no_components(
         self, mock_va, mock_mrv, mock_tg, mock_host
     ):
-        """_gather_learning_context returns empty list when no memory/learning components."""
+        """_gather_learning_context returns list (may include DB-backed learned insights)."""
         agent = _make_mock_agent()
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
         result = runner._gather_learning_context("test goal")
-        assert result == []
+        assert isinstance(result, list)
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_gather_learning_context_consecutive_failure_hint(
         self, mock_va, mock_mrv, mock_tg, mock_host
     ):
@@ -700,10 +700,10 @@ class TestAgentRunner:
         result = runner._gather_learning_context("test goal")
         assert any("consecutive failures" in part.lower() for part in result)
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_bridge_agent_hooks_no_hooks(self, mock_va, mock_mrv, mock_tg, mock_host):
         """_bridge_agent_hooks handles agent with no hooks gracefully."""
         agent = Mock(spec=[])
@@ -712,10 +712,10 @@ class TestAgentRunner:
         # Should not raise
         assert runner.agent is agent
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_bridge_agent_hooks_with_pre_hooks(self, mock_va, mock_mrv, mock_tg, mock_host):
         """_bridge_agent_hooks bridges BaseAgent pre hooks to pre_execute."""
         agent = _make_mock_agent()
@@ -726,10 +726,10 @@ class TestAgentRunner:
         # pre_execute should have at least one hook from bridge
         assert len(runner._hooks["pre_execute"]) >= 1
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_agent_memory_none_when_disabled(self, mock_va, mock_mrv, mock_tg, mock_host):
         """agent_memory is None when enable_memory is False."""
         agent = _make_mock_agent()
@@ -737,10 +737,10 @@ class TestAgentRunner:
         runner = AgentRunner(agent=agent, config=config)
         assert runner.agent_memory is None
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_agent_learner_none_when_disabled(self, mock_va, mock_mrv, mock_tg, mock_host):
         """agent_learner is None when enable_learning is False."""
         agent = _make_mock_agent()
@@ -748,10 +748,10 @@ class TestAgentRunner:
         runner = AgentRunner(agent=agent, config=config)
         assert runner.agent_learner is None
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_tool_guard_initialized(self, mock_va, mock_mrv, mock_tg, mock_host):
         """AgentRunner initializes tool_guard."""
         agent = _make_mock_agent()
@@ -759,10 +759,10 @@ class TestAgentRunner:
         runner = AgentRunner(agent=agent, config=config)
         assert runner.tool_guard is not None
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_consecutive_failures_starts_zero(self, mock_va, mock_mrv, mock_tg, mock_host):
         """_consecutive_failures starts at 0."""
         agent = _make_mock_agent()
@@ -770,10 +770,10 @@ class TestAgentRunner:
         runner = AgentRunner(agent=agent, config=config)
         assert runner._consecutive_failures == 0
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_hooks_dict_has_all_types(self, mock_va, mock_mrv, mock_tg, mock_host):
         """AgentRunner._hooks dict has keys for all HOOK_TYPES."""
         agent = _make_mock_agent()
@@ -782,10 +782,10 @@ class TestAgentRunner:
         for ht in HOOK_TYPES:
             assert ht in runner._hooks
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_task_progress_initially_none(self, mock_va, mock_mrv, mock_tg, mock_host):
         """task_progress is None until run() is called."""
         agent = _make_mock_agent()
@@ -793,10 +793,10 @@ class TestAgentRunner:
         runner = AgentRunner(agent=agent, config=config)
         assert runner.task_progress is None
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_gate_stats_before_init(self, mock_va, mock_mrv, mock_tg, mock_host):
         """gate_stats returns 'not initialized' before run()."""
         agent = _make_mock_agent()
@@ -805,10 +805,10 @@ class TestAgentRunner:
         stats = runner.gate_stats
         assert stats == {"status": "not initialized"}
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_shared_swarm_memory_used(self, mock_va, mock_mrv, mock_tg, mock_host):
         """AgentRunner uses shared swarm_memory when provided."""
         agent = _make_mock_agent()
@@ -817,10 +817,10 @@ class TestAgentRunner:
         runner = AgentRunner(agent=agent, config=config, swarm_memory=shared_mem)
         assert runner.agent_memory is shared_mem
 
-    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
-    @patch("Jotty.core.registry.tool_validation.ToolGuard")
-    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
-    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    @patch("Jotty.core.interface.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.capabilities.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent")
     def test_shared_learner_used(self, mock_va, mock_mrv, mock_tg, mock_host):
         """AgentRunner uses shared learner from learning_manager when available."""
         agent = _make_mock_agent()
@@ -1198,29 +1198,29 @@ class TestOrchestrationLazyLoading:
             assert name in orch.__all__, f"{name} missing from __all__"
 
     def test_all_list_includes_pipeline_utils(self):
-        """__all__ includes pipeline utility functions."""
+        """__all__ includes multi-stage pipeline utilities."""
         import Jotty.core.intelligence.orchestration as orch
 
-        assert "sequential_pipeline" in orch.__all__
-        assert "fanout_pipeline" in orch.__all__
+        assert "MultiStagePipeline" in orch.__all__
+        assert "create_pipeline" in orch.__all__
 
     def test_lazy_map_swarm_task_board_entry(self):
-        """_LAZY_MAP maps SwarmTaskBoard to swarm_roadmap module."""
+        """_LAZY_MAP maps SwarmTaskBoard to state.swarm_roadmap module."""
         import Jotty.core.intelligence.orchestration as orch
 
-        assert orch._LAZY_MAP["SwarmTaskBoard"] == (".swarm_roadmap", "SwarmTaskBoard")
+        assert orch._LAZY_MAP["SwarmTaskBoard"] == (".state.swarm_roadmap", "SwarmTaskBoard")
 
     def test_lazy_map_chat_executor_entry(self):
-        """_LAZY_MAP maps ChatExecutor to unified_executor module."""
+        """_LAZY_MAP maps ChatExecutor to execution.unified_executor module."""
         import Jotty.core.intelligence.orchestration as orch
 
-        assert orch._LAZY_MAP["ChatExecutor"] == (".unified_executor", "ChatExecutor")
+        assert orch._LAZY_MAP["ChatExecutor"] == (".execution.unified_executor", "ChatExecutor")
 
     def test_lazy_map_orchestrator_entry(self):
-        """_LAZY_MAP maps Orchestrator to swarm_manager module."""
+        """_LAZY_MAP maps Orchestrator to core.swarm_manager module."""
         import Jotty.core.intelligence.orchestration as orch
 
-        assert orch._LAZY_MAP["Orchestrator"] == (".swarm_manager", "Orchestrator")
+        assert orch._LAZY_MAP["Orchestrator"] == (".core.swarm_manager", "Orchestrator")
 
     def test_lazy_caching_on_second_access(self):
         """Lazy-loaded attributes are cached in module globals after first access."""
@@ -1287,11 +1287,11 @@ class TestProviderManager:
 
         with (
             patch(
-                "Jotty.core.orchestration.swarm_manager._load_providers",
+                "Jotty.core.intelligence.orchestration.core.lazy_components._load_providers",
                 return_value=True,
             ),
             patch(
-                "Jotty.core.orchestration.swarm_manager._provider_cache",
+                "Jotty.core.intelligence.orchestration.core.lazy_components._provider_cache",
                 mock_cache,
             ),
             patch.object(

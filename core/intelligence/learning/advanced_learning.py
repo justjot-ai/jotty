@@ -168,10 +168,11 @@ class Reflexion:
             return None
 
     def get_relevant_reflections(self, unit_name: str, limit: int = 3) -> List[str]:
-        """Retrieve recent reflections for a unit, formatted for prompt injection.
+        """Retrieve recent reflections, formatted for prompt injection.
 
-        Returns actionable adjustment strings ready to inject into the agent's
-        system prompt as "lessons learned from past failures."
+        Searches by unit_name first; falls back to all recent reflections
+        so insights from other agents (Orchestrator, pipeline stages) are
+        still surfaced. Marks retrieved reflections as applied.
         """
         try:
             from .learning_store import LearningStore
@@ -179,12 +180,30 @@ class Reflexion:
             store = LearningStore.get_instance()
             reflections = store.get_reflections(unit_name=unit_name, limit=limit)
             if not reflections:
+                # Broaden: get recent reflections from ANY unit
+                reflections = store.get_reflections(limit=limit)
+            if not reflections:
                 return []
-            return [
-                f"[Past failure] {r.observation} → Fix: {r.adjustment}"
-                for r in reflections
-                if r.adjustment
-            ]
+
+            results = []
+            conn = store._get_conn()
+            for r in reflections:
+                if r.adjustment:
+                    results.append(f"[Past failure] {r.observation} → Fix: {r.adjustment}")
+                    # Mark as applied so we can track loop closure
+                    try:
+                        conn.execute(
+                            "UPDATE reflections SET applied = 1 WHERE reflection_id = ?",
+                            (r.reflection_id,),
+                        )
+                    except Exception:
+                        pass
+            if results:
+                try:
+                    conn.commit()
+                except Exception:
+                    pass
+            return results
         except Exception as e:
             logger.debug(f"Reflexion retrieval failed: {e}")
             return []

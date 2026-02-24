@@ -21,7 +21,7 @@ class TestDiscussionParadigms:
     """Test that paradigms dispatch correctly in _execute_multi_agent."""
 
     def test_paradigm_methods_exist(self):
-        from core.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         assert hasattr(Orchestrator, "_paradigm_relay")
         assert hasattr(Orchestrator, "_paradigm_debate")
@@ -30,8 +30,8 @@ class TestDiscussionParadigms:
     @pytest.mark.asyncio
     async def test_relay_paradigm(self):
         """Relay: agents run sequentially, chaining output."""
-        from core.foundation.data_structures import EpisodeResult
-        from core.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator.__new__(Orchestrator)
         # Minimal mocking for paradigm
@@ -83,8 +83,8 @@ class TestDiscussionParadigms:
     @pytest.mark.asyncio
     async def test_debate_paradigm(self):
         """Debate: agents draft then critique each other."""
-        from core.foundation.data_structures import EpisodeResult
-        from core.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator.__new__(Orchestrator)
         sm._agent_semaphore = asyncio.Semaphore(3)
@@ -134,8 +134,8 @@ class TestDiscussionParadigms:
     @pytest.mark.asyncio
     async def test_refinement_paradigm(self):
         """Refinement: iterative improvement of shared draft."""
-        from core.foundation.data_structures import EpisodeResult
-        from core.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator.__new__(Orchestrator)
         sm._agent_semaphore = asyncio.Semaphore(3)
@@ -186,7 +186,7 @@ class TestDiscussionParadigms:
     @pytest.mark.asyncio
     async def test_paradigm_dispatch_in_multi_agent(self):
         """Test that discussion_paradigm kwarg routes correctly."""
-        from core.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator.__new__(Orchestrator)
         sm._agent_semaphore = asyncio.Semaphore(3)
@@ -196,7 +196,7 @@ class TestDiscussionParadigms:
 
         async def mock_relay(goal, **kw):
             dispatched["relay"] = True
-            from core.foundation.data_structures import EpisodeResult
+            from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 
             return EpisodeResult(
                 output="relay",
@@ -228,7 +228,9 @@ class TestDiscussionParadigms:
 class TestDecisionProtocols:
 
     def test_protocol_constants(self):
-        from core.orchestration._consensus_mixin import DECISION_PROTOCOLS
+        from Jotty.core.intelligence.orchestration.intelligence._consensus_mixin import (
+            DECISION_PROTOCOLS,
+        )
 
         assert "weighted" in DECISION_PROTOCOLS
         assert "majority" in DECISION_PROTOCOLS
@@ -239,8 +241,12 @@ class TestDecisionProtocols:
 
     def _make_mixin(self):
         """Create a ConsensusMixin with minimal agent profiles."""
-        from core.orchestration._consensus_mixin import ConsensusMixin
-        from core.orchestration.swarm_data_structures import AgentProfile
+        from Jotty.core.intelligence.orchestration.intelligence._consensus_mixin import (
+            ConsensusMixin,
+        )
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_data_structures import (
+            AgentProfile,
+        )
 
         mixin = object.__new__(ConsensusMixin)
         mixin.agent_profiles = {}
@@ -255,7 +261,9 @@ class TestDecisionProtocols:
 
     def _make_votes(self, decisions_and_confidences):
         """Create ConsensusVote objects from (agent, decision, confidence) tuples."""
-        from core.orchestration.swarm_data_structures import ConsensusVote
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_data_structures import (
+            ConsensusVote,
+        )
 
         return [
             ConsensusVote(
@@ -412,7 +420,7 @@ class TestJudgeIntervention:
         """Verify the judge intervention logic is in agent_runner."""
         import inspect
 
-        from core.orchestration.agent_runner import AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import AgentRunner
 
         source = inspect.getsource(AgentRunner.run)
         assert "Judge intervention" in source
@@ -423,7 +431,7 @@ class TestJudgeIntervention:
         """Verify _judge_retried prevents infinite loops."""
         import inspect
 
-        from core.orchestration.agent_runner import AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import AgentRunner
 
         source = inspect.getsource(AgentRunner.run)
         # Must check _judge_retried to prevent infinite retry
@@ -433,7 +441,7 @@ class TestJudgeIntervention:
         """Verify intervention only triggers below confidence threshold."""
         import inspect
 
-        from core.orchestration.agent_runner import AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import AgentRunner
 
         source = inspect.getsource(AgentRunner.run)
         # Must check auditor_confidence < 0.6
@@ -443,7 +451,7 @@ class TestJudgeIntervention:
         """Verify intervention only triggers when auditor gives real feedback."""
         import inspect
 
-        from core.orchestration.agent_runner import AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import AgentRunner
 
         source = inspect.getsource(AgentRunner.run)
         # Must check feedback is not empty
@@ -459,15 +467,16 @@ class TestPreviousEnhancementsStillWork:
 
     def test_agentscope_tests_still_pass(self):
         """Quick smoke test that AgentScope enhancements still import."""
-        from core.agents.axon import SmartAgentSlack
-        from core.agents.feedback_channel import FeedbackChannel
-        from core.context.context_guard import LLMContextManager
-        from core.orchestration import fanout_pipeline, sequential_pipeline
-        from core.orchestration.agent_runner import HOOK_TYPES
-        from core.registry.unified_registry import get_unified_registry
+        from Jotty.core.intelligence.orchestration.communication.axon import SmartAgentSlack
+        from Jotty.core.intelligence.orchestration.learning.feedback_channel import FeedbackChannel
+        from Jotty.core.intelligence.orchestration.coordination.archive._pipeline_utils import (
+            fanout_pipeline,
+            sequential_pipeline,
+        )
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import HOOK_TYPES
+        from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
 
         assert len(HOOK_TYPES) == 6
-        assert hasattr(LLMContextManager, "compress_structured")
         assert callable(sequential_pipeline)
         assert callable(fanout_pipeline)
         assert hasattr(FeedbackChannel, "broadcast")

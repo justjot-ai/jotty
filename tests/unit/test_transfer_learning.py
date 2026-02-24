@@ -11,14 +11,17 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 try:
-    from core.learning.health_budget import DynamicBudgetManager, LearningHealthMonitor
+    from Jotty.core.intelligence.learning.health_budget import (
+        DynamicBudgetManager,
+        LearningHealthMonitor,
+    )
 
     HAS_HEALTH = True
 except ImportError:
     HAS_HEALTH = False
 
 try:
-    from core.foundation.data_structures import (
+    from Jotty.core.infrastructure.foundation.data_structures import (
         GoalValue,
         MemoryEntry,
         MemoryLevel,

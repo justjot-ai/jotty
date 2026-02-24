@@ -17,11 +17,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import warnings
 
-import dspy
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason="SingleAgentOrchestrator was never implemented; architecture uses BaseExpert directly"
+pytest.skip(
+    "SingleAgentOrchestrator was never implemented; module removed in Feb 2026 restructure",
+    allow_module_level=True,
 )
 
 

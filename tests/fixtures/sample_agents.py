@@ -310,7 +310,7 @@ def create_agent_config_for_testing(
     AgentConfig instance
     """
     try:
-        from core.agent_config import AgentConfig
+        from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     except ImportError:
         raise ImportError("Cannot import AgentConfig - ensure JOTTY is available")
 

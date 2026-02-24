@@ -21,7 +21,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 try:
-    from core.infrastructure.foundation.config_defaults import (
+    from Jotty.core.infrastructure.foundation.config_defaults import (
         DEFAULT_MODEL_ALIAS,
         DEFAULTS,
         LLM_TEMPERATURE,
@@ -35,26 +35,28 @@ try:
         RETRY_BACKOFF_SECONDS,
         JottyDefaults,
     )
-    from core.infrastructure.foundation.config_defaults import (
+    from Jotty.core.infrastructure.foundation.config_defaults import (
         EPISODIC_CAPACITY as EPISODIC_CAPACITY_EXPORT,
     )
-    from core.infrastructure.foundation.config_defaults import (
+    from Jotty.core.infrastructure.foundation.config_defaults import (
         LLM_MAX_OUTPUT_TOKENS as LLM_MAX_OUTPUT_TOKENS_EXPORT,
     )
-    from core.infrastructure.foundation.config_defaults import (
+    from Jotty.core.infrastructure.foundation.config_defaults import (
         LLM_PLANNING_MAX_TOKENS as LLM_PLANNING_MAX_TOKENS_EXPORT,
     )
-    from core.infrastructure.foundation.config_defaults import (
+    from Jotty.core.infrastructure.foundation.config_defaults import (
         MAX_ENTRY_TOKENS as MAX_ENTRY_TOKENS_EXPORT,
     )
-    from core.infrastructure.foundation.config_defaults import SAFETY_MARGIN as SAFETY_MARGIN_EXPORT
+    from Jotty.core.infrastructure.foundation.config_defaults import (
+        SAFETY_MARGIN as SAFETY_MARGIN_EXPORT,
+    )
 
     HAS_DEFAULTS = True
 except ImportError:
     HAS_DEFAULTS = False
 
 try:
-    from core.infrastructure.foundation.exceptions import (
+    from Jotty.core.infrastructure.foundation.exceptions import (
         AgentExecutionError,
         ChunkingError,
         CircuitBreakerError,
@@ -89,15 +91,15 @@ try:
         ValidationError,
         wrap_exception,
     )
-    from core.infrastructure.foundation.exceptions import MemoryError as JottyMemoryError
-    from core.infrastructure.foundation.exceptions import TimeoutError as JottyTimeoutError
+    from Jotty.core.infrastructure.foundation.exceptions import MemoryError as JottyMemoryError
+    from Jotty.core.infrastructure.foundation.exceptions import TimeoutError as JottyTimeoutError
 
     HAS_EXCEPTIONS = True
 except ImportError:
     HAS_EXCEPTIONS = False
 
 try:
-    from core.infrastructure.foundation.protocols import (
+    from Jotty.core.infrastructure.foundation.protocols import (
         ContextExtractor,
         DataProvider,
         MetadataProvider,
@@ -108,19 +110,19 @@ except ImportError:
     HAS_PROTOCOLS = False
 
 try:
-    from core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 
     HAS_AGENT_CONFIG = True
 except ImportError:
     HAS_AGENT_CONFIG = False
 
 try:
-    from core.infrastructure.foundation.types.agent_types import (
+    from Jotty.core.infrastructure.foundation.types.agent_types import (
         AgentContribution,
         AgentMessage,
         SharedScratchpad,
     )
-    from core.infrastructure.foundation.types.enums import CommunicationType
+    from Jotty.core.infrastructure.foundation.types.enums import CommunicationType
 
     HAS_AGENT_TYPES = True
 except ImportError:

@@ -169,6 +169,40 @@ class JottyCLI:
                 )
                 self.chat.show_error(error)
 
+    async def run_once(self, user_input: str) -> Optional[str]:
+        """Execute a single command or message and return the result.
+
+        Used for non-interactive / programmatic execution (tests, scripts, CI).
+
+        Args:
+            user_input: A slash command (e.g. "/help") or free-text message.
+
+        Returns:
+            The collected output as a string, or None on error.
+        """
+        collected: list[str] = []
+
+        if user_input.startswith("/"):
+            # Slash command — delegate to _handle_command
+            await self._handle_command(user_input)
+            # Collect messages that were added during the command
+            for msg in self.chat.session.messages:
+                if msg.content:
+                    collected.append(msg.content)
+            return "\n".join(collected) if collected else ""
+        else:
+            # Free-text message — execute via SDK
+            try:
+                async for event in self.sdk.stream(user_input):
+                    await self.event_processor.process_event(event)
+                for msg in self.chat.session.messages:
+                    if msg.content:
+                        collected.append(msg.content)
+                return "\n".join(collected) if collected else ""
+            except Exception as e:
+                logger.error(f"run_once error: {e}", exc_info=True)
+                return None
+
     async def _handle_command(self, command: str) -> None:
         """Handle slash commands."""
         cmd = command.split()[0]

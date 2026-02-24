@@ -10,8 +10,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.foundation.agent_config import AgentConfig
-from core.orchestration.optimization_pipeline import create_optimization_pipeline
+from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.intelligence.orchestration.learning.optimization_pipeline import (
+    create_optimization_pipeline,
+)
 
 
 class ImprovingAgent:

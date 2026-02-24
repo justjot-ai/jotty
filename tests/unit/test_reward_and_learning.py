@@ -152,18 +152,26 @@ class TestQualityCliff:
     """Test the quality cliff: low-quality outputs get negative reward."""
 
     def test_cliff_triggers_on_empty_failed_output(self):
-        """Empty + failed output should fall below threshold and get -0.1."""
-        # Empty output with success=False: capped at 0.3, then cliff applies
-        # because substance=0, structure=0 pulls the score way down
+        """Empty + failed output should be capped at failure ceiling (0.3).
+
+        After quality cliff threshold was lowered from 0.35 to 0.20,
+        empty+failed no longer falls below the cliff — the failure cap
+        of 0.3 is above the 0.20 threshold, so we get 0.3 (not -0.1).
+        """
         result = _make_result(output="", success=False)
         reward = SwarmLearningPipeline._compute_episode_reward(result, "do something")
-        assert reward == -0.1, f"Expected -0.1 from quality cliff, got {reward}"
+        assert reward == 0.3, f"Expected 0.3 (failure cap, above cliff threshold), got {reward}"
 
     def test_cliff_triggers_on_garbage_output(self):
-        """Very short, irrelevant, failed output should trigger the cliff."""
+        """Very short, irrelevant, failed output is capped at failure ceiling.
+
+        After quality cliff threshold was lowered from 0.35 to 0.20,
+        garbage+failed is capped at 0.3 (failure cap) which is above
+        the 0.20 cliff threshold, so the cliff does not trigger.
+        """
         result = _make_result(output="x", success=False)
         reward = SwarmLearningPipeline._compute_episode_reward(result, "analyze data")
-        assert reward == -0.1, f"Expected -0.1, got {reward}"
+        assert reward == 0.3, f"Expected 0.3 (failure cap, above cliff threshold), got {reward}"
 
     def test_empty_success_stays_above_cliff(self):
         """Empty output with success=True may stay above cliff due to
@@ -204,12 +212,17 @@ class TestQualityCliff:
         finally:
             SwarmLearningPipeline.QUALITY_CLIFF_THRESHOLD = original
 
-    def test_failure_with_cliff_gives_negative(self):
-        """Failed + low quality = cliff overrides the 0.3 cap."""
+    def test_failure_with_cliff_gives_capped_value(self):
+        """Failed + low quality = capped at failure ceiling (0.3).
+
+        After quality cliff threshold was lowered from 0.35 to 0.20,
+        the failure cap of 0.3 is above the cliff threshold, so the
+        cliff no longer overrides. We get 0.3 (the failure cap).
+        """
         result = _make_result(output="", success=False)
         reward = SwarmLearningPipeline._compute_episode_reward(result, "do task")
-        # success=False caps at 0.3, then quality cliff converts to -0.1
-        assert reward == -0.1, f"Expected -0.1 for failed+empty, got {reward}"
+        # success=False caps at 0.3, which is above the 0.20 cliff threshold
+        assert reward == 0.3, f"Expected 0.3 for failed+empty (above cliff threshold), got {reward}"
 
 
 # =========================================================================

@@ -247,6 +247,21 @@ _LOTUS_NAMES: dict[str, str] = {
 LOTUS_AVAILABLE = False  # Set to True on first successful lotus import
 
 
+_SUBMODULE_REDIRECTS: dict[str, str] = {
+    # Old short names → new 5-layer paths (for mock.patch() compatibility)
+    "utils": ".infrastructure.utils",
+    "context": ".infrastructure.context",
+    "orchestration": ".intelligence.orchestration",
+    "agents": ".intelligence.reasoning.agents",
+    "registry": ".capabilities.registry",
+    "api": ".interface.api",
+    "memory": ".intelligence.memory",
+    "learning": ".intelligence.learning",
+    "foundation": ".infrastructure.foundation",
+    "monitoring": ".infrastructure.monitoring",
+}
+
+
 def __getattr__(name: str) -> Any:
     global LOTUS_AVAILABLE
 
@@ -257,6 +272,12 @@ def __getattr__(name: str) -> Any:
         value = getattr(module, name)
         globals()[name] = value
         return value
+
+    # Submodule redirects (e.g. Jotty.core.utils → Jotty.core.infrastructure.utils)
+    if name in _SUBMODULE_REDIRECTS:
+        module = _importlib.import_module(_SUBMODULE_REDIRECTS[name], __name__)
+        globals()[name] = module
+        return module
 
     # LOTUS lazy imports (optional)
     if name in _LOTUS_NAMES:

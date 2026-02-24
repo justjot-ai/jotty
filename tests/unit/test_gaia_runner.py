@@ -23,8 +23,8 @@ import pytest
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.infrastructure.monitoring.evaluation import EvalStore, GAIABenchmark
-from core.infrastructure.monitoring.evaluation.gaia_adapter import (
+from Jotty.core.infrastructure.monitoring.evaluation import EvalStore, GAIABenchmark
+from Jotty.core.infrastructure.monitoring.evaluation.gaia_adapter import (
     GAIA_SYSTEM_PROMPT,
     JottyGAIAAdapter,
     _extract_answer_from_output,

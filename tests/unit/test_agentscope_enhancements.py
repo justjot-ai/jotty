@@ -26,7 +26,11 @@ import pytest
 class TestFeedbackChannelBroadcast:
 
     def test_broadcast_to_all_known_agents(self):
-        from core.agents.feedback_channel import FeedbackChannel, FeedbackMessage, FeedbackType
+        from Jotty.core.intelligence.orchestration.learning.feedback_channel import (
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
+        )
 
         fc = FeedbackChannel()
 
@@ -58,7 +62,7 @@ class TestFeedbackChannelBroadcast:
         assert len(msg_ids) >= 2  # agent_b, agent_c (manager may also get one)
 
     def test_broadcast_to_explicit_participants(self):
-        from core.agents.feedback_channel import FeedbackChannel
+        from Jotty.core.intelligence.orchestration.learning.feedback_channel import FeedbackChannel
 
         fc = FeedbackChannel()
         msg_ids = fc.broadcast(
@@ -69,7 +73,7 @@ class TestFeedbackChannelBroadcast:
         assert len(msg_ids) == 3  # sender not in list
 
     def test_broadcast_excludes_self_from_explicit_list(self):
-        from core.agents.feedback_channel import FeedbackChannel
+        from Jotty.core.intelligence.orchestration.learning.feedback_channel import FeedbackChannel
 
         fc = FeedbackChannel()
         msg_ids = fc.broadcast(
@@ -90,7 +94,11 @@ class TestFeedbackChannelRequest:
 
     @pytest.mark.asyncio
     async def test_request_with_reply(self):
-        from core.agents.feedback_channel import FeedbackChannel, FeedbackMessage, FeedbackType
+        from Jotty.core.intelligence.orchestration.learning.feedback_channel import (
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
+        )
 
         fc = FeedbackChannel()
 
@@ -128,7 +136,7 @@ class TestFeedbackChannelRequest:
 
     @pytest.mark.asyncio
     async def test_request_timeout(self):
-        from core.agents.feedback_channel import FeedbackChannel
+        from Jotty.core.intelligence.orchestration.learning.feedback_channel import FeedbackChannel
 
         fc = FeedbackChannel()
 
@@ -150,7 +158,10 @@ class TestFeedbackChannelRequest:
 class TestSmartAgentSlackBroadcast:
 
     def test_broadcast_targets_all_except_sender(self):
-        from core.agents.axon import AgentCapabilities, SmartAgentSlack
+        from Jotty.core.intelligence.orchestration.communication.axon import (
+            AgentCapabilities,
+            SmartAgentSlack,
+        )
 
         slack = SmartAgentSlack()
 
@@ -178,7 +189,10 @@ class TestSmartAgentSlackBroadcast:
         assert "agent_c" in results
 
     def test_broadcast_with_exclude(self):
-        from core.agents.axon import AgentCapabilities, SmartAgentSlack
+        from Jotty.core.intelligence.orchestration.communication.axon import (
+            AgentCapabilities,
+            SmartAgentSlack,
+        )
 
         slack = SmartAgentSlack()
         for name in ["a", "b", "c"]:
@@ -212,7 +226,7 @@ class TestSmartAgentSlackBroadcast:
 class TestGetScopedTools:
 
     def test_scoped_tools_returns_list(self):
-        from core.registry.unified_registry import get_unified_registry
+        from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
 
         registry = get_unified_registry()
         # Use 'names' format to test the scoping logic directly
@@ -222,7 +236,7 @@ class TestGetScopedTools:
         assert len(names) <= 5
 
     def test_scoped_tools_names_format(self):
-        from core.registry.unified_registry import get_unified_registry
+        from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
 
         registry = get_unified_registry()
         names = registry.get_scoped_tools("create a chart", max_tools=8, format="names")
@@ -231,7 +245,7 @@ class TestGetScopedTools:
             assert isinstance(n, str)
 
     def test_scoped_tools_fewer_than_all(self):
-        from core.registry.unified_registry import get_unified_registry
+        from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
 
         registry = get_unified_registry()
         all_skills = registry.list_skills()
@@ -248,7 +262,7 @@ class TestGetScopedTools:
 class TestAgentRunnerHooks:
 
     def test_hook_types_defined(self):
-        from core.orchestration.agent_runner import HOOK_TYPES
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import HOOK_TYPES
 
         assert "pre_run" in HOOK_TYPES
         assert "post_run" in HOOK_TYPES
@@ -258,7 +272,10 @@ class TestAgentRunnerHooks:
         assert "post_architect" in HOOK_TYPES
 
     def test_add_and_run_hooks(self):
-        from core.orchestration.agent_runner import HOOK_TYPES, AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import (
+            HOOK_TYPES,
+            AgentRunner,
+        )
 
         # Create a minimal AgentRunner to test hooks
         # (Don't need full init — just test the hook infrastructure)
@@ -280,7 +297,10 @@ class TestAgentRunnerHooks:
         assert calls[0] == "test task"
 
     def test_hook_modifies_context(self):
-        from core.orchestration.agent_runner import HOOK_TYPES, AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import (
+            HOOK_TYPES,
+            AgentRunner,
+        )
 
         runner = object.__new__(AgentRunner)
         runner._hooks = {ht: [] for ht in HOOK_TYPES}
@@ -293,7 +313,10 @@ class TestAgentRunnerHooks:
         assert ctx["goal"] == "original (enriched)"
 
     def test_remove_hook(self):
-        from core.orchestration.agent_runner import HOOK_TYPES, AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import (
+            HOOK_TYPES,
+            AgentRunner,
+        )
 
         runner = object.__new__(AgentRunner)
         runner._hooks = {ht: [] for ht in HOOK_TYPES}
@@ -306,7 +329,10 @@ class TestAgentRunnerHooks:
         assert len(runner._hooks["post_run"]) == 0
 
     def test_invalid_hook_type_raises(self):
-        from core.orchestration.agent_runner import HOOK_TYPES, AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import (
+            HOOK_TYPES,
+            AgentRunner,
+        )
 
         runner = object.__new__(AgentRunner)
         runner._hooks = {ht: [] for ht in HOOK_TYPES}
@@ -315,7 +341,10 @@ class TestAgentRunnerHooks:
             runner.add_hook("not_a_real_hook", lambda **ctx: None)
 
     def test_hook_failure_doesnt_crash(self):
-        from core.orchestration.agent_runner import HOOK_TYPES, AgentRunner
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import (
+            HOOK_TYPES,
+            AgentRunner,
+        )
 
         runner = object.__new__(AgentRunner)
         runner._hooks = {ht: [] for ht in HOOK_TYPES}
@@ -342,14 +371,18 @@ class TestAgentRunnerHooks:
 class TestStructuredCompression:
 
     def test_short_content_returned_as_is(self):
-        from core.context.context_guard import LLMContextManager
+        from Jotty.core.infrastructure.context.context_manager import (
+            SmartContextManager as LLMContextManager,
+        )
 
         mgr = LLMContextManager()
         short = "Just a few words"
         assert mgr.compress_structured(short, max_chars=1000) == short
 
     def test_long_content_compressed(self):
-        from core.context.context_guard import LLMContextManager
+        from Jotty.core.infrastructure.context.context_manager import (
+            SmartContextManager as LLMContextManager,
+        )
 
         mgr = LLMContextManager()
         # Create content longer than max_chars
@@ -368,7 +401,9 @@ class TestStructuredCompression:
         assert "Task: AI research" in compressed
 
     def test_goal_keywords_boost_relevance(self):
-        from core.context.context_guard import LLMContextManager
+        from Jotty.core.infrastructure.context.context_manager import (
+            SmartContextManager as LLMContextManager,
+        )
 
         mgr = LLMContextManager()
         content = "\n".join(
@@ -390,7 +425,9 @@ class TestStructuredCompression:
         assert "machine learning" in compressed.lower() or "accuracy" in compressed.lower()
 
     def test_smart_compress_uses_structured(self):
-        from core.context.context_guard import LLMContextManager
+        from Jotty.core.infrastructure.context.context_manager import (
+            SmartContextManager as LLMContextManager,
+        )
 
         mgr = LLMContextManager()
         long_content = "x\n" * 500
@@ -406,7 +443,10 @@ class TestStructuredCompression:
 class TestPipelineUtils:
 
     def test_imports(self):
-        from core.orchestration import fanout_pipeline, sequential_pipeline
+        from Jotty.core.intelligence.orchestration.coordination.archive._pipeline_utils import (
+            fanout_pipeline,
+            sequential_pipeline,
+        )
 
         assert callable(sequential_pipeline)
         assert callable(fanout_pipeline)
@@ -414,8 +454,10 @@ class TestPipelineUtils:
     @pytest.mark.asyncio
     async def test_sequential_pipeline_chains(self):
         """Test that sequential_pipeline chains results."""
-        from core.foundation.data_structures import EpisodeResult
-        from core.orchestration import sequential_pipeline
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.coordination.archive._pipeline_utils import (
+            sequential_pipeline,
+        )
 
         def _make_result(**overrides):
             defaults = dict(
@@ -454,8 +496,10 @@ class TestPipelineUtils:
     @pytest.mark.asyncio
     async def test_fanout_pipeline_parallel(self):
         """Test that fanout_pipeline runs all agents."""
-        from core.foundation.data_structures import EpisodeResult
-        from core.orchestration import fanout_pipeline
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.coordination.archive._pipeline_utils import (
+            fanout_pipeline,
+        )
 
         def _make_result(**overrides):
             defaults = dict(
@@ -492,8 +536,10 @@ class TestPipelineUtils:
     @pytest.mark.asyncio
     async def test_sequential_pipeline_stops_on_failure(self):
         """Test that sequential pipeline stops when an agent fails."""
-        from core.foundation.data_structures import EpisodeResult
-        from core.orchestration import sequential_pipeline
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.coordination.archive._pipeline_utils import (
+            sequential_pipeline,
+        )
 
         call_count = 0
 
@@ -539,7 +585,7 @@ class TestConcurrencySemaphore:
         """Verify semaphore exists with correct value."""
         import asyncio as _aio
 
-        from core.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         # Use string agents (zero-config) to avoid complex setup
         sm = Orchestrator.__new__(Orchestrator)

@@ -62,6 +62,10 @@ def _make_mock_manager(agent_names=None):
     learning = Mock()
     learning.adaptive_learning = Mock()
     learning.adaptive_learning.should_stop_early = Mock(return_value=False)
+    # Ensure td_learner.grouped_baseline is None so _filter_by_proficiency
+    # short-circuits (avoids unpacking Mock as tuple)
+    learning.td_learner = Mock()
+    learning.td_learner.grouped_baseline = None
     sm.learning = learning
 
     # Credit weights

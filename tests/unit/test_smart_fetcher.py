@@ -52,11 +52,12 @@ pytestmark = [
 # =============================================================================
 
 
-def _mock_response(status_code=200, text="<html>OK</html>", json_data=None):
+def _mock_response(status_code=200, text="<html>OK</html>", json_data=None, headers=None):
     """Create a mock requests.Response object."""
     resp = Mock()
     resp.status_code = status_code
     resp.text = text
+    resp.headers = headers or {"Content-Type": "text/html"}
     if json_data is not None:
         resp.json.return_value = json_data
     else:
@@ -247,7 +248,7 @@ class TestConstants:
 class TestTryArchiveOrg:
     """Tests for _try_archive_org() Wayback Machine helper."""
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_success_returns_html(self, mock_get):
         """Returns HTML content when archive.org has a valid snapshot."""
         snapshot_html = "<html>" + "x" * 600 + "</html>"
@@ -269,7 +270,7 @@ class TestTryArchiveOrg:
         result = _try_archive_org("http://example.com")
         assert result == snapshot_html
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_no_snapshot_returns_none(self, mock_get):
         """Returns None when no snapshot exists."""
         api_response = _mock_response(200, json_data={"archived_snapshots": {}})
@@ -278,7 +279,7 @@ class TestTryArchiveOrg:
         result = _try_archive_org("http://example.com/never-archived")
         assert result is None
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_api_non_200_returns_none(self, mock_get):
         """Returns None when archive.org API returns non-200."""
         mock_get.return_value = _mock_response(503)
@@ -286,7 +287,7 @@ class TestTryArchiveOrg:
         result = _try_archive_org("http://example.com")
         assert result is None
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_snapshot_status_not_200_returns_none(self, mock_get):
         """Returns None when snapshot status is not '200'."""
         api_response = _mock_response(
@@ -305,7 +306,7 @@ class TestTryArchiveOrg:
         result = _try_archive_org("http://example.com")
         assert result is None
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_short_content_returns_none(self, mock_get):
         """Returns None if snapshot content is under 500 chars (noise)."""
         api_response = _mock_response(
@@ -325,7 +326,7 @@ class TestTryArchiveOrg:
         result = _try_archive_org("http://example.com")
         assert result is None
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_exception_returns_none(self, mock_get):
         """Returns None on any exception (no crash)."""
         mock_get.side_effect = Exception("network error")
@@ -333,7 +334,7 @@ class TestTryArchiveOrg:
         result = _try_archive_org("http://example.com")
         assert result is None
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_snapshot_fetch_non_200_returns_none(self, mock_get):
         """Returns None when snapshot URL returns non-200."""
         api_response = _mock_response(
@@ -417,7 +418,7 @@ class TestProxyRotator:
         rotator.mark_failed("http://1.1.1.1:8080")
         assert len(rotator._failed) == 1
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_get_proxy_fetches_when_empty(self, mock_get):
         """get_proxy triggers _fetch_proxies when proxy list is empty."""
         mock_get.return_value = _mock_response(200, text="1.1.1.1:8080\n2.2.2.2:3128\n")
@@ -427,7 +428,7 @@ class TestProxyRotator:
         assert "http" in proxy
         assert "https" in proxy
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_get_proxy_rotates(self, mock_get):
         """Successive get_proxy calls rotate through available proxies."""
         rotator = ProxyRotator()
@@ -439,7 +440,7 @@ class TestProxyRotator:
         assert p1["http"] == "http://1.1.1.1:8080"
         assert p2["http"] == "http://2.2.2.2:8080"
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_get_proxy_skips_failed(self, mock_get):
         """get_proxy skips proxies in the failed set."""
         rotator = ProxyRotator()
@@ -463,7 +464,7 @@ class TestProxyRotator:
         assert proxy["http"] == "http://1.1.1.1:8080"
         assert len(rotator._failed) == 0
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_get_proxy_returns_none_when_no_sources(self, mock_get):
         """get_proxy returns None when no proxy sources respond."""
         mock_get.side_effect = Exception("all down")
@@ -471,7 +472,7 @@ class TestProxyRotator:
         proxy = rotator.get_proxy()
         assert proxy is None
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_fetch_proxies_geonode_parsing(self, mock_get):
         """_fetch_proxies correctly parses geonode JSON format."""
         geonode_response = _mock_response(
@@ -489,7 +490,7 @@ class TestProxyRotator:
         assert "http://10.0.0.1:8080" in proxies
         assert "http://10.0.0.2:3128" in proxies
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_fetch_proxies_plaintext_parsing(self, mock_get):
         """_fetch_proxies parses ip:port plaintext format."""
         # First source (geonode) fails, second source returns plaintext
@@ -502,7 +503,7 @@ class TestProxyRotator:
         assert "http://5.5.5.5:8080" in proxies
         assert "http://6.6.6.6:3128" in proxies
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_fetch_proxies_skips_invalid_lines(self, mock_get):
         """_fetch_proxies skips lines containing 'invalid' or 'error'."""
         geonode_fail = _mock_response(500)
@@ -514,7 +515,7 @@ class TestProxyRotator:
         assert len(proxies) == 1
         assert "http://5.5.5.5:8080" in proxies
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_fetch_proxies_limits_to_20(self, mock_get):
         """_fetch_proxies returns at most 20 proxies."""
         lines = "\n".join(f"1.1.1.{i}:8080" for i in range(30))
@@ -526,7 +527,7 @@ class TestProxyRotator:
         proxies = rotator._fetch_proxies()
         assert len(proxies) <= 20
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.get")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.get")
     def test_cache_expiry_triggers_refetch(self, mock_get):
         """get_proxy refetches when cache has expired."""
         mock_get.return_value = _mock_response(200, text="9.9.9.9:1234\n")
@@ -592,9 +593,9 @@ class TestSmartFetchDomainBlocking:
         assert result.success is False
         assert result.skipped is True
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_always_blocked_skips_direct(self, mock_request, mock_archive, mock_get_rotator):
         """LinkedIn (ALWAYS_BLOCKED) skips direct request, goes to archive then proxy."""
         mock_rotator = Mock()
@@ -607,9 +608,9 @@ class TestSmartFetchDomainBlocking:
         # Direct requests.request should NOT have been called (proxy also got no proxies)
         mock_request.assert_not_called()
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_aggressively_blocked_skips_direct_and_proxy(
         self, mock_request, mock_archive, mock_rotator
     ):
@@ -625,7 +626,7 @@ class TestSmartFetchDomainBlocking:
         assert result.success is False
         assert result.status_code == 403
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org")
     def test_aggressively_blocked_medium(self, mock_archive):
         """Medium (AGGRESSIVELY_BLOCKED) is handled correctly."""
         mock_archive.return_value = None
@@ -654,7 +655,7 @@ class TestSmartFetchDirectSuccess:
     def setup_method(self):
         _clear_blocked_cache()
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_direct_200_success(self, mock_request):
         """Direct 200 response returns success with source='direct'."""
         mock_request.return_value = _mock_response(200, text="<html>Hello</html>")
@@ -665,7 +666,7 @@ class TestSmartFetchDirectSuccess:
         assert result.source == "direct"
         assert result.used_proxy is False
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_direct_301_success(self, mock_request):
         """Redirect (3xx) is treated as success (< 400)."""
         mock_request.return_value = _mock_response(301, text="redirected")
@@ -673,8 +674,9 @@ class TestSmartFetchDirectSuccess:
         assert result.success is True
         assert result.status_code == 301
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_direct_uses_custom_headers(self, mock_request):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_direct_uses_custom_headers(self, mock_request, _mock_ssrf):
         """Custom headers are passed through to the request."""
         mock_request.return_value = _mock_response(200, text="ok")
         custom = {"Authorization": "Bearer token123"}
@@ -682,8 +684,9 @@ class TestSmartFetchDirectSuccess:
         call_kwargs = mock_request.call_args
         assert call_kwargs[1]["headers"] == custom
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_direct_uses_method(self, mock_request):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_direct_uses_method(self, mock_request, _mock_ssrf):
         """HTTP method is passed through (e.g., POST)."""
         mock_request.return_value = _mock_response(200, text="ok")
         smart_fetch("https://api.example.com/data", method="POST")
@@ -702,7 +705,7 @@ class TestSmartFetchDirectFailureNoEscalation:
     def setup_method(self):
         _clear_blocked_cache()
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_direct_404_no_escalation(self, mock_request):
         """404 does not trigger escalation (non-blocking error)."""
         mock_request.return_value = _mock_response(404, text="Not Found")
@@ -711,7 +714,7 @@ class TestSmartFetchDirectFailureNoEscalation:
         assert result.status_code == 404
         assert "404" in result.error
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_direct_500_no_escalation(self, mock_request):
         """500 does not trigger escalation."""
         mock_request.return_value = _mock_response(500, text="Server Error")
@@ -731,9 +734,10 @@ class TestSmartFetchEscalation:
     def setup_method(self):
         _clear_blocked_cache()
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org")
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_403_escalates_to_archive(self, mock_request, mock_archive):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_403_escalates_to_archive(self, mock_request, mock_archive, _mock_ssrf):
         """403 triggers escalation to archive.org."""
         mock_request.return_value = _mock_response(403)
         archive_html = "<html>" + "archived content" * 50 + "</html>"
@@ -745,9 +749,10 @@ class TestSmartFetchEscalation:
         assert result.content == archive_html
         mock_archive.assert_called_once()
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org")
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_429_escalates_to_archive(self, mock_request, mock_archive):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_429_escalates_to_archive(self, mock_request, mock_archive, _mock_ssrf):
         """429 (rate limited) triggers escalation."""
         mock_request.return_value = _mock_response(429)
         mock_archive.return_value = None
@@ -755,9 +760,10 @@ class TestSmartFetchEscalation:
         result = smart_fetch("https://rate-limited.com/page")
         mock_archive.assert_called_once()
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org")
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_451_escalates_to_archive(self, mock_request, mock_archive):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_451_escalates_to_archive(self, mock_request, mock_archive, _mock_ssrf):
         """451 (unavailable for legal reasons) triggers escalation."""
         mock_request.return_value = _mock_response(451)
         mock_archive.return_value = None
@@ -765,10 +771,13 @@ class TestSmartFetchEscalation:
         result = smart_fetch("https://censored.com/page")
         mock_archive.assert_called_once()
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_full_escalation_to_proxy(self, mock_request, mock_archive, mock_get_rotator):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_full_escalation_to_proxy(
+        self, mock_request, mock_archive, mock_get_rotator, _mock_ssrf
+    ):
         """When direct=403 and archive=None, escalation reaches proxy."""
         direct_resp = _mock_response(403)
         proxy_resp = _mock_response(200, text="proxy content")
@@ -787,10 +796,11 @@ class TestSmartFetchEscalation:
         assert result.used_proxy is True
         assert result.content == "proxy content"
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_all_levels_fail(self, mock_request, mock_archive, mock_get_rotator):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_all_levels_fail(self, mock_request, mock_archive, mock_get_rotator, _mock_ssrf):
         """When all 3 levels fail, result is failure and domain cached."""
         mock_request.return_value = _mock_response(403)
 
@@ -805,9 +815,10 @@ class TestSmartFetchEscalation:
         assert result.success is False
         assert "totally-blocked.com" in _blocked_cache
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_timeout_escalates(self, mock_request, mock_archive):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_timeout_escalates(self, mock_request, mock_archive, _mock_ssrf):
         """requests.Timeout triggers escalation."""
         import requests as req_lib
 
@@ -816,9 +827,10 @@ class TestSmartFetchEscalation:
         result = smart_fetch("https://slow-site.com/page")
         mock_archive.assert_called_once()
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
-    def test_connection_error_escalates(self, mock_request, mock_archive):
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.is_ssrf_safe", return_value=(True, ""))
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_connection_error_escalates(self, mock_request, mock_archive, _mock_ssrf):
         """requests.RequestException triggers escalation."""
         import requests as req_lib
 
@@ -839,8 +851,8 @@ class TestSmartFetchBudget:
     def setup_method(self):
         _clear_blocked_cache()
 
-    @patch("Jotty.core.utils.smart_fetcher.time.time")
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.time.time")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_budget_exhausted_after_direct(self, mock_request, mock_time):
         """Budget exhaustion after direct attempt stops escalation."""
         # time.time() called: _fetch_start, _budget_remaining in min(), _budget_exhausted check
@@ -861,9 +873,9 @@ class TestSmartFetchBudget:
         assert result.success is False
         assert "budget" in result.error.lower() or "Budget" in result.error
 
-    @patch("Jotty.core.utils.smart_fetcher.time.time")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.time.time")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_budget_exhausted_before_proxy(self, mock_request, mock_archive, mock_time):
         """Budget exhaustion after archive attempt prevents proxy."""
         call_count = [0]
@@ -894,9 +906,9 @@ class TestSmartFetchProxyDetails:
     def setup_method(self):
         _clear_blocked_cache()
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_proxy_403_marks_failed(self, mock_request, mock_archive, mock_get_rotator):
         """Proxy returning 403 triggers mark_failed on the rotator."""
         direct_resp = _mock_response(403)
@@ -913,9 +925,9 @@ class TestSmartFetchProxyDetails:
         result = smart_fetch("https://hard.com/page", max_proxy_attempts=1)
         mock_rotator.mark_failed.assert_called_once_with("http://bad-proxy:8080")
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_proxy_exception_marks_failed(self, mock_request, mock_archive, mock_get_rotator):
         """Exception during proxy request triggers mark_failed."""
         direct_resp = _mock_response(403)
@@ -931,9 +943,9 @@ class TestSmartFetchProxyDetails:
         result = smart_fetch("https://hard.com/page", max_proxy_attempts=1)
         mock_rotator.mark_failed.assert_called_once_with("http://dead-proxy:8080")
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_proxy_no_proxies_available(self, mock_request, mock_archive, mock_get_rotator):
         """When rotator returns None, proxy level is skipped."""
         mock_request.return_value = _mock_response(403)
@@ -945,9 +957,9 @@ class TestSmartFetchProxyDetails:
         result = smart_fetch("https://hard.com/page")
         assert result.success is False
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_proxy_non_403_error_returns_immediately(
         self, mock_request, mock_archive, mock_get_rotator
     ):
@@ -970,9 +982,9 @@ class TestSmartFetchProxyDetails:
         assert result.source == "proxy"
         assert "500" in result.error
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_max_proxy_attempts_respected(self, mock_request, mock_archive, mock_get_rotator):
         """max_proxy_attempts limits the number of proxy tries."""
         direct_resp = _mock_response(403)
@@ -1007,9 +1019,9 @@ class TestSmartFetchBlockedCacheIntegration:
     def teardown_method(self):
         _clear_blocked_cache()
 
-    @patch("Jotty.core.utils.smart_fetcher.get_proxy_rotator")
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_domain_added_to_cache_on_total_failure(
         self, mock_request, mock_archive, mock_get_rotator
     ):
@@ -1026,7 +1038,7 @@ class TestSmartFetchBlockedCacheIntegration:
         smart_fetch("https://failsite.com/page")
         assert "failsite.com" in _blocked_cache
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_second_call_to_cached_domain_skips_all(self, mock_request):
         """After caching, second call skips all levels."""
         _blocked_cache.add("already-failed.com")
@@ -1035,8 +1047,8 @@ class TestSmartFetchBlockedCacheIntegration:
         assert result.skipped is True
         mock_request.assert_not_called()
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org", return_value=None)
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_aggressively_blocked_added_to_cache(self, mock_request, mock_archive):
         """Aggressively blocked domains get added to _blocked_cache after failure."""
         result = smart_fetch("https://reddit.com/r/python/comments/abc")
@@ -1054,14 +1066,14 @@ class TestSmartFetchEdgeCases:
     def setup_method(self):
         _clear_blocked_cache()
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_url_with_special_characters(self, mock_request):
         """URLs with query parameters and fragments work correctly."""
         mock_request.return_value = _mock_response(200, text="ok")
         result = smart_fetch("https://example.com/search?q=hello+world&page=2#results")
         assert result.success is True
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_default_method_is_get(self, mock_request):
         """Default HTTP method is GET."""
         mock_request.return_value = _mock_response(200, text="ok")
@@ -1069,7 +1081,7 @@ class TestSmartFetchEdgeCases:
         call_args = mock_request.call_args
         assert call_args[0][0] == "GET"
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_timeout_parameter_passed(self, mock_request):
         """timeout parameter is passed to requests."""
         mock_request.return_value = _mock_response(200, text="ok")
@@ -1078,8 +1090,8 @@ class TestSmartFetchEdgeCases:
         # timeout should be min(5, budget_remaining)
         assert call_kwargs["timeout"] <= 5
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org")
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_archive_org_success_for_always_blocked(self, mock_request, mock_archive):
         """ALWAYS_BLOCKED domains succeed if archive.org has content."""
         archive_html = "<html>" + "linkedin content" * 100 + "</html>"
@@ -1091,7 +1103,7 @@ class TestSmartFetchEdgeCases:
         # Direct request was skipped
         mock_request.assert_not_called()
 
-    @patch("Jotty.core.utils.smart_fetcher._try_archive_org")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org")
     def test_aggressively_blocked_success_from_archive(self, mock_archive):
         """AGGRESSIVELY_BLOCKED domains can succeed via archive.org."""
         archive_html = "<html>" + "medium article" * 100 + "</html>"
@@ -1101,7 +1113,7 @@ class TestSmartFetchEdgeCases:
         assert result.success is True
         assert result.source == "archive_org"
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_allow_redirects_enabled(self, mock_request):
         """allow_redirects is True in direct requests."""
         mock_request.return_value = _mock_response(200, text="ok")
@@ -1109,7 +1121,7 @@ class TestSmartFetchEdgeCases:
         call_kwargs = mock_request.call_args[1]
         assert call_kwargs["allow_redirects"] is True
 
-    @patch("Jotty.core.utils.smart_fetcher.requests.request")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
     def test_subdomain_matching_for_unfetchable(self, mock_request):
         """Subdomain matching uses 'in' check for unfetchable domains."""
         # m.facebook.com contains 'facebook.com'

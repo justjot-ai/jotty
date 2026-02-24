@@ -1342,6 +1342,34 @@ class SwarmLearningPipeline:
                 context={"task": ctx["goal"][:100], "episode": self.episode_count},
             )
 
+        # Bridge credits to shared Q-tables so LearningService sees them
+        self._bridge_credits_to_qtable(ctx)
+
+    def _bridge_credits_to_qtable(self, ctx: Any) -> None:
+        """Push credit-weighted rewards into the shared TDLambda Q-tables.
+
+        Without this, credit assignment stays local to the pipeline and
+        never influences skill selection in LearningService.query().
+        """
+        try:
+            from Jotty.core.intelligence.learning.facade import get_td_lambda
+
+            td = get_td_lambda()
+            stats = self.credit_assigner.get_credit_statistics()
+            domain = ctx.get("domain", "")
+            task_type = ctx.get("task_type", "")
+
+            for key, credit_info in self.credit_assigner.improvement_credits.items():
+                credit = credit_info.credit_score
+                if credit <= 0:
+                    continue
+                # Extract skill/stage name from the key
+                skill_name = key.split("|")[0] if "|" in key else key
+                reward = max(0.0, min(1.0, credit))
+                td.skill_q.update(task_type, skill_name, reward, domain=domain)
+        except Exception as e:
+            logger.debug(f"Credit bridge to Q-table failed: {e}")
+
     def _step_auditor_fixes(self, ctx: Any) -> Any:
         """Auditor fix_instructions -> negative TD signal + procedural memory."""
         result = ctx["result"]

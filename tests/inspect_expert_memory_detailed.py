@@ -14,8 +14,8 @@ from Jotty.core.intelligence.reasoning.agents.memory_integration import (
     retrieve_improvements_from_memory,
     sync_improvements_to_memory,
 )
-from core.foundation.data_structures import MemoryLevel, SwarmConfig
-from core.memory.cortex import SwarmMemory
+from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
+from Jotty.core.intelligence.memory.cortex import SwarmMemory
 
 
 def show_file_improvements(expert_name: str, domain: str):

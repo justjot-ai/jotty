@@ -10,7 +10,7 @@ import pytest
 # LOAD MODULE BY FILE PATH (avoids name collision with other skills' tools.py)
 # =============================================================================
 
-_TOOLS_PATH = Path(__file__).parent.parent / "skills" / "skill-writer" / "tools.py"
+_TOOLS_PATH = Path(__file__).parent.parent.parent / "skills" / "skill-writer" / "tools.py"
 
 
 def _load_tools():
@@ -256,18 +256,18 @@ class TestSkillMd:
     """Test the SKILL.md file is valid."""
 
     def test_skill_md_exists(self):
-        skill_md = Path(__file__).parent.parent / "skills" / "skill-writer" / "SKILL.md"
+        skill_md = Path(__file__).parent.parent.parent / "skills" / "skill-writer" / "SKILL.md"
         assert skill_md.exists()
 
     def test_skill_md_has_frontmatter(self):
-        skill_md = Path(__file__).parent.parent / "skills" / "skill-writer" / "SKILL.md"
+        skill_md = Path(__file__).parent.parent.parent / "skills" / "skill-writer" / "SKILL.md"
         content = skill_md.read_text()
         assert content.startswith("---")
         assert "name:" in content
         assert "description:" in content
 
     def test_skill_md_has_tools_section(self):
-        skill_md = Path(__file__).parent.parent / "skills" / "skill-writer" / "SKILL.md"
+        skill_md = Path(__file__).parent.parent.parent / "skills" / "skill-writer" / "SKILL.md"
         content = skill_md.read_text()
         assert "## Tools" in content
         assert "create_skill_tool" in content

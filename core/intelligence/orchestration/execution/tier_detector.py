@@ -344,15 +344,31 @@ class TierDetector:
         """Check if task is below the delegation complexity floor.
 
         AI Delegation paper: tasks below a complexity floor always cost more
-        to delegate than to execute directly. Short, simple queries with no
-        multi-step or complex keywords qualify.
+        to delegate than to execute directly.  Only very short, generic
+        queries with no keyword signals qualify — anything with tier-specific,
+        multi-step, complex, or direct-indicator keywords should be routed by
+        the downstream heuristics for more precise classification.
         """
         words = goal_lower.split()
-        if len(words) > 15:
+        # Only truly short queries (≤6 words) can be below the floor;
+        # longer queries deserve full keyword analysis.
+        if len(words) > 6:
             return False
         if any(kw in goal_lower for kw in self._COMPLEX_KEYWORDS):
             return False
         if any(ind in goal_lower for ind in self.MULTI_STEP_INDICATORS):
+            return False
+        # Don't shortcut queries that contain tier-specific indicators —
+        # those should be routed by the keyword heuristics below.
+        if any(ind in goal_lower for ind in self.AUTONOMOUS_INDICATORS):
+            return False
+        if any(ind in goal_lower for ind in self.RESEARCH_INDICATORS):
+            return False
+        if any(ind in goal_lower for ind in self.LEARNING_INDICATORS):
+            return False
+        # Don't shortcut queries matching DIRECT_INDICATORS — let
+        # _is_simple_query handle them with proper 0.80 confidence.
+        if any(ind in goal_lower for ind in self.DIRECT_INDICATORS):
             return False
         return True
 

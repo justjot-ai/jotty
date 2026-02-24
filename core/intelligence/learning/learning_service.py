@@ -180,9 +180,10 @@ class LearningService:
         self._pattern_extraction_interval = 1  # Extract patterns on every record
         self._record_count = 0
 
-        # Auto-transfer: track episodes per domain, trigger transfer every N episodes
-        self._domain_episode_counts: Dict[str, int] = {}
-        self._auto_transfer_interval = 25  # transfer after every 25 episodes in a domain
+        # Auto-transfer: track episodes per domain, trigger transfer every N episodes.
+        # Seed counts from DB so transfer fires even after process restart.
+        self._domain_episode_counts: Dict[str, int] = self._seed_domain_counts()
+        self._auto_transfer_interval = 10  # transfer after every 10 episodes in a domain
         self._last_transfer_counts: Dict[str, int] = {}  # domain -> count at last transfer
 
         # Auto-optimize: DSPy re-optimization + crystallization triggers
@@ -229,6 +230,18 @@ class LearningService:
     def reset_instance(cls) -> None:
         """Reset singleton (for testing)."""
         cls._instance = None
+
+    def _seed_domain_counts(self) -> Dict[str, int]:
+        """Seed domain episode counts from DB so auto-transfer works
+        even after process restart (without re-recording all episodes)."""
+        try:
+            conn = self._store._get_conn()
+            rows = conn.execute(
+                "SELECT domain, COUNT(*) as cnt FROM episodes " "WHERE domain != '' GROUP BY domain"
+            ).fetchall()
+            return {r["domain"]: r["cnt"] for r in rows}
+        except Exception:
+            return {}
 
     # =========================================================================
     # RECORD — Record any execution outcome
@@ -681,7 +694,8 @@ class LearningService:
         # Get patterns from source domain with moderate confidence threshold
         patterns = self._store.get_patterns(domain=source_domain, min_confidence=0.4)
 
-        # Pattern types that are meaningful for cross-domain transfer
+        # Transfer any pattern with sufficient confidence — the strict type
+        # filter was preventing all transfer (most patterns lack these types).
         _TRANSFERABLE_TYPES = {
             "success_strategy",
             "tool_preference",
@@ -692,7 +706,10 @@ class LearningService:
 
         transferable = []
         for p in patterns:
-            if target_domain in p.applicable_domains or p.pattern_type in _TRANSFERABLE_TYPES:
+            is_typed = p.pattern_type in _TRANSFERABLE_TYPES
+            is_applicable = target_domain in p.applicable_domains
+            is_high_confidence = p.confidence >= 0.7 and p.description
+            if is_applicable or is_typed or is_high_confidence:
                 transferable.append(
                     {
                         "pattern": p.description,
@@ -889,15 +906,32 @@ class LearningService:
         is_succeeding = rate >= 0.90 and total >= 1
 
         if not has_failures and not is_cold_start:
-            # Stable success: include only distilled lessons (high signal,
-            # low noise). Skip raw retrieval and failure hints to avoid
-            # over-constraining the model.
+            # Stable success: distilled lessons + reflexion (failure
+            # avoidance is valuable even when currently succeeding).
+            parts = []
             lessons = self.retrieve_distilled_lessons(
                 domain, goal=goal, agent_name=unit_name, top_k=3
             )
             if lessons:
                 lesson_lines = [f"- {l['lesson']}" for l in lessons[:3]]
-                return f"[Learned patterns for {domain}]\n" + "\n".join(lesson_lines)
+                parts.append(f"[Learned patterns for {domain}]\n" + "\n".join(lesson_lines))
+
+            # Include reflexion even during success — past failure insights
+            # prevent regression into previously-fixed failure modes.
+            try:
+                from .advanced_learning import Reflexion
+
+                reflexion = Reflexion.get_instance()
+                past = reflexion.get_relevant_reflections(unit_name=unit_name or domain, limit=2)
+                if past:
+                    parts.append(
+                        "[Avoid past mistakes]\n" + "\n".join(f"  - {r}" for r in past[:2])
+                    )
+            except Exception:
+                pass
+
+            if parts:
+                return "\n\n".join(parts)
             return self._maintenance_guidance(domain, task_type)
 
         # Cold start succeeding: use distilled lessons if available,

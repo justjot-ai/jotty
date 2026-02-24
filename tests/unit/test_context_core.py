@@ -106,18 +106,18 @@ class TestContextPriority:
         assert ContextPriority.MEDIUM.value < ContextPriority.LOW.value
 
     def test_priority_exact_values(self):
-        """CRITICAL=1, HIGH=2, MEDIUM=3, LOW=4."""
-        assert ContextPriority.CRITICAL.value == 1
-        assert ContextPriority.HIGH.value == 2
-        assert ContextPriority.MEDIUM.value == 3
-        assert ContextPriority.LOW.value == 4
+        """CRITICAL=0, HIGH=1, MEDIUM=2, LOW=3."""
+        assert ContextPriority.CRITICAL.value == 0
+        assert ContextPriority.HIGH.value == 1
+        assert ContextPriority.MEDIUM.value == 2
+        assert ContextPriority.LOW.value == 3
 
 
 @pytest.mark.unit
 class TestContextChunk:
     """Tests for the ContextChunk dataclass."""
 
-    @patch("Jotty.core.context.context_manager.SmartTokenizer")
+    @patch("Jotty.core.infrastructure.context.models.SmartTokenizer")
     def test_defaults(self, mock_tokenizer_cls):
         """is_compressed defaults to False and original_tokens defaults to 0 before __post_init__."""
         mock_instance = Mock()
@@ -133,7 +133,7 @@ class TestContextChunk:
         # original_tokens gets set to tokens in __post_init__ when not provided
         assert chunk.original_tokens == chunk.tokens
 
-    @patch("Jotty.core.context.context_manager.SmartTokenizer")
+    @patch("Jotty.core.infrastructure.context.models.SmartTokenizer")
     def test_auto_counts_tokens_in_post_init(self, mock_tokenizer_cls):
         """__post_init__ calls SmartTokenizer to auto-count tokens when tokens=0."""
         mock_instance = Mock()
@@ -154,14 +154,14 @@ class TestContextChunk:
 class TestSmartContextManager:
     """Tests for SmartContextManager initialization and methods."""
 
-    @patch("Jotty.core.context.context_manager.dspy")
+    @patch("Jotty.core.infrastructure.context.context_manager.dspy")
     def test_default_effective_limit(self, mock_dspy):
         """Default effective_limit = int(28000 * 0.85) = 23800."""
         manager = SmartContextManager()
         assert manager.effective_limit == int(28000 * 0.85)
         assert manager.effective_limit == 23800
 
-    @patch("Jotty.core.context.context_manager.dspy")
+    @patch("Jotty.core.infrastructure.context.context_manager.dspy")
     def test_custom_max_tokens(self, mock_dspy):
         """Custom max_tokens produces correct effective_limit."""
         manager = SmartContextManager(max_tokens=10000, safety_margin=0.90)
@@ -169,22 +169,22 @@ class TestSmartContextManager:
         assert manager.effective_limit == int(10000 * 0.90)
         assert manager.effective_limit == 9000
 
-    @patch("Jotty.core.context.context_manager.dspy")
+    @patch("Jotty.core.infrastructure.context.context_manager.dspy")
     def test_register_goal_stores_goal(self, mock_dspy):
         """register_goal stores the goal string internally."""
         manager = SmartContextManager()
         manager.register_goal("Maximize profit")
         assert manager._current_goal == "Maximize profit"
 
-    @patch("Jotty.core.context.context_manager.dspy")
+    @patch("Jotty.core.infrastructure.context.context_manager.dspy")
     def test_register_todo_stores_todo(self, mock_dspy):
         """register_todo stores the todo content internally."""
         manager = SmartContextManager()
         manager.register_todo("Step 1: Download data\nStep 2: Analyze")
         assert manager._current_todo == "Step 1: Download data\nStep 2: Analyze"
 
-    @patch("Jotty.core.context.context_manager.SmartTokenizer")
-    @patch("Jotty.core.context.context_manager.dspy")
+    @patch("Jotty.core.infrastructure.context.models.SmartTokenizer")
+    @patch("Jotty.core.infrastructure.context.context_manager.dspy")
     def test_add_chunk_appends_to_current_chunks(self, mock_dspy, mock_tokenizer_cls):
         """add_chunk creates a ContextChunk and appends it to current_chunks."""
         mock_instance = Mock()
@@ -199,21 +199,21 @@ class TestSmartContextManager:
         assert manager.current_chunks[0].content == "some trajectory data"
         assert manager.current_chunks[0].category == "trajectory"
 
-    @patch("Jotty.core.context.context_manager.dspy")
+    @patch("Jotty.core.infrastructure.context.context_manager.dspy")
     def test_auto_detect_priority_critical_for_task(self, mock_dspy):
         """_auto_detect_priority returns CRITICAL for 'task' category."""
         manager = SmartContextManager()
         priority = manager._auto_detect_priority("task", "do something")
         assert priority == ContextPriority.CRITICAL
 
-    @patch("Jotty.core.context.context_manager.dspy")
+    @patch("Jotty.core.infrastructure.context.context_manager.dspy")
     def test_auto_detect_priority_high_for_error(self, mock_dspy):
         """_auto_detect_priority returns HIGH for 'error' category."""
         manager = SmartContextManager()
         priority = manager._auto_detect_priority("error", "something failed")
         assert priority == ContextPriority.HIGH
 
-    @patch("Jotty.core.context.context_manager.dspy")
+    @patch("Jotty.core.infrastructure.context.context_manager.dspy")
     def test_auto_detect_priority_low_for_unknown_category(self, mock_dspy):
         """_auto_detect_priority returns LOW for unrecognized categories."""
         manager = SmartContextManager()
@@ -244,7 +244,7 @@ class TestContextChunker:
 class TestContextCompressor:
     """Tests for AgenticCompressor."""
 
-    @patch("Jotty.core.context.compressor.dspy")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
     def test_init_with_explicit_lm(self, mock_dspy):
         """Compressor stores the LM passed explicitly."""
         lm = Mock()
@@ -252,14 +252,14 @@ class TestContextCompressor:
         assert comp.lm is lm
         assert comp.compression_stats == []
 
-    @patch("Jotty.core.context.compressor.dspy")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
     def test_init_falls_back_to_global_lm(self, mock_dspy):
         """When lm=None, compressor uses dspy.settings.lm."""
         mock_dspy.settings.lm = Mock()
         comp = AgenticCompressor(lm=None)
         assert comp.lm is mock_dspy.settings.lm
 
-    @patch("Jotty.core.context.compressor.dspy")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
     def test_init_no_global_lm(self, mock_dspy):
         """When lm=None and no global LM, self.lm stays None."""
         mock_dspy.settings.lm = None
@@ -267,15 +267,13 @@ class TestContextCompressor:
         assert comp.lm is None
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
     async def test_compress_returns_content_unchanged_when_under_budget(
-        self, mock_dspy, mock_tok_cls
+        self, mock_dspy, mock_ctx_utils
     ):
         """If content tokens <= target, return as-is."""
-        mock_tok = Mock()
-        mock_tok.count_tokens.return_value = 50
-        mock_tok_cls.get_instance.return_value = mock_tok
+        mock_ctx_utils.estimate_tokens.return_value = 50
 
         lm = Mock()
         comp = AgenticCompressor(lm=lm)
@@ -288,13 +286,13 @@ class TestContextCompressor:
         assert result == "short content"
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_calls_dspy_compressor_and_records_stats(self, mock_dspy, mock_tok_cls):
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
+    async def test_compress_calls_dspy_compressor_and_records_stats(
+        self, mock_dspy, mock_ctx_utils
+    ):
         """When content exceeds budget, calls the LLM compressor and records stats."""
-        mock_tok = Mock()
-        mock_tok.count_tokens.side_effect = [500, 100]  # original, compressed
-        mock_tok_cls.get_instance.return_value = mock_tok
+        mock_ctx_utils.estimate_tokens.side_effect = [500, 100]  # original, compressed
 
         mock_result = Mock()
         mock_result.compressed_content = "compressed"
@@ -320,13 +318,11 @@ class TestContextCompressor:
         assert comp.compression_stats[0]["compressed_tokens"] == 100
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_with_shapley_credits(self, mock_dspy, mock_tok_cls):
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
+    async def test_compress_with_shapley_credits(self, mock_dspy, mock_ctx_utils):
         """Shapley credits produce high_impact and low_impact items."""
-        mock_tok = Mock()
-        mock_tok.count_tokens.side_effect = [500, 100]
-        mock_tok_cls.get_instance.return_value = mock_tok
+        mock_ctx_utils.estimate_tokens.side_effect = [500, 100]
 
         mock_result = Mock()
         mock_result.compressed_content = "compressed"
@@ -352,13 +348,11 @@ class TestContextCompressor:
         comp.compressor.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_low_quality_warns(self, mock_dspy, mock_tok_cls):
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
+    async def test_compress_low_quality_warns(self, mock_dspy, mock_ctx_utils):
         """quality_score < 5 should not crash (only warns)."""
-        mock_tok = Mock()
-        mock_tok.count_tokens.side_effect = [500, 100]
-        mock_tok_cls.get_instance.return_value = mock_tok
+        mock_ctx_utils.estimate_tokens.side_effect = [500, 100]
 
         mock_result = Mock()
         mock_result.compressed_content = "bad compression"
@@ -380,13 +374,11 @@ class TestContextCompressor:
         assert result == "bad compression"
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_unparseable_quality_score(self, mock_dspy, mock_tok_cls):
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
+    async def test_compress_unparseable_quality_score(self, mock_dspy, mock_ctx_utils):
         """Non-numeric quality_score does not crash."""
-        mock_tok = Mock()
-        mock_tok.count_tokens.side_effect = [500, 100]
-        mock_tok_cls.get_instance.return_value = mock_tok
+        mock_ctx_utils.estimate_tokens.side_effect = [500, 100]
 
         mock_result = Mock()
         mock_result.compressed_content = "ok"
@@ -410,22 +402,20 @@ class TestContextCompressor:
     # ---- compress_simple ----
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_simple_empty_data(self, mock_dspy, mock_tok_cls):
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
+    async def test_compress_simple_empty_data(self, mock_dspy, mock_ctx_utils):
         """Empty string returns empty string."""
         comp = AgenticCompressor(lm=Mock())
         result = await comp.compress_simple("", target_ratio=0.5)
         assert result == ""
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_simple_small_data_returns_unchanged(self, mock_dspy, mock_tok_cls):
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
+    async def test_compress_simple_small_data_returns_unchanged(self, mock_dspy, mock_ctx_utils):
         """Data within target_ratio returns unchanged."""
-        mock_tok = Mock()
-        mock_tok.count_tokens.return_value = 10
-        mock_tok_cls.get_instance.return_value = mock_tok
+        mock_ctx_utils.estimate_tokens.return_value = 10
 
         comp = AgenticCompressor(lm=Mock())
         result = await comp.compress_simple("small data", target_ratio=0.5)
@@ -436,13 +426,11 @@ class TestContextCompressor:
         assert result2 == "small data"
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_simple_fallback_truncation_no_lm(self, mock_dspy, mock_tok_cls):
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
+    async def test_compress_simple_fallback_truncation_no_lm(self, mock_dspy, mock_ctx_utils):
         """Without LM, falls back to simple truncation."""
-        mock_tok = Mock()
-        mock_tok.count_tokens.return_value = 100
-        mock_tok_cls.get_instance.return_value = mock_tok
+        mock_ctx_utils.estimate_tokens.return_value = 100
 
         comp = AgenticCompressor(lm=None)
         mock_dspy.settings.lm = None
@@ -451,13 +439,11 @@ class TestContextCompressor:
         assert len(result) < len(data)
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.context.compressor.SmartTokenizer")
-    @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_simple_preserve_critical_lines(self, mock_dspy, mock_tok_cls):
+    @patch("Jotty.core.infrastructure.context.compressor.ctx_utils")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
+    async def test_compress_simple_preserve_critical_lines(self, mock_dspy, mock_ctx_utils):
         """preserve_critical=True keeps CRITICAL/IMPORTANT lines first in fallback mode."""
-        mock_tok = Mock()
-        mock_tok.count_tokens.return_value = 100
-        mock_tok_cls.get_instance.return_value = mock_tok
+        mock_ctx_utils.estimate_tokens.return_value = 100
 
         # Ensure __init__ sees no global LM so self.lm stays None
         mock_dspy.settings.lm = None
@@ -474,13 +460,13 @@ class TestContextCompressor:
 
     # ---- get_stats ----
 
-    @patch("Jotty.core.context.compressor.dspy")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
     def test_get_stats_empty(self, mock_dspy):
         """No compressions returns empty dict."""
         comp = AgenticCompressor(lm=Mock())
         assert comp.get_stats() == {}
 
-    @patch("Jotty.core.context.compressor.dspy")
+    @patch("Jotty.core.infrastructure.context.compressor.dspy")
     def test_get_stats_with_data(self, mock_dspy):
         """Stats are computed from recorded compressions."""
         comp = AgenticCompressor(lm=Mock())

@@ -13,18 +13,18 @@ from unittest.mock import Mock
 import pytest
 
 try:
-    from core.infrastructure.foundation.data_structures import (
+    from Jotty.core.infrastructure.foundation.data_structures import (
         GoalValue,
         MemoryEntry,
         MemoryLevel,
         SwarmConfig,
     )
-    from core.intelligence.learning.adaptive_components import (
+    from Jotty.core.intelligence.learning.adaptive_components import (
         AdaptiveExploration,
         AdaptiveLearningRate,
         IntermediateRewardCalculator,
     )
-    from core.intelligence.learning.td_lambda import (
+    from Jotty.core.intelligence.learning.td_lambda import (
         COMACredit,
         GroupedValueBaseline,
         SkillQTable,

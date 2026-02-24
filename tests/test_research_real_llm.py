@@ -7,8 +7,8 @@ This tests the actual LLM-powered research workflow (simplified for speed).
 import asyncio
 import os
 
-from core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
-from core.intelligence.orchestration.swarms.templates.research import ResearchTemplate
+from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
+from Jotty.core.intelligence.orchestration.swarms.templates.research import ResearchTemplate
 
 # Requires ANTHROPIC_API_KEY env var
 assert os.getenv("ANTHROPIC_API_KEY"), "Set ANTHROPIC_API_KEY to run real LLM tests"

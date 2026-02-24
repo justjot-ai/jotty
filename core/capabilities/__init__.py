@@ -156,6 +156,7 @@ def _subsystems() -> Dict[str, Any]:
         "coordination": {
             "description": "Agent coordination patterns: 9 patterns (pipeline, parallel, debate, consensus, hierarchical, iterative, blackboard, round_robin, custom/DAG)",
             "package": "Jotty.core.intelligence.orchestration.swarms.base",
+            "facade": "Jotty.core.intelligence.orchestration.swarms.base.team_coordinator",
             "key_classes": [
                 "TeamCoordinator",
                 "SwarmTemplate",
@@ -289,7 +290,7 @@ def _explanations() -> Dict[str, str]:
             "Learning Subsystem (Jotty.core.intelligence.learning)\n"
             "======================================================\n"
             "Self-improving agents through 5 integrated mechanisms:\n\n"
-            "1. Q-TABLES (TD-Lambda RL):\n"
+            "1. Q-TABLES (TDLambdaLearner — TD-Lambda RL):\n"
             "   - SkillQTable: tracks which skills work best per task type/domain\n"
             "   - StepQTable: tracks plan templates (role sequences) and role→skill bindings\n"
             "   - Guidance injected into planner: 'Q-table guidance injected: 3 roles, 1 template'\n\n"

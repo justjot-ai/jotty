@@ -1167,26 +1167,36 @@ class TestFullQTableLifecycle:
 
 
 class TestLLMJudgeConfig:
-    """Verify LLMJudge accepts config."""
+    """Verify LLM judge functionality accepts config.
+
+    Note: LLMJudge was folded into LearningService as methods
+    (llm_judge_quality, llm_judge_quality_with_feedback, etc.).
+    These tests verify the config plumbing via LearningService.
+    """
 
     @pytest.mark.unit
-    def test_llm_judge_accepts_config(self):
-        """LLMJudge should accept optional config."""
-        from Jotty.core.intelligence.learning.advanced_learning import LLMJudge
+    def test_learning_service_judge_accepts_config(self):
+        """LearningService should accept custom judge config."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
         from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
 
         cfg = LearningConfig(judge_llm_weight=0.9, judge_heuristic_weight=0.1)
-        judge = LLMJudge(config=cfg)
-        assert judge._config is not None
-        assert judge._config.judge_llm_weight == 0.9
+        svc = LearningService.__new__(LearningService)
+        svc._config = cfg
+        assert svc._config is not None
+        assert svc._config.judge_llm_weight == 0.9
 
     @pytest.mark.unit
-    def test_llm_judge_default_config(self):
-        """LLMJudge without config should load default."""
-        from Jotty.core.intelligence.learning.advanced_learning import LLMJudge
+    def test_learning_service_judge_default_config(self):
+        """LearningService with default config should have judge weights."""
+        from Jotty.core.intelligence.learning.learning_service import LearningService
+        from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
 
-        judge = LLMJudge()
-        assert judge._config is not None
+        svc = LearningService.__new__(LearningService)
+        svc._config = LearningConfig()
+        assert svc._config is not None
+        assert svc._config.judge_llm_weight == 0.6
+        assert svc._config.judge_heuristic_weight == 0.4
 
 
 # =============================================================================

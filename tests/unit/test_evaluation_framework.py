@@ -15,7 +15,7 @@ import pytest
 jotty_path = Path(__file__).parent.parent
 sys.path.insert(0, str(jotty_path))
 
-from core.infrastructure.monitoring.evaluation import (
+from Jotty.core.infrastructure.monitoring.evaluation import (
     DEFAULT_SEARCH_GROUPS,
     AblationStudy,
     ComponentType,
@@ -29,7 +29,7 @@ from core.infrastructure.monitoring.evaluation import (
     TuningResult,
     set_reproducible_seeds,
 )
-from core.infrastructure.foundation.data_structures import SwarmLearningConfig as SwarmConfig
+from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig as SwarmConfig
 
 # ---------------------------------------------------------------------------
 # Helpers

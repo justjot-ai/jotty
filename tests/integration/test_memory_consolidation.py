@@ -43,7 +43,7 @@ except ImportError:
 
 # Try importing core data structures
 try:
-    from core.foundation.data_structures import (
+    from Jotty.core.infrastructure.foundation.data_structures import (
         CausalLink,
         GoalHierarchy,
         GoalNode,
@@ -60,7 +60,7 @@ except ImportError:
 
 # Try importing consolidation module (requires dspy)
 try:
-    from core.memory.consolidation import (
+    from Jotty.core.intelligence.memory.consolidation_engine import (
         ConsolidationValidator,
         MemoryCluster,
         MemoryLevelClassifier,
@@ -72,7 +72,7 @@ except ImportError:
 
 # Try importing consolidation engine
 try:
-    from core.memory.consolidation_engine import (
+    from Jotty.core.intelligence.memory.consolidation_engine import (
         AgentAbstractor,
         AgentRole,
         BrainMode,
@@ -90,7 +90,8 @@ except ImportError:
 
 # Try importing consolidation mixin
 try:
-    from core.memory._consolidation_mixin import ConsolidationMixin
+    # ConsolidationMixin was removed in Feb 2026 restructure
+    raise ImportError("ConsolidationMixin no longer exists")
 
     MIXIN_AVAILABLE = True
 except ImportError:

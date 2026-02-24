@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Re-export for backward compatibility — other modules import this lock
 # from base_agent (e.g. swarm_learning.py line 165).
-
+from Jotty.core.infrastructure.foundation.dspy_init import _dspy_lm_lock  # noqa: F401
 
 # =============================================================================
 # CONFIGURATION AND RESULT DATACLASSES
@@ -676,7 +676,9 @@ class BaseAgent(ABC):
                 "output_length": len(output_str),
             }
             if output_str:
-                excerpt = output_str[:600].rsplit("\n", 1)[0] if len(output_str) > 600 else output_str
+                excerpt = (
+                    output_str[:600].rsplit("\n", 1)[0] if len(output_str) > 600 else output_str
+                )
                 agent_outcome["response_excerpt"] = excerpt
             service.record(
                 unit_name=self.config.name,

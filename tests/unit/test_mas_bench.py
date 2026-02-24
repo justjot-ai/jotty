@@ -29,7 +29,10 @@ class TestUITreeParser:
 
         spec = importlib.util.spec_from_file_location(
             "android_tools",
-            Path(__file__).resolve().parent.parent / "skills" / "android-automation" / "tools.py",
+            Path(__file__).resolve().parent.parent.parent
+            / "skills"
+            / "android-automation"
+            / "tools.py",
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -179,7 +182,10 @@ class TestAndroidDevice:
 
         spec = importlib.util.spec_from_file_location(
             "android_tools",
-            Path(__file__).resolve().parent.parent / "skills" / "android-automation" / "tools.py",
+            Path(__file__).resolve().parent.parent.parent
+            / "skills"
+            / "android-automation"
+            / "tools.py",
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -767,7 +773,10 @@ class TestAndroidToolSchemas:
 
         spec = importlib.util.spec_from_file_location(
             "android_tools",
-            Path(__file__).resolve().parent.parent / "skills" / "android-automation" / "tools.py",
+            Path(__file__).resolve().parent.parent.parent
+            / "skills"
+            / "android-automation"
+            / "tools.py",
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)

@@ -29,10 +29,10 @@ def _make_lightweight_swarm(agent_specs):
 
     agent_specs: list of (name, sub_goal) tuples
     """
-    from core.agents.auto_agent import AutoAgent
-    from core.foundation.agent_config import AgentConfig
-    from core.foundation.data_structures import SwarmConfig
-    from core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.reasoning.agents.auto_agent import AutoAgent
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
     agents = []
     for name, sub_goal in agent_specs:
@@ -170,7 +170,9 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_majority_real(self):
         """Majority vote with realistic agent opinions."""
-        from core.orchestration.swarm_intelligence import SwarmIntelligence
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
+            SwarmIntelligence,
+        )
 
         si = SwarmIntelligence()
 
@@ -203,7 +205,9 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_supermajority_blocks_weak_consensus(self):
         """Supermajority blocks when only simple majority exists."""
-        from core.orchestration.swarm_intelligence import SwarmIntelligence
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
+            SwarmIntelligence,
+        )
 
         si = SwarmIntelligence()
 
@@ -235,7 +239,9 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_unanimity_with_full_agreement(self):
         """Unanimity passes when everyone agrees."""
-        from core.orchestration.swarm_intelligence import SwarmIntelligence
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
+            SwarmIntelligence,
+        )
 
         si = SwarmIntelligence()
 
@@ -260,7 +266,9 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_ranked_eliminates_weakest(self):
         """Ranked-choice eliminates least popular option."""
-        from core.orchestration.swarm_intelligence import SwarmIntelligence
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
+            SwarmIntelligence,
+        )
 
         si = SwarmIntelligence()
 
@@ -290,7 +298,9 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_approval_filters_low_confidence(self):
         """Approval voting ignores low-confidence votes."""
-        from core.orchestration.swarm_intelligence import SwarmIntelligence
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
+            SwarmIntelligence,
+        )
 
         si = SwarmIntelligence()
 
@@ -328,7 +338,9 @@ class TestRealCompression:
 
     def test_compress_agent_execution_log(self):
         """Compress a realistic multi-agent execution log."""
-        from core.context.context_guard import LLMContextManager
+        from Jotty.core.infrastructure.context.context_manager import (
+            SmartContextManager as LLMContextManager,
+        )
 
         mgr = LLMContextManager()
 
@@ -377,7 +389,9 @@ class TestRealCompression:
 
     def test_smart_compress_in_context_guard_flow(self):
         """Test that _smart_compress works in the build_context flow."""
-        from core.context.context_guard import LLMContextManager
+        from Jotty.core.infrastructure.context.context_manager import (
+            SmartContextManager as LLMContextManager,
+        )
 
         mgr = LLMContextManager(max_tokens=500, safety_margin=100)
 
@@ -404,7 +418,7 @@ class TestRealCompression:
 class TestRealScopedTools:
 
     def test_scoped_tools_web_task(self):
-        from core.registry.unified_registry import get_unified_registry
+        from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
 
         registry = get_unified_registry()
         all_count = len(registry.list_skills())
@@ -423,7 +437,7 @@ class TestRealScopedTools:
         assert len(tools) < all_count
 
     def test_scoped_tools_telegram_task(self):
-        from core.registry.unified_registry import get_unified_registry
+        from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
 
         registry = get_unified_registry()
 

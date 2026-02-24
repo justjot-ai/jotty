@@ -24,7 +24,9 @@ class TestClaudeAPIIntegration:
         """Test a simple agent using Claude API."""
         import dspy
 
-        from core import AgentConfig, Orchestrator, SwarmConfig
+        from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.orchestration import Orchestrator
 
         # Configure DSPy to use Claude
         api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -68,7 +70,9 @@ class TestClaudeAPIIntegration:
         """Test parameter resolution between multiple agents."""
         import dspy
 
-        from core import AgentConfig, Orchestrator, SwarmConfig
+        from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.orchestration import Orchestrator
 
         # Configure DSPy
         api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -125,7 +129,9 @@ class TestClaudeAPIIntegration:
         """Test that ParameterResolver, ToolManager, and StateManager work together."""
         import dspy
 
-        from core import AgentConfig, Orchestrator, SwarmConfig
+        from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.orchestration import Orchestrator
 
         # Configure DSPy
         api_key = os.getenv("ANTHROPIC_API_KEY")
