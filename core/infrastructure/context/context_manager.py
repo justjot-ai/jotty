@@ -707,6 +707,10 @@ class SmartContextManager:
         any part that exceeds its share using hierarchical compression
         (summary + lossless pointer to original stored in _content_store).
 
+        Also prepends a structured compaction checkpoint (Goal/Progress/
+        Decisions/NextSteps) so the LLM retains key context even after
+        aggressive compression. Inspired by OpenClaw's compaction summaries.
+
         Args:
             parts: List of text parts to compress.
             max_total_chars: Maximum total characters across all parts.
@@ -721,8 +725,17 @@ class SmartContextManager:
         if total_chars <= max_total_chars:
             return parts
 
-        per_part_budget = max_total_chars // len(parts)
-        compressed_parts = []
+        # Generate structured checkpoint BEFORE compressing individual parts.
+        # This captures cross-part patterns (goals, decisions, progress) that
+        # would be lost when each part is compressed independently.
+        checkpoint = ctx_utils.structured_compaction_summary(parts)
+
+        # Reserve space for checkpoint, distribute rest equally
+        checkpoint_chars = len(checkpoint)
+        remaining_budget = max(max_total_chars - checkpoint_chars, max_total_chars // 2)
+        per_part_budget = remaining_budget // len(parts)
+
+        compressed_parts = [checkpoint]
         for idx, p in enumerate(parts):
             if len(p) <= per_part_budget:
                 compressed_parts.append(p)
@@ -734,7 +747,8 @@ class SmartContextManager:
         logger.debug(
             f"Context budget: compressed {total_chars} -> "
             f"{sum(len(p) for p in compressed_parts)} chars "
-            f"(budget: {max_total_chars}, store: {len(self._content_store)} entries)"
+            f"(budget: {max_total_chars}, store: {len(self._content_store)} entries, "
+            f"checkpoint: {checkpoint_chars} chars)"
         )
         return compressed_parts
 

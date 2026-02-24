@@ -21,42 +21,49 @@ logger = logging.getLogger(__name__)
 
 
 class SummarizationService:
-    """Service class for text summarization using Claude CLI."""
+    """Service class for text summarization using Anthropic API directly."""
 
     def __init__(self):
-        self._claude_skill = None
-        self._registry_initialized = False
+        self._client = None
 
-    def _get_claude_skill(self):
-        """Lazy load Claude CLI skill from registry."""
-        if self._claude_skill is None:
+    def _get_client(self):
+        """Lazy-init Anthropic client."""
+        if self._client is None:
             try:
-                try:
-                    from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
-                except ImportError:
-                    from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
-                registry = get_skills_registry()
-                registry.init()
-                self._claude_skill = registry.get_skill("claude-cli-llm")
-                self._registry_initialized = True
+                import anthropic
+                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+                    get_anthropic_client_kwargs,
+                )
+
+                self._client = anthropic.Anthropic(**get_anthropic_client_kwargs())
             except Exception as e:
-                logger.error(f"Failed to load claude-cli-llm skill: {e}")
-                raise RuntimeError(f"Failed to load claude-cli-llm skill: {e}")
-        return self._claude_skill
+                logger.error("Failed to init Anthropic client: %s", e)
+                raise RuntimeError(f"Anthropic client init failed: {e}")
+        return self._client
 
     def _call_llm(self, prompt: str, model: str = "sonnet", timeout: int = 120) -> Dict[str, Any]:
-        """Call Claude CLI LLM for text generation."""
-        claude_skill = self._get_claude_skill()
-        if not claude_skill:
-            return {"success": False, "error": "Claude CLI skill not available"}
+        """Call Anthropic API directly for text generation."""
+        from Jotty.core.infrastructure.foundation.config_defaults import (
+            MODEL_HAIKU,
+            MODEL_OPUS,
+            MODEL_SONNET,
+        )
 
-        generate_tool = claude_skill.tools.get("generate_text_tool")
-        if not generate_tool:
-            return {"success": False, "error": "generate_text_tool not found"}
+        MODEL_MAP = {"haiku": MODEL_HAIKU, "sonnet": MODEL_SONNET, "opus": MODEL_OPUS}
+        model_id = MODEL_MAP.get(model, model)
 
-        result = generate_tool({"prompt": prompt, "model": model, "timeout": timeout})
-
-        return result
+        try:
+            client = self._get_client()
+            response = client.messages.create(
+                model=model_id,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.content[0].text if response.content else ""
+            return {"success": True, "text": text, "model": model_id}
+        except Exception as e:
+            logger.error("LLM call failed: %s", e)
+            return {"success": False, "error": str(e)}
 
     def _build_summary_prompt(
         self, text: str, length: str = "medium", style: str = "paragraph"
@@ -188,7 +195,31 @@ Key Points (up to {max_points}):"""
 
             suffix = path.suffix.lower()
 
-            if suffix in [".txt", ".md", ".markdown", ".rst", ".text"]:
+            if suffix in [
+                ".txt",
+                ".md",
+                ".markdown",
+                ".rst",
+                ".text",
+                ".py",
+                ".js",
+                ".ts",
+                ".java",
+                ".go",
+                ".rs",
+                ".c",
+                ".cpp",
+                ".h",
+                ".css",
+                ".json",
+                ".yaml",
+                ".yml",
+                ".toml",
+                ".ini",
+                ".cfg",
+                ".csv",
+                ".log",
+            ]:
                 # Plain text files
                 with open(path, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()

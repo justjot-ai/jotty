@@ -104,6 +104,28 @@ def get_error_detector() -> "ErrorDetector":
     return _singletons[key]
 
 
+def get_progressive_summarizer() -> "ProgressiveSummarizer":
+    """
+    Return a ProgressiveSummarizer singleton.
+
+    Maintains a tree of progressively summarized context blocks at
+    multiple abstraction levels (raw → detail → theme).
+
+    Returns:
+        ProgressiveSummarizer instance.
+    """
+    key = "progressive_summarizer"
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.infrastructure.context.progressive_summarizer import (
+                    ProgressiveSummarizer,
+                )
+
+                _singletons[key] = ProgressiveSummarizer()
+    return _singletons[key]
+
+
 def reset_singletons() -> None:
     """Reset all singletons. Used in tests to ensure clean state."""
     with _lock:

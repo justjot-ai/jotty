@@ -315,6 +315,77 @@ async def intelligent_compress(
 
 
 # =============================================================================
+# STRUCTURED COMPACTION SUMMARY (OpenClaw-inspired)
+# =============================================================================
+
+# Patterns for extracting structured info from conversation context
+_GOAL_MARKERS = ("goal:", "objective:", "task:", "i need to", "please", "help me")
+_DECISION_MARKERS = ("decided", "chose", "using", "selected", "going with", "will use")
+_PROGRESS_MARKERS = ("done:", "completed:", "finished:", "✅", "succeeded", "result:")
+_BLOCKER_MARKERS = ("error:", "failed:", "blocked:", "❌", "cannot", "issue:")
+_NEXT_STEP_MARKERS = ("next:", "todo:", "remaining:", "still need", "then we")
+
+
+def structured_compaction_summary(parts: List[str]) -> str:
+    """Generate a structured checkpoint summary from context parts.
+
+    Inspired by OpenClaw's compaction which produces Goal/Progress/Decisions/
+    NextSteps sections. Uses pure keyword extraction (no LLM call) so it's
+    fast and always available.
+
+    Args:
+        parts: List of context text parts (from agent_runner).
+
+    Returns:
+        Structured summary string with sections. Typically 500-1500 chars.
+    """
+    all_text = "\n".join(parts)
+    lines = [l.strip() for l in all_text.split("\n") if l.strip() and len(l.strip()) > 10]
+
+    goals: list[str] = []
+    progress: list[str] = []
+    decisions: list[str] = []
+    blockers: list[str] = []
+    next_steps: list[str] = []
+
+    for line in lines:
+        lower = line.lower()
+        # Classify each line into at most one bucket (first match wins)
+        if any(m in lower for m in _BLOCKER_MARKERS):
+            blockers.append(line[:200])
+        elif any(m in lower for m in _PROGRESS_MARKERS):
+            progress.append(line[:200])
+        elif any(m in lower for m in _NEXT_STEP_MARKERS):
+            next_steps.append(line[:200])
+        elif any(m in lower for m in _DECISION_MARKERS):
+            decisions.append(line[:200])
+        elif any(m in lower for m in _GOAL_MARKERS) and len(goals) < 3:
+            goals.append(line[:200])
+
+    sections = ["[Structured Compaction Checkpoint]"]
+
+    if goals:
+        sections.append("## Goal\n" + "\n".join(f"- {g}" for g in goals[:3]))
+    if progress:
+        sections.append("## Progress\n" + "\n".join(f"- {p}" for p in progress[:5]))
+    if decisions:
+        sections.append("## Key Decisions\n" + "\n".join(f"- {d}" for d in decisions[:5]))
+    if blockers:
+        sections.append("## Blockers\n" + "\n".join(f"- {b}" for b in blockers[:3]))
+    if next_steps:
+        sections.append("## Next Steps\n" + "\n".join(f"- {n}" for n in next_steps[:3]))
+
+    if len(sections) == 1:
+        # No structured info found — fall back to first+last meaningful lines
+        if len(lines) > 2:
+            sections.append(f"Context: {lines[0][:150]}...{lines[-1][:150]}")
+        elif lines:
+            sections.append(f"Context: {lines[0][:300]}")
+
+    return "\n\n".join(sections)
+
+
+# =============================================================================
 # CHUNKING UTILITIES
 # =============================================================================
 

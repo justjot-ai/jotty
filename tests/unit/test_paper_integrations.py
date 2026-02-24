@@ -591,8 +591,9 @@ class TestLCMHierarchicalCompression:
         part_b = "B" * 5000
         result = mgr.compress_parts([part_a, part_b], max_total_chars=200)
 
-        # Should have compressed
-        assert len(result) == 2
+        # Should have compressed (3 parts: structured checkpoint + 2 compressed)
+        assert len(result) == 3
+        assert result[0].startswith("[Structured Compaction Checkpoint]")
         assert sum(len(p) for p in result) < 10000
 
         # Originals should be in the store
