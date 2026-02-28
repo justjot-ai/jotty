@@ -111,7 +111,7 @@ class TestRunAutoRouting:
         mock_learning_service.record.assert_called_once()
         call_kwargs = mock_learning_service.record.call_args[1]
         assert call_kwargs["unit_type"] == "orchestrator"
-        assert call_kwargs["task_type"] == "run"
+        assert call_kwargs["task_type"] == "general"
         assert call_kwargs["action"]["mode"] == "auto"
 
     @pytest.mark.asyncio
@@ -325,7 +325,7 @@ class TestChat:
             mock_learning_service.start_episode.assert_called_once()
             ep_kwargs = mock_learning_service.start_episode.call_args[1]
             assert ep_kwargs["unit_type"] == "chat"
-            assert ep_kwargs["task_type"] == "chat"
+            assert ep_kwargs["task_type"] == "general"
 
             mock_learning_service.end_episode.assert_called_once()
             end_kwargs = mock_learning_service.end_episode.call_args[1]
@@ -617,6 +617,7 @@ class TestLearnFlag:
     async def test_run_learn_injects_guidance(self, orchestrator, mock_learning_service):
         """run(learn=True) should inject LearningService guidance into context."""
         mock_learning_service.build_context_string.return_value = "[Guidance] Use tool X"
+        mock_learning_service.build_retrieval_context.return_value = ""
         await orchestrator.run("Test task")
 
         mock_learning_service.build_context_string.assert_called_once()

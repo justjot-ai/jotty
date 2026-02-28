@@ -211,6 +211,9 @@ class ShapleyValueEstimator:
 
         contributions = {agent: [] for agent in agents}  # type: ignore[var-annotated]
 
+        # Instance-based RNG: reproducible without polluting global random state
+        rng = random.Random(42)
+
         # =====================================================================
         # MONTE CARLO SAMPLING OF AGENT ORDERINGS (Shapley approximation)
         # =====================================================================
@@ -237,10 +240,9 @@ class ShapleyValueEstimator:
         # =====================================================================
         for sample_idx in range(num_samples):
             # STEP 1: Generate a random ordering of agents
-            # We use deterministic seeding (42 + sample_idx) for reproducibility
-            # This ensures the same task always gets the same Shapley estimates
-            random.seed(42 + sample_idx)
-            ordering = random.sample(agents, n)
+            # Uses instance-based RNG seeded once (seed=42) for reproducibility
+            # without polluting global random state
+            ordering = rng.sample(agents, n)
 
             # STEP 2: For each agent in this ordering, compute marginal contribution
             # "Marginal contribution" = how much value does this agent ADD when

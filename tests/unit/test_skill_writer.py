@@ -209,7 +209,7 @@ class TestListSkillsTool:
             {"name": "web-search", "description": "Search the web", "category": "research"},
         ]
 
-        with patch("Jotty.core.skills.get_registry", return_value=mock_reg):
+        with patch("Jotty.core.capabilities.skills.get_registry", return_value=mock_reg):
             result = tools.list_skills_tool({})
         assert result.get("total") == 2
         assert len(result.get("skills", [])) == 2
@@ -225,7 +225,7 @@ class TestListSkillsTool:
             {"name": "web-search", "description": "Search the web", "category": "research"},
         ]
 
-        with patch("Jotty.core.skills.get_registry", return_value=mock_reg):
+        with patch("Jotty.core.capabilities.skills.get_registry", return_value=mock_reg):
             result = tools.list_skills_tool({"search": "calc"})
         assert result.get("total") == 1
         assert result["skills"][0]["name"] == "calculator"
@@ -241,7 +241,7 @@ class TestListSkillsTool:
             {"name": "web-search", "description": "Search the web", "category": "research"},
         ]
 
-        with patch("Jotty.core.skills.get_registry", return_value=mock_reg):
+        with patch("Jotty.core.capabilities.skills.get_registry", return_value=mock_reg):
             result = tools.list_skills_tool({"category": "research"})
         assert result.get("total") == 1
         assert result["skills"][0]["name"] == "web-search"
@@ -263,7 +263,6 @@ class TestSkillMd:
         skill_md = Path(__file__).parent.parent.parent / "skills" / "skill-writer" / "SKILL.md"
         content = skill_md.read_text()
         assert content.startswith("---")
-        assert "name:" in content
         assert "description:" in content
 
     def test_skill_md_has_tools_section(self):

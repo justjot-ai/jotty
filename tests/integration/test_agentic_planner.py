@@ -184,14 +184,16 @@ class TestTaskPlan:
 class TestTaskPlannerInit:
     """Test TaskPlanner initialization and factory function."""
 
-    @patch("Jotty.core.agents.agentic_planner._get_dspy", return_value=None)
+    @patch(
+        "Jotty.core.intelligence.reasoning.planners.agentic_planner._get_dspy", return_value=None
+    )
     def test_init_raises_without_dspy(self, mock_dspy):
         """TaskPlanner raises AgentExecutionError when DSPy is missing."""
         with pytest.raises(AgentExecutionError, match="DSPy required"):
             TaskPlanner()
 
-    @patch("Jotty.core.agents.agentic_planner._get_dspy")
-    @patch("Jotty.core.agents.agentic_planner._load_signatures")
+    @patch("Jotty.core.intelligence.reasoning.planners.agentic_planner._get_dspy")
+    @patch("Jotty.core.intelligence.reasoning.planners.agentic_planner._load_signatures")
     @patch.object(TaskPlanner, "_init_fast_lm")
     def test_init_success(self, mock_fast_lm, mock_sigs, mock_dspy):
         """TaskPlanner initializes successfully with mocked DSPy."""
@@ -593,7 +595,9 @@ class TestCallWithRetry:
         module = MagicMock(return_value="result")
         mock_lm = MagicMock()
 
-        with patch("Jotty.core.agents.agentic_planner._get_dspy") as mock_get:
+        with patch(
+            "Jotty.core.intelligence.reasoning.planners.agentic_planner._get_dspy"
+        ) as mock_get:
             mock_dspy = MagicMock()
             mock_get.return_value = mock_dspy
 

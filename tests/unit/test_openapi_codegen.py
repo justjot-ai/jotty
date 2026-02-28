@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -447,6 +447,24 @@ class TestSwarmCodeGenerator:
     pytestmark = pytest.mark.skipif(
         not CODEGEN_AVAILABLE, reason="SwarmCodeGenerator not importable"
     )
+
+    @pytest.fixture(autouse=True)
+    def _force_template_fallback(self):
+        """Ensure DSPy LM is not set, so code generation uses template fallback.
+
+        Other tests in the suite may initialize DSPy, causing dspy.settings.lm
+        to be set. This fixture ensures these tests always use the deterministic
+        template path rather than the LLM path.
+        """
+        try:
+            import dspy
+
+            original_lm = getattr(dspy.settings, "lm", None)
+            dspy.settings.lm = None
+            yield
+            dspy.settings.lm = original_lm
+        except ImportError:
+            yield
 
     # ── generate_glue_code (template fallback) ───────────────────────────
 

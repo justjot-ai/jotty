@@ -459,13 +459,11 @@ class TestMemoryLevelClassifier:
         with patch("dspy.ChainOfThought", return_value=mock_classifier_fn):
             classifier = MemoryLevelClassifier(use_cot=True)
 
-        # Inject the missing _heuristic_classify method to verify fallback path
-        classifier._heuristic_classify = Mock(return_value=MemoryLevel.EPISODIC)
+        # Fallback path returns EPISODIC/0.5/True directly (no _heuristic_classify)
         level, confidence, should_store = classifier.classify("some experience", {})
-        assert isinstance(level, MemoryLevel)
+        assert level == MemoryLevel.EPISODIC
         assert confidence == 0.5
         assert should_store is True
-        classifier._heuristic_classify.assert_called_once_with("some experience")
 
     def test_classify_none_level_defaults_to_episodic(self):
         """None level from LLM result defaults to EPISODIC."""

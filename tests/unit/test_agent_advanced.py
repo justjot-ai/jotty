@@ -1208,7 +1208,9 @@ class TestAutonomousAgent:
             agent = AutonomousAgent()
         agent.config.name = "TestAgent"
         mock_broadcaster = MagicMock()
-        with patch("Jotty.core.agents.base.autonomous_agent.AgentEventBroadcaster") as MockAEB:
+        with patch(
+            "Jotty.core.intelligence.reasoning.agents.autonomous_agent.AgentEventBroadcaster"
+        ) as MockAEB:
             MockAEB.get_instance.return_value = mock_broadcaster
             agent._emit("step_start", phase="test")
         mock_broadcaster.emit.assert_called_once()
@@ -1217,7 +1219,9 @@ class TestAutonomousAgent:
     def test_emit_silences_exceptions(self):
         with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutonomousAgent()
-        with patch("Jotty.core.agents.base.autonomous_agent.AgentEventBroadcaster") as MockAEB:
+        with patch(
+            "Jotty.core.intelligence.reasoning.agents.autonomous_agent.AgentEventBroadcaster"
+        ) as MockAEB:
             MockAEB.get_instance.side_effect = RuntimeError("boom")
             # Should not raise
             agent._emit("error", phase="test")

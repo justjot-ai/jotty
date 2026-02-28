@@ -86,19 +86,22 @@ def init_dspy_lm(
     max_tokens: int = 8192,
     temperature: float | None = None,
     timeout: int | None = None,
+    force: bool = False,
 ) -> Optional[Any]:
     """Thread-safe DSPy LM initialization.
 
     If ``dspy.settings.lm`` is already configured, returns the existing
-    instance without reconfiguring.  Otherwise loads API keys, creates
-    an LM via :class:`UnifiedLMProvider`, and calls ``dspy.configure()``.
+    instance without reconfiguring (unless *force=True*).  Otherwise loads
+    API keys, creates an LM via :class:`UnifiedLMProvider`, and calls
+    ``dspy.configure()``.
 
     Args:
         provider: LLM provider name (auto-detected if *None*).
-        model: Model alias (e.g. ``"haiku"``).  Defaults vary by caller.
+        model: Model alias (e.g. ``"haiku"``, ``"sonnet"``).  Defaults vary by caller.
         max_tokens: Maximum output tokens.
         temperature: Sampling temperature.
         timeout: Request timeout in seconds.
+        force: If *True*, reconfigure even if already set.
 
     Returns:
         The configured ``dspy.LM`` instance, or *None* if DSPy is unavailable.
@@ -111,7 +114,7 @@ def init_dspy_lm(
 
     with _dspy_lm_lock:
         # Re-check inside lock — another thread may have configured it
-        if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
+        if not force and hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
             return dspy.settings.lm
 
         # Load API keys from .env files if not in environment

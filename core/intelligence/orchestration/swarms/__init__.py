@@ -310,6 +310,23 @@ _LAZY_IMPORTS: dict[str, str] = {
     "WorkflowOptimizer": ".templates.learning_swarm",
     "ParameterTuner": ".templates.learning_swarm",
     "MetaLearner": ".templates.learning_swarm",
+    # --- topic_research_swarm ---
+    "TopicResearchSwarm": ".topic_research_swarm",
+    "TopicResearchConfig": ".topic_research_swarm",
+    "TopicResearchResult": ".topic_research_swarm",
+    "ResearchDepth": ".topic_research_swarm",
+    "ResearchMode": ".topic_research_swarm",
+    "ResearchFinding": ".topic_research_swarm",
+    "SourceReference": ".topic_research_swarm",
+    "ComparisonDimension": ".topic_research_swarm",
+    "topic_research": ".topic_research_swarm",
+    "topic_research_sync": ".topic_research_swarm",
+    "TopicDecomposerAgent": ".topic_research_swarm",
+    "WebResearcherAgent": ".topic_research_swarm",
+    "DataSynthesizerAgent": ".topic_research_swarm",
+    "ComparativeAnalystAgent": ".topic_research_swarm",
+    "ReportCompilerAgent": ".topic_research_swarm",
+    "FactCheckerAgent": ".topic_research_swarm",
 }
 
 

@@ -21,7 +21,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # =============================================================================
 # Phase 1: Constants Consolidation
 # =============================================================================
@@ -512,6 +511,7 @@ class TestReflexionRetrieval:
         svc = LearningService.__new__(LearningService)
         svc._config = LearningConfig()
         svc._blend_overrides = {}
+        svc._last_holdout = False
 
         mock_store = MagicMock()
         svc._store = mock_store
@@ -523,15 +523,22 @@ class TestReflexionRetrieval:
         mock_store.get_success_rate.return_value = (0.5, 10)  # 50% success, 10 total
 
         # Mock guidance with failure analysis
-        svc.query = MagicMock(
+        query_fn = MagicMock(
             return_value={
+                "has_learning": True,
                 "success_rate": 0.5,
                 "total_episodes": 10,
                 "failure_analysis": [],
             }
         )
+        svc.query = query_fn
 
-        # Mock distilled lessons
+        from Jotty.core.intelligence.learning.context_builder import LearningContextBuilder
+
+        svc._context = LearningContextBuilder(mock_store, svc._config, query_fn)
+
+        # Mock distilled lessons on the context builder
+        svc._context.retrieve_distilled_lessons = MagicMock(return_value=[])
         svc.retrieve_distilled_lessons = MagicMock(return_value=[])
         svc.get_best_approach_for_domain = MagicMock(return_value=None)
         svc.build_retrieval_context = MagicMock(return_value="")

@@ -1477,15 +1477,16 @@ class TestCommandService:
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_JOTTY_API, reason="JottyAPI import failed")
 class TestJottyAPIInit:
-    """Tests for JottyAPI initialization."""
+    """Tests for JottyAPI initialization.
+
+    JottyAPI is now a thin facade over the Orchestrator's two-method API:
+    run() and chat(). It no longer has agents, _chat_use_case, or
+    _workflow_use_case properties.
+    """
 
     def _build_api(self):
-        mock_agents = [Mock()]
-        mock_config = Mock()
         mock_conductor = Mock()
         return JottyAPI(
-            agents=mock_agents,
-            config=mock_config,
             conductor=mock_conductor,
         )
 
@@ -1493,23 +1494,21 @@ class TestJottyAPIInit:
         api = self._build_api()
         assert api.conductor is not None
         assert api.config is not None
-        assert len(api.agents) == 1
 
-    def test_init_stores_agents(self):
-        agent1 = Mock()
-        agent2 = Mock()
-        api = JottyAPI(agents=[agent1, agent2], conductor=Mock())
-        assert len(api.agents) == 2
+    def test_init_stores_conductor(self):
+        mock_conductor = Mock()
+        api = JottyAPI(conductor=mock_conductor)
+        assert api.conductor is mock_conductor
 
     def test_init_stores_config(self):
         config = Mock()
-        api = JottyAPI(agents=[Mock()], config=config, conductor=Mock())
+        api = JottyAPI(config=config, conductor=Mock())
         assert api.config is config
 
-    def test_init_lazy_properties_none(self):
+    def test_init_orchestrator_equals_conductor(self):
+        """conductor and orchestrator should be the same object."""
         api = self._build_api()
-        assert api._chat_use_case is None
-        assert api._workflow_use_case is None
+        assert api.orchestrator is api.conductor
 
     @patch("Jotty.core.jotty.create_swarm_manager")
     def test_init_without_conductor_creates_one(self, mock_create):
@@ -1524,158 +1523,113 @@ class TestJottyAPIInit:
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_JOTTY_API, reason="JottyAPI import failed")
 class TestJottyAPIProperties:
-    """Tests for JottyAPI lazy-init properties."""
+    """Tests for JottyAPI method exposure.
+
+    JottyAPI now delegates directly to Orchestrator.chat() and
+    Orchestrator.run(). No lazy-init properties.
+    """
 
     def _build_api(self):
         return JottyAPI(
-            agents=[Mock()],
-            config=Mock(),
             conductor=Mock(),
         )
 
-    @patch("Jotty.core.api.unified.ChatUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    def test_chat_lazy_init(self, _mock_cfg, mock_chat_cls):
+    def test_chat_method_exists(self):
         api = self._build_api()
-        chat = api.chat
-        assert chat is not None
-        # Second access returns same instance
-        assert api.chat is chat
+        assert hasattr(api, "chat")
+        assert callable(api.chat)
 
-    @patch("Jotty.core.api.unified.WorkflowUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    def test_workflow_lazy_init(self, _mock_cfg, mock_wf_cls):
+    def test_run_method_exists(self):
         api = self._build_api()
-        workflow = api.workflow
-        assert workflow is not None
-        assert api.workflow is workflow
+        assert hasattr(api, "run")
+        assert callable(api.run)
 
-    @patch("Jotty.core.api.unified.ChatUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    def test_chat_property_creates_chat_use_case(self, _mock_cfg, mock_chat_cls):
+    def test_chat_execute_method_exists(self):
         api = self._build_api()
-        _ = api.chat
-        mock_chat_cls.assert_called_once()
+        assert hasattr(api, "chat_execute")
+        assert callable(api.chat_execute)
 
-    @patch("Jotty.core.api.unified.WorkflowUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    def test_workflow_property_creates_workflow_use_case(self, _mock_cfg, mock_wf_cls):
+    def test_workflow_execute_method_exists(self):
         api = self._build_api()
-        _ = api.workflow
-        mock_wf_cls.assert_called_once()
+        assert hasattr(api, "workflow_execute")
+        assert callable(api.workflow_execute)
 
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_JOTTY_API, reason="JottyAPI import failed")
 class TestJottyAPIChatExecute:
-    """Tests for JottyAPI.chat_execute."""
+    """Tests for JottyAPI.chat_execute (backward-compat wrapper over orchestrator.chat)."""
 
     def _build_api(self):
-        return JottyAPI(
-            agents=[Mock()],
-            config=Mock(),
-            conductor=Mock(),
-        )
-
-    @pytest.mark.asyncio
-    @patch("Jotty.core.api.unified.ChatUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    async def test_chat_execute_delegates(self, _mock_cfg, mock_chat_cls):
-        api = self._build_api()
+        mock_conductor = Mock()
         mock_result = Mock()
         mock_result.to_dict.return_value = {"response": "hi"}
-        mock_chat_instance = Mock()
-        mock_chat_instance.execute = AsyncMock(return_value=mock_result)
-        mock_chat_cls.return_value = mock_chat_instance
-        api._chat_use_case = None
+        mock_conductor.chat = AsyncMock(return_value=mock_result)
+        return JottyAPI(conductor=mock_conductor)
 
+    @pytest.mark.asyncio
+    async def test_chat_execute_delegates(self):
+        api = self._build_api()
         output = await api.chat_execute(message="hello")
         assert output == {"response": "hi"}
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.api.unified.ChatUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    async def test_chat_execute_passes_message(self, _mock_cfg, mock_chat_cls):
-        api = self._build_api()
+    async def test_chat_execute_passes_message(self):
+        mock_conductor = Mock()
         mock_result = Mock()
         mock_result.to_dict.return_value = {}
-        mock_chat_instance = Mock()
-        mock_chat_instance.execute = AsyncMock(return_value=mock_result)
-        mock_chat_cls.return_value = mock_chat_instance
-        api._chat_use_case = None
+        mock_conductor.chat = AsyncMock(return_value=mock_result)
+        api = JottyAPI(conductor=mock_conductor)
 
         await api.chat_execute(message="test message")
-        call_kwargs = mock_chat_instance.execute.call_args
-        assert call_kwargs[1].get("goal") == "test message" or call_kwargs[0][0] == "test message"
+        call_args = mock_conductor.chat.call_args
+        assert call_args[0][0] == "test message"
 
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_JOTTY_API, reason="JottyAPI import failed")
 class TestJottyAPIWorkflowExecute:
-    """Tests for JottyAPI.workflow_execute."""
-
-    def _build_api(self):
-        return JottyAPI(
-            agents=[Mock()],
-            config=Mock(),
-            conductor=Mock(),
-        )
+    """Tests for JottyAPI.workflow_execute (backward-compat wrapper over orchestrator.run)."""
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.api.unified.WorkflowUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    async def test_workflow_execute_delegates(self, _mock_cfg, mock_wf_cls):
-        api = self._build_api()
+    async def test_workflow_execute_delegates(self):
+        mock_conductor = Mock()
         mock_result = Mock()
         mock_result.to_dict.return_value = {"workflow_id": "wf-1", "success": True}
-        mock_wf_instance = Mock()
-        mock_wf_instance.execute = AsyncMock(return_value=mock_result)
-        mock_wf_cls.return_value = mock_wf_instance
-        api._workflow_use_case = None
+        mock_conductor.run = AsyncMock(return_value=mock_result)
+        api = JottyAPI(conductor=mock_conductor)
 
         output = await api.workflow_execute(goal="build app")
         assert output == {"workflow_id": "wf-1", "success": True}
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.api.unified.WorkflowUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    async def test_workflow_execute_default_mode(self, _mock_cfg, mock_wf_cls):
-        api = self._build_api()
+    async def test_workflow_execute_default_mode(self):
+        mock_conductor = Mock()
         mock_result = Mock()
         mock_result.to_dict.return_value = {}
-        mock_wf_instance = Mock()
-        mock_wf_instance.execute = AsyncMock(return_value=mock_result)
-        mock_wf_cls.return_value = mock_wf_instance
-        api._workflow_use_case = None
+        mock_conductor.run = AsyncMock(return_value=mock_result)
+        api = JottyAPI(conductor=mock_conductor)
 
         await api.workflow_execute(goal="task")
-        # Default mode is "dynamic" so it uses the cached property
+        mock_conductor.run.assert_called_once()
 
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_JOTTY_API, reason="JottyAPI import failed")
 class TestJottyAPIWorkflowEnqueue:
-    """Tests for JottyAPI.workflow_enqueue."""
-
-    def _build_api(self):
-        return JottyAPI(
-            agents=[Mock()],
-            config=Mock(),
-            conductor=Mock(),
-        )
+    """Tests for JottyAPI.workflow_enqueue (backward-compat wrapper over orchestrator.run)."""
 
     @pytest.mark.asyncio
-    @patch("Jotty.core.api.unified.WorkflowUseCase")
-    @patch("Jotty.core.api.unified.UseCaseConfig")
-    async def test_workflow_enqueue_delegates(self, _mock_cfg, mock_wf_cls):
-        api = self._build_api()
-        mock_wf_instance = Mock()
-        mock_wf_instance.enqueue = AsyncMock(return_value="task-123")
-        mock_wf_cls.return_value = mock_wf_instance
-        api._workflow_use_case = None
+    async def test_workflow_enqueue_delegates(self):
+        mock_conductor = Mock()
+        mock_result = Mock()
+        mock_conductor.run = AsyncMock(return_value=mock_result)
+        api = JottyAPI(conductor=mock_conductor)
 
         task_id = await api.workflow_enqueue(goal="background task")
-        assert task_id == "task-123"
+        # workflow_enqueue returns str(id(result))
+        assert isinstance(task_id, str)
+        mock_conductor.run.assert_called_once()
 
 
 # ===========================================================================

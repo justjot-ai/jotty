@@ -503,8 +503,16 @@ class LearningStore:
     # PATTERNS
     # =========================================================================
 
+    _MIN_PATTERN_DESC_LEN = 20
+
     def save_pattern(self, pattern: PatternRecord) -> None:
-        """Save or update a behavioral pattern."""
+        """Save or update a behavioral pattern.
+
+        Quality gate: rejects patterns with descriptions shorter than
+        _MIN_PATTERN_DESC_LEN to prevent shallow/junk entries.
+        """
+        if len(pattern.description or "") < self._MIN_PATTERN_DESC_LEN:
+            return
         conn = self._get_conn()
         conn.execute(
             """INSERT OR REPLACE INTO patterns
@@ -937,10 +945,25 @@ class LearningStore:
     # DISTILLED LESSONS
     # =========================================================================
 
+    _DOMAIN_CONTAMINANTS: Dict[str, List[str]] = {
+        "coding": ["travel", "food", "recipe", "tourist", "hotel", "restaurant"],
+        "algorithms": ["travel", "food", "recipe", "tourist", "hotel"],
+        "system_design": ["food", "recipe", "tourist"],
+    }
+
     def save_distilled_lesson(
         self, lesson: "DistilledLesson", embedding: Optional[bytes] = None
     ) -> None:
-        """Save a distilled lesson (mem0 pattern: LLM-extracted fact)."""
+        """Save a distilled lesson (mem0 pattern: LLM-extracted fact).
+
+        Quality gate: rejects cross-domain contamination (e.g. food
+        lessons tagged as coding).
+        """
+        bad_words = self._DOMAIN_CONTAMINANTS.get(lesson.domain, [])
+        if bad_words:
+            text_lower = (lesson.lesson or "").lower()
+            if any(w in text_lower for w in bad_words):
+                return
         conn = self._get_conn()
         conn.execute(
             """INSERT OR REPLACE INTO distilled_lessons

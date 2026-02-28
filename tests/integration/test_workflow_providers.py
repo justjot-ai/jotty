@@ -7,10 +7,25 @@ With n8n on localhost:5678 you get real workflow list; without, providers init a
 
 import pytest
 
+# n8n_provider.py and activepieces_provider.py have been removed.
+# Check if they are available to gate tests.
+try:
+    from Jotty.skills._infrastructure.n8n_provider import N8nProvider  # noqa: F401
+
+    _WORKFLOW_PROVIDERS_AVAILABLE = True
+except ImportError:
+    _WORKFLOW_PROVIDERS_AVAILABLE = False
+
+_skip_no_workflow_providers = pytest.mark.skipif(
+    not _WORKFLOW_PROVIDERS_AVAILABLE,
+    reason="n8n/activepieces provider modules removed",
+)
+
 
 class TestWorkflowProvidersRegistration:
     """Providers must be registered and discoverable."""
 
+    @_skip_no_workflow_providers
     def test_registry_has_n8n_and_activepieces(self):
         from Jotty.skills._infrastructure import ProviderRegistry
 
@@ -36,6 +51,7 @@ class TestWorkflowProvidersRegistration:
             assert hasattr(s, "provider")
 
 
+@_skip_no_workflow_providers
 @pytest.mark.asyncio
 class TestWorkflowProvidersLocalhost:
     """Test against localhost (n8n :5678, activepieces :8080). No server = empty list."""
@@ -72,7 +88,8 @@ class TestWorkflowProvidersLocalhost:
         assert "workflow_id" in result.error or "skill_id" in result.error.lower()
 
     async def test_contributed_skill_shape(self):
-        from Jotty.skills._infrastructure import ContributedSkill, ProviderRegistry
+        from Jotty.skills._infrastructure.base import ContributedSkill
+        from Jotty.skills._infrastructure import ProviderRegistry
 
         reg = ProviderRegistry()
         await reg.get_provider("n8n").initialize()

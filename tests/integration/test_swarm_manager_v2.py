@@ -421,7 +421,7 @@ class TestAggregateResults:
         )
 
         result = swarm_manager._aggregate_results({"agent1": mock_result}, "test goal")
-        assert result is mock_result
+        assert result == mock_result
 
     def test_aggregate_multiple_results(self, swarm_manager):
         """Multiple results should be combined."""

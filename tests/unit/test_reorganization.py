@@ -13,9 +13,9 @@ import asyncio
 import os
 import tempfile
 import time
+import unittest.mock
 
 import pytest
-
 
 # =============================================================================
 # 1. LearningStore Tests
@@ -294,7 +294,9 @@ class TestLearningService:
                 quality=0.8 if i % 2 == 0 else 0.2,
             )
 
-        ctx = service.build_context_string("research", "analysis")
+        # Disable the 10% online holdout so test is deterministic
+        with unittest.mock.patch("random.random", return_value=0.99):
+            ctx = service.build_context_string("research", "analysis")
         assert "research" in ctx
         assert len(ctx) > 0
 

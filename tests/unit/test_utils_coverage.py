@@ -337,8 +337,8 @@ class TestCanonicalContextImports:
         parts = ["A" * 5000, "B" * 5000, "C" * 5000]
         result = mgr.compress_parts(parts, max_total_chars=6000)
         total = sum(len(p) for p in result)
-        assert total <= 6000 + 100  # small overhead from markers is OK
-        assert len(result) == 3
+        assert total <= 6000 + 500  # overhead from markers + compaction header
+        assert len(result) >= 3  # 3 parts + optional compaction checkpoint header
 
     def test_compress_parts_no_op_when_under_budget(self):
         """compress_parts returns parts unchanged when under budget."""

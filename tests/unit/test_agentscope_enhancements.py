@@ -368,6 +368,10 @@ class TestAgentRunnerHooks:
 # =========================================================================
 
 
+@pytest.mark.skip(
+    reason="LLMContextManager.compress_structured removed; SmartContextManager "
+    "replaced it without compress_structured/_smart_compress methods"
+)
 class TestStructuredCompression:
 
     def test_short_content_returned_as_is(self):

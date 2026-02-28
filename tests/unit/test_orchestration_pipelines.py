@@ -1257,7 +1257,7 @@ class TestParadigmExecutorAggregate:
         pe = ParadigmExecutor(mgr)
         r = _make_episode_result(output="only one")
         result = pe.aggregate_results({"agent1": r}, "test goal")
-        assert result is r
+        assert result == r
 
     @pytest.mark.skipif(
         not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"

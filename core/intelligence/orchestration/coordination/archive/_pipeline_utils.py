@@ -10,8 +10,7 @@ from typing import Any, List
 from Jotty.core.infrastructure.foundation.data_structures import (
     EpisodeResult,  # type: ignore[import]
 )
-
-from ..execution.agent_runner import AgentRunner
+from Jotty.core.intelligence.orchestration.execution.agent_runner import AgentRunner
 
 
 async def sequential_pipeline(

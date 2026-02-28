@@ -18,7 +18,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # =============================================================================
 # 1. ENHANCED PRE-COMPACTION MEMORY FLUSH
 # =============================================================================
@@ -467,7 +466,8 @@ class TestTrustLevelSandboxing:
         assert ctx.trust_level == "owner"
 
     @pytest.mark.unit
-    def test_skill_plan_executor_allowed_skills(self):
+    @pytest.mark.asyncio
+    async def test_skill_plan_executor_allowed_skills(self):
         """SkillPlanExecutor respects _allowed_skills blocklist."""
         from Jotty.core.intelligence.reasoning.executors.skill_plan_executor import (
             SkillPlanExecutor,
@@ -486,11 +486,7 @@ class TestTrustLevelSandboxing:
         mock_skill.tools = {"run_command": MagicMock()}
         executor._skills_registry.get_skill = MagicMock(return_value=mock_skill)
 
-        import asyncio
-
-        result = asyncio.get_event_loop().run_until_complete(
-            executor.execute_step(step, outputs={})
-        )
+        result = await executor.execute_step(step, outputs={})
 
         assert result["success"] is False
         assert "not permitted" in result["error"]

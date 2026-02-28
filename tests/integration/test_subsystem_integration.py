@@ -128,7 +128,7 @@ class TestLearningPipelineIntegration:
 
         credit = get_credit_assigner()
         assert credit is not None
-        assert hasattr(credit, "analyze_contributions")
+        assert hasattr(credit, "assign_credit")
 
     def test_reward_manager_creation(self):
         """Reward manager can be created through facade."""

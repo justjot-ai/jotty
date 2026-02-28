@@ -267,8 +267,8 @@ class TestSkillPlanExecutor:
         tags4 = SkillPlanExecutor._infer_artifact_tags(step4, {"success": True})
         assert "general" in tags4
 
-    @patch("Jotty.core.agents.base.skill_plan_executor.os.makedirs")
-    @patch("Jotty.core.agents.base.skill_plan_executor.Path")
+    @patch("Jotty.core.intelligence.reasoning.executors.skill_plan_executor.os.makedirs")
+    @patch("Jotty.core.intelligence.reasoning.executors.skill_plan_executor.Path")
     def test_spill_large_values_replaces_large_strings(self, mock_path_cls, mock_makedirs):
         """_spill_large_values replaces strings exceeding threshold with FileReference."""
         # Build a large string over the threshold
@@ -1244,16 +1244,16 @@ class TestSkillPlanExecutorDeep:
         assert "shell-exec" in names
 
     def test_inject_essential_skills_calculator(self):
-        """_inject_essential_skills adds calculator when 'calculate' keyword is found."""
+        """_inject_essential_skills adds math-toolkit when 'calculate' keyword is found."""
         executor = self._make_executor()
         selected = [{"name": "web-search"}]
-        available = [{"name": "web-search"}, {"name": "calculator"}]
+        available = [{"name": "web-search"}, {"name": "math-toolkit"}]
 
         result = executor._inject_essential_skills(
             "calculate the total revenue", selected, available
         )
         names = {s["name"] for s in result}
-        assert "calculator" in names
+        assert "math-toolkit" in names
 
     def test_inject_essential_skills_already_selected(self):
         """_inject_essential_skills does not duplicate already-selected skills."""

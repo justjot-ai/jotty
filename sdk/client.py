@@ -1417,7 +1417,7 @@ class Jotty(EventEmitter):
         """
         if self._local_mode:
             try:
-                from ..core.intelligence.orchestration.llm_providers.provider_manager import (
+                from ..core.infrastructure.foundation.unified_lm_provider import (
                     configure_dspy_lm,
                 )
 

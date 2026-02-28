@@ -102,34 +102,18 @@ class TestGap1AgentSelection:
                 strength=0.9,
             )
 
-        # Before _execute_multi_agent, agents are [weak, strong]
+        # Before reordering, agents are [weak, strong]
         assert sm.agents[0].name == "weak"
 
-        # Trigger the intelligence-guided selection by calling the method
-        # We'll mock the actual execution since we just want to test reordering
-        import asyncio
+        # Test the reordering logic directly (no async, no event loop conflicts)
+        with patch.object(
+            lp.transfer_learning.extractor, "extract_task_type", return_value="analysis"
+        ):
+            result = lp.order_agents_for_goal("Analyze the data trends", sm.agents)
 
-        async def _test():
-            # Patch the paradigm dispatch on the ENGINE (not facade)
-            engine = sm._ensure_engine()
-            original_agents = None
-
-            async def fake_relay(goal, **kw):
-                nonlocal original_agents
-                original_agents = [a.name for a in sm.agents]
-                return _episode(True, "relayed")
-
-            with patch.object(engine, "_paradigm_relay", side_effect=fake_relay):
-                await sm._execute_multi_agent(
-                    "Analyze the data trends",
-                    discussion_paradigm="relay",
-                )
-
-            return original_agents
-
-        result = asyncio.run(_test())
         # After stigmergy reorder, 'strong' should be first
-        assert result[0] == "strong", f"Expected 'strong' first, got {result}"
+        ordered_names = [a.name for a in result]
+        assert ordered_names[0] == "strong", f"Expected 'strong' first, got {ordered_names}"
 
     def test_byzantine_filters_untrusted_agents(self):
         """Agents with trust < 0.2 should be excluded from execution."""

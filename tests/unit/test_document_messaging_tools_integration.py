@@ -30,9 +30,9 @@ class TestDocumentToolsMessagingToolsRegistry:
 
         reg = get_skills_registry()
         reg.init()
-        skill = reg.get_skill("document-tools")
+        skill = reg.get_skill("document_tools")
         assert skill is not None
-        assert skill.name == "document-tools"
+        assert skill.name == "document_tools"
         tools = skill.tools
         assert "generate_pdf_tool" in tools
         assert "generate_epub_tool" in tools
@@ -47,9 +47,9 @@ class TestDocumentToolsMessagingToolsRegistry:
 
         reg = get_skills_registry()
         reg.init()
-        skill = reg.get_skill("messaging-tools")
+        skill = reg.get_skill("messaging_tools")
         assert skill is not None
-        assert skill.name == "messaging-tools"
+        assert skill.name == "messaging_tools"
         tools = skill.tools
         assert "send_to_telegram_tool" in tools
         assert "send_to_whatsapp_tool" in tools

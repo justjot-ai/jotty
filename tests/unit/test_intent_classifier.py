@@ -36,7 +36,7 @@ class TestIntentClassifier:
         """Test automatic tool detection."""
 
         test_cases = [
-            ("Calculate 123 + 456", ["calculator"]),
+            ("Calculate 123 + 456", ["math-toolkit"]),
             ("What is the capital of France?", ["web-search"]),
         ]
 

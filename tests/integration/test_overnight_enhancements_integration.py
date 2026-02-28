@@ -237,6 +237,7 @@ class TestIndividualEnhancements:
         coordinator = get_multi_swarm_coordinator()
         assert coordinator.execution_count == 0
 
+    @pytest.mark.skip(reason="get_incremental_consolidator removed from memory facade")
     def test_incremental_consolidator_initialization(self):
         """Test incremental consolidator initializes correctly."""
         from Jotty.core.intelligence.memory import get_incremental_consolidator

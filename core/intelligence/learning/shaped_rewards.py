@@ -85,6 +85,7 @@ class RewardCondition:
 # =============================================================================
 
 _RewardConditionSignature = None
+_BatchRewardSignature = None
 
 
 def _get_reward_condition_signature() -> None:
@@ -111,12 +112,39 @@ def _get_reward_condition_signature() -> None:
     return _RewardConditionSignature  # type: ignore[return-value]
 
 
+def _get_batch_reward_signature() -> None:
+    """Signature for batched condition evaluation (single LLM call)."""
+    global _BatchRewardSignature
+    if _BatchRewardSignature is None:
+        dspy = _get_dspy()
+        if dspy is None:
+            return None
+
+        class BatchRewardSignature(dspy.Signature):  # type: ignore[name-defined]
+            """Evaluate multiple reward conditions in a single pass."""
+
+            conditions = dspy.InputField(desc="JSON list of conditions: [{name, description}, ...]")
+            current_state = dspy.InputField(
+                desc="Current state including outputs, context, trajectory"
+            )
+            trajectory_summary = dspy.InputField(desc="What has been done so far")
+            results = dspy.OutputField(
+                desc='JSON list of results: [{"name": str, "is_met": "YES"/"NO", "confidence": float, "evidence": str}, ...]'
+            )
+
+        _BatchRewardSignature = BatchRewardSignature
+    return _BatchRewardSignature  # type: ignore[return-value]
+
+
 class AgenticRewardEvaluator:
     """
      NO HARDCODING - LLM evaluates reward conditions.
 
     Instead of regex checking for "table_name in output", the LLM
     reasons about whether progress conditions are met.
+
+    Uses batched evaluation: all applicable conditions are evaluated in
+    a single LLM call instead of one call per condition.
     """
 
     def __init__(self) -> None:
@@ -126,13 +154,107 @@ class AgenticRewardEvaluator:
             self.evaluator = dspy.ChainOfThought(sig)
         else:
             self.evaluator = None
-        logger.info(" AgenticRewardEvaluator initialized (pure LLM, no regex)")
+
+        batch_sig = _get_batch_reward_signature()  # type: ignore[func-returns-value]
+        if batch_sig is not None:
+            dspy = _get_dspy()
+            self.batch_evaluator = dspy.ChainOfThought(batch_sig)
+        else:
+            self.batch_evaluator = None
+
+        logger.info(" AgenticRewardEvaluator initialized (batched LLM, no regex)")
+
+    def evaluate_conditions_batch(
+        self,
+        conditions: List[RewardCondition],
+        state: Dict[str, Any],
+        trajectory: List[Dict],
+    ) -> Dict[str, tuple[bool, float, str]]:
+        """
+        Evaluate multiple conditions in a single LLM call.
+
+        Returns: Dict[condition_name -> (is_met, confidence, evidence)]
+        """
+        if not conditions:
+            return {}
+
+        # Format shared context once
+        traj_summary = self._format_trajectory(trajectory)
+        state_summary = self._format_state(state)
+
+        # Try batched evaluation first (1 LLM call for N conditions)
+        if self.batch_evaluator and len(conditions) > 1:
+            try:
+                return self._evaluate_batch(conditions, state_summary, traj_summary)
+            except Exception as e:
+                logger.debug(f"Batch evaluation failed, falling back to individual: {e}")
+
+        # Fallback: evaluate individually (N LLM calls)
+        results = {}
+        for condition in conditions:
+            results[condition.name] = self.evaluate_condition(condition, state, trajectory)
+        return results
+
+    def _evaluate_batch(
+        self,
+        conditions: List[RewardCondition],
+        state_summary: str,
+        traj_summary: str,
+    ) -> Dict[str, tuple[bool, float, str]]:
+        """Run batched evaluation via single LLM call."""
+        import json as _json
+
+        conditions_json = _json.dumps(
+            [{"name": c.name, "description": c.description} for c in conditions]
+        )
+
+        result = self.batch_evaluator(
+            conditions=conditions_json,
+            current_state=state_summary,
+            trajectory_summary=traj_summary,
+        )
+
+        # Parse batch result
+        results = {}
+        try:
+            parsed = _json.loads(result.results)
+        except (ValueError, TypeError, AttributeError):
+            # Try extracting JSON from markdown code block
+            raw = str(result.results)
+            if "```" in raw:
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+            try:
+                parsed = _json.loads(raw.strip())
+            except (ValueError, TypeError):
+                raise ValueError(f"Could not parse batch results: {result.results!r}")
+
+        if not isinstance(parsed, list):
+            raise ValueError(f"Expected list, got {type(parsed)}")
+
+        for item in parsed:
+            name = item.get("name", "")
+            is_met = str(item.get("is_met", "NO")).upper().startswith("YES")
+            try:
+                confidence = float(item.get("confidence", 0.5))
+            except (ValueError, TypeError):
+                confidence = 0.5
+            evidence = str(item.get("evidence", ""))
+            results[name] = (is_met, confidence, evidence)
+
+        # Fill in any conditions that weren't in the response
+        for c in conditions:
+            if c.name not in results:
+                results[c.name] = (False, 0.0, "Not evaluated in batch")
+
+        return results
 
     def evaluate_condition(
         self, condition: RewardCondition, state: Dict[str, Any], trajectory: List[Dict]
     ) -> tuple[bool, float, str]:
         """
-        Evaluate if a condition is met.
+        Evaluate if a single condition is met (fallback for single-condition case).
 
         Returns: (is_met: bool, confidence: float, evidence: str)
         """
@@ -140,13 +262,9 @@ class AgenticRewardEvaluator:
             return False, 0.0, "No evaluator available"
 
         try:
-            # Format trajectory
             traj_summary = self._format_trajectory(trajectory)
-
-            # Format state
             state_summary = self._format_state(state)
 
-            # LLM evaluation
             result = self.evaluator(
                 condition_name=condition.name,
                 condition_description=condition.description,
@@ -154,7 +272,6 @@ class AgenticRewardEvaluator:
                 trajectory_summary=traj_summary,
             )
 
-            # Parse result
             is_met = result.is_met.upper().startswith("YES")
             try:
                 confidence = float(result.confidence)
@@ -298,6 +415,9 @@ class ShapedRewardManager:
         """
         Check all applicable conditions and return total shaped reward.
 
+        Uses batched LLM evaluation: all applicable conditions are checked
+        in a single LLM call instead of N separate calls.
+
         Parameters:
         -----------
         event_type : str
@@ -314,26 +434,32 @@ class ShapedRewardManager:
         --------
         float: Total shaped reward from triggered conditions.
         """
-        total_reward = 0.0
-
+        # Collect applicable conditions
+        applicable = []
         for condition in self.conditions:
-            # Skip if not applicable to this event
             if condition.check_after != "any" and condition.check_after != event_type:
                 continue
-
-            # Skip if one-time and already triggered
             if condition.one_time and condition.triggered:
                 continue
+            applicable.append(condition)
 
-            # Evaluate condition
-            is_met, confidence, evidence = self.evaluator.evaluate_condition(
-                condition=condition,
-                state=state,
-                trajectory=trajectory,
+        if not applicable:
+            return 0.0
+
+        # Evaluate all applicable conditions in a single batched LLM call
+        batch_results = self.evaluator.evaluate_conditions_batch(
+            conditions=applicable,
+            state=state,
+            trajectory=trajectory,
+        )
+
+        total_reward = 0.0
+        for condition in applicable:
+            is_met, confidence, evidence = batch_results.get(
+                condition.name, (False, 0.0, "Not evaluated")
             )
 
             if is_met and confidence >= 0.7:  # High confidence threshold
-                # Trigger reward
                 reward = condition.reward_value * confidence
                 total_reward += reward
 
@@ -341,7 +467,6 @@ class ShapedRewardManager:
                 condition.triggered_at = time.time()
                 condition.trigger_count += 1
 
-                # Log
                 self.reward_history.append(
                     {
                         "condition": condition.name,

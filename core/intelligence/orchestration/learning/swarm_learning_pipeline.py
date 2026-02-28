@@ -1366,7 +1366,7 @@ class SwarmLearningPipeline:
                 # Extract skill/stage name from the key
                 skill_name = key.split("|")[0] if "|" in key else key
                 reward = max(0.0, min(1.0, credit))
-                td.skill_q.update(task_type, skill_name, reward, domain=domain)
+                td.record_skill_outcome(task_type, skill_name, reward, domain=domain)
         except Exception as e:
             logger.debug(f"Credit bridge to Q-table failed: {e}")
 

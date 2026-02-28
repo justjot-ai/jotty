@@ -38,7 +38,6 @@ import logging
 import re
 import time
 import uuid
-from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 # Extracted modules — keep public names importable from this module
@@ -217,6 +216,10 @@ class LearningService:
             self._store, self._auto_reflect_quality_threshold
         )
 
+        from .context_builder import LearningContextBuilder
+
+        self._context = LearningContextBuilder(self._store, self._config, self.query)
+
         logger.info("LearningService initialized")
 
     @classmethod
@@ -320,6 +323,11 @@ class LearningService:
                 except Exception:
                     pass  # analysis failure must never block recording
 
+        merged_meta = metadata or {}
+        if getattr(self, "_last_holdout", False):
+            merged_meta["holdout"] = True
+            self._last_holdout = False
+
         episode = EpisodeRecord(
             episode_id=episode_id,
             unit_type=unit_type,
@@ -336,7 +344,7 @@ class LearningService:
             error_type=error_type,
             error_message=error_message[:500] if error_message else None,
             parent_episode_id=parent_episode_id,
-            metadata=metadata or {},
+            metadata=merged_meta,
         )
 
         try:
@@ -346,43 +354,66 @@ class LearningService:
             # Continue with TD updates and pattern extraction even if DB save failed —
             # in-memory learning still benefits from this data point.
 
-        # Update value estimates via TD learning
+        # Core learning updates
         self._update_values(domain, task_type, action, success, quality)
-
-        # Per-skill credit-weighted Q-table updates (from algorithmic_credit)
-        # When a multi-agent episode completes, distribute credit proportionally
-        # so skills that contributed more get higher Q-updates.
         self._update_skill_credits(domain, task_type, action, outcome, success, quality)
-
-        # Invalidate caches
         self._invalidate_cache(domain, task_type)
-
-        # Periodic pattern extraction — run for triggering domain AND
-        # sweep all domains that have accumulated enough episodes
         self._record_count += 1
+
+        # All periodic maintenance in one place
+        self._post_record(
+            episode_id,
+            domain,
+            task_type,
+            context,
+            action,
+            outcome,
+            success,
+            quality,
+            unit_name,
+            error_type,
+            error_message,
+        )
+
+        logger.debug(
+            f"Recorded: {unit_name} ({unit_type}) domain={domain} "
+            f"task={task_type} success={success} quality={quality:.2f}"
+        )
+        return episode_id
+
+    def _post_record(
+        self,
+        episode_id: str,
+        domain: str,
+        task_type: str,
+        context: Dict[str, Any],
+        action: Dict[str, Any],
+        outcome: Dict[str, Any],
+        success: bool,
+        quality: float,
+        unit_name: str,
+        error_type: Optional[str],
+        error_message: Optional[str],
+    ) -> None:
+        """Consolidated post-record maintenance. All periodic triggers live here."""
+        _content = (
+            outcome.get("content", "")
+            or outcome.get("response_excerpt", "")
+            or outcome.get("output", "")
+            or outcome.get("result", "")
+        )
+        _goal_text = ""
+        if isinstance(context, dict):
+            _goal_text = str(context.get("goal", context.get("message", "")))
+
+        # 1. Pattern extraction
         if self._record_count % self._pattern_extraction_interval == 0:
             try:
                 self._extract_patterns(domain)
-            except Exception as e:
-                logger.debug(f"Pattern extraction failed for {domain}: {e}")
+            except Exception:
+                pass
 
-            # Sweep: extract patterns for other domains that have enough data
-            try:
-                conn = self._store._get_conn()
-                rows = conn.execute(
-                    "SELECT DISTINCT domain FROM episodes WHERE domain != ? AND domain != ''",
-                    (domain,),
-                ).fetchall()
-                for row in rows:
-                    other_domain = row["domain"]
-                    try:
-                        self._extract_patterns(other_domain)
-                    except Exception:
-                        pass
-            except Exception as e:
-                logger.debug(f"Pattern sweep failed: {e}")
-
-        # ── Auto-transfer: propagate patterns to related domains ──
+        # 2. Cross-domain transfer
         self._domain_episode_counts[domain] = self._domain_episode_counts.get(domain, 0) + 1
         domain_count = self._domain_episode_counts[domain]
         last_transfer = self._last_transfer_counts.get(domain, 0)
@@ -392,49 +423,42 @@ class LearningService:
             and domain_count - last_transfer >= self._auto_transfer_interval
         ):
             self._last_transfer_counts[domain] = domain_count
-            related = _get_related_domains(domain)
-            for target in related[:3]:  # Top 3 related domains
+            for target in _get_related_domains(domain)[:3]:
                 try:
-                    transferred = self.transfer(domain, target)
-                    if transferred:
-                        logger.debug(
-                            f"Auto-transferred {len(transferred)} patterns "
-                            f"from {domain} → {target}"
-                        )
-                except Exception as e:
-                    logger.debug(f"Auto-transfer {domain}→{target} failed: {e}")
+                    self.transfer(domain, target)
+                except Exception:
+                    pass
 
-        # ── Auto-reflect: learn from significant outcomes ──
+        # 3. Periodic reflection (aggregate)
         if domain and self._record_count % self._auto_reflect_interval == 0:
             try:
                 self._auto_reflect(
-                    episode_id, domain, task_type, context, outcome, success, quality, unit_name
+                    episode_id,
+                    domain,
+                    task_type,
+                    context,
+                    outcome,
+                    success,
+                    quality,
+                    unit_name,
                 )
-            except Exception as e:
-                logger.debug(f"Auto-reflect failed: {e}")
+            except Exception:
+                pass
 
-        # Fire-and-forget LLM judge for successful episodes.
-        # The judge also triggers judge-informed distillation when it completes.
-        # Gate: success + any non-trivial content (no char-count floor — short
-        # outputs like code/diagrams are perfectly valid).
-        _content = (
-            outcome.get("content", "")
-            or outcome.get("response_excerpt", "")
-            or outcome.get("output", "")
-            or outcome.get("result", "")
-        )
+        # 4. LLM judge + distillation for successful episodes
         _judge_will_distill = False
         if isinstance(_content, str) and len(_content) > 50 and success:
-            _goal = str(context.get("goal", context.get("message", task_type)))
             self.schedule_background_judge(
-                episode_id, _goal, _content, domain, quality, unit_name=unit_name
+                episode_id,
+                _goal_text or task_type,
+                _content,
+                domain,
+                quality,
+                unit_name=unit_name,
             )
-            _judge_will_distill = True  # judge handles distillation with feedback
+            _judge_will_distill = True
 
-        # ── Compute & store embedding for the goal text ──────────────────
-        _goal_text = ""
-        if isinstance(context, dict):
-            _goal_text = str(context.get("goal", context.get("message", "")))
+        # 5. Goal embedding
         if _goal_text and len(_goal_text) > 20:
             try:
                 emb = _get_embeddings()
@@ -444,68 +468,54 @@ class LearningService:
                     vec = emb.embed(_goal_text)
                     if vec is not None:
                         self._store.save_embedding(episode_id, EmbeddingService.serialize(vec))
-            except Exception as exc:
-                logger.debug("Embedding computation failed: %s", exc)
+            except Exception:
+                pass
 
-        # ── Schedule fact distillation for good episodes (mem0 pattern) ──
-        # Skip if the judge is already handling distillation (with its feedback).
-        # Only run standalone distillation for episodes the judge won't cover.
-        _content_len = len(_content) if isinstance(_content, str) else 0
-        if not _judge_will_distill and _content_len > 50 and success:
+        # 6. Standalone distillation (when judge didn't handle it)
+        if not _judge_will_distill and isinstance(_content, str) and len(_content) > 50 and success:
             self._schedule_fact_distillation(
-                episode_id, _goal_text or task_type, _content, domain, unit_name
+                episode_id,
+                _goal_text or task_type,
+                _content,
+                domain,
+                unit_name,
             )
 
-        # ── Reflexion: generate reflection on failures (Shinn et al.) ──
+        # 7. Reflexion on failures
         if not success or quality < self._config.reflexion_quality_threshold:
             try:
                 from .advanced_learning import Reflexion
 
-                reflexion = Reflexion.get_instance()
-                _output = str(_content)[:1500] if isinstance(_content, str) else ""
-                reflexion.reflect_on_failure(
+                Reflexion.get_instance().reflect_on_failure(
                     episode_id=episode_id,
                     unit_name=unit_name,
                     goal=_goal_text or task_type,
-                    output=_output,
+                    output=str(_content)[:1500] if isinstance(_content, str) else "",
                     error_type=error_type or "",
                     error_message=error_message or "",
                 )
-            except Exception as e:
-                logger.debug(f"Reflexion generation failed: {e}")
+            except Exception:
+                pass
 
-        # ── VoyagerSkillLib: extract reusable patterns from high-quality successes ──
+        # 8. Voyager skill extraction for high-quality successes
         if success and quality >= self._config.pattern_extract_quality_threshold:
             try:
                 from .advanced_learning import VoyagerSkillLib
 
-                skill_lib = VoyagerSkillLib.get_instance()
-                approach = str(action.get("paradigm", action.get("model", "")))
-                skill_lib.extract_skill_pattern(
+                VoyagerSkillLib.get_instance().extract_skill_pattern(
                     episode_id=episode_id,
                     domain=domain,
                     task_type=task_type,
                     goal=_goal_text or task_type,
-                    approach=approach,
+                    approach=str(action.get("paradigm", action.get("model", ""))),
                     quality=quality,
                 )
-            except Exception as e:
-                logger.debug(f"VoyagerSkillLib extraction failed: {e}")
+            except Exception:
+                pass
 
-        # ── Auto-crystallize + auto-DSPy-optimize ──────────────────────
-        # Periodic check: when enough gold episodes accumulate for a domain,
-        # (1) re-optimize DSPy prompts (incremental, even pre-crystallization)
-        # (2) attempt crystallization (graduation to hardened SOP)
-        # This closes the loop: record() -> learn -> optimize -> crystallize
-        # without requiring explicit run_probation() or manual calls.
+        # 9. Auto-crystallize + DSPy re-optimize
         if domain and success and domain_count >= 8:
             self._maybe_auto_optimize(domain, task_type, domain_count)
-
-        logger.debug(
-            f"Recorded: {unit_name} ({unit_type}) domain={domain} "
-            f"task={task_type} success={success} quality={quality:.2f}"
-        )
-        return episode_id
 
     def _auto_reflect(
         self,
@@ -841,304 +851,21 @@ class LearningService:
     # BUILD CONTEXT — Generate learning context string for agent prompts
     # =========================================================================
 
+    _HOLDOUT_RATE = 0.10  # 10% of episodes get no learning context
+
     def build_context_string(
         self, domain: str, task_type: str = "", unit_name: str = "", goal: str = ""
     ) -> str:
-        """
-        Build learning context — ADAPTIVE: only inject when there's
-        a real signal to give. Silence when the model is already succeeding.
-
-        Injecting generic instructions into a capable model's prompt is
-        actively harmful — it wastes context window and causes verbose,
-        unfocused output. Only speak when we have:
-        - Real failure patterns to correct (success_rate < 90%)
-        - Concrete structural template from a highly-relevant prior response
-        """
-        guidance = self.query(domain, task_type, unit_name=unit_name)
-
-        total = guidance.get("total_episodes", 0)
-        rate = guidance.get("success_rate", 0.0)
-
-        if not guidance.get("has_learning"):
-            # No episodes for this exact domain — try cross-domain transfer
-            for related in _get_related_domains(domain):
-                related_guidance = self.query(related, "")
-                if (
-                    related_guidance.get("has_learning")
-                    and related_guidance.get("total_episodes", 0) >= 2
-                ):
-                    # Borrow patterns from related domain, adapting language
-                    related_patterns = related_guidance.get("patterns", [])
-                    if related_patterns:
-                        hints = []
-                        for p in related_patterns[:3]:
-                            rec = p.get("recommendation", "")
-                            if not rec:
-                                continue
-                            # Adapt "For X tasks:" to target domain
-                            if rec.startswith(f"For {related} tasks:"):
-                                rec = f"For {domain} tasks:" + rec[len(f"For {related} tasks:") :]
-                            hints.append(rec)
-                        if hints:
-                            return f"[Guidance adapted from {related} experience]\n" + "\n".join(
-                                f"  - {h}" for h in hints
-                            )
-                    break
-
-            # No cross-domain patterns either — provide task-aware bootstrap
-            # guidance based on what the task_type/domain typically needs.
-            return self._bootstrap_guidance(domain, task_type)
-
-        # ADAPTIVE GATE: "First, do no harm."
-        #
-        # When the model succeeds, ANY context injection risks degradation.
-        # Distilled lessons can over-constrain the model by nudging it toward
-        # one specific approach. Only inject substantive context when there are
-        # real failures to correct.
-        #
-        # Tiers:
-        #   1. Succeeding (rate >= 90%): silence — let the model do its thing
-        #   2. Cold start (0-2 episodes, no failures): lightweight bootstrap only
-        #   3. Failures present: full corrective context (lessons + retrieval)
-        has_failures = rate < 0.90 and total >= 3
-        is_cold_start = total < 3
-        has_early_failures = is_cold_start and total > 0 and rate < 0.90
-        is_succeeding = rate >= 0.90 and total >= 1
-
-        if not has_failures and not is_cold_start:
-            # Stable success: distilled lessons + reflexion (failure
-            # avoidance is valuable even when currently succeeding).
-            parts = []
-            lessons = self.retrieve_distilled_lessons(
-                domain, goal=goal, agent_name=unit_name, top_k=3
-            )
-            if lessons:
-                lesson_lines = [f"- {l['lesson']}" for l in lessons[:3]]
-                parts.append(f"[Learned patterns for {domain}]\n" + "\n".join(lesson_lines))
-
-            # Include reflexion even during success — past failure insights
-            # prevent regression into previously-fixed failure modes.
-            try:
-                from .advanced_learning import Reflexion
-
-                reflexion = Reflexion.get_instance()
-                past = reflexion.get_relevant_reflections(unit_name=unit_name or domain, limit=2)
-                if past:
-                    parts.append(
-                        "[Avoid past mistakes]\n" + "\n".join(f"  - {r}" for r in past[:2])
-                    )
-            except Exception:
-                pass
-
-            if parts:
-                return "\n\n".join(parts)
-            return self._maintenance_guidance(domain, task_type)
-
-        # Cold start succeeding: use distilled lessons if available,
-        # otherwise fall back to bootstrap guidance.
-        if is_cold_start and is_succeeding and not has_early_failures:
-            cold_lessons = self.retrieve_distilled_lessons(
-                domain, goal=goal, agent_name=unit_name, top_k=3
-            )
-            if cold_lessons:
-                lesson_lines = [f"- {l['lesson']}" for l in cold_lessons[:3]]
-                return f"[Learned patterns for {domain}]\n" + "\n".join(lesson_lines)
-            return self._bootstrap_guidance(domain, task_type)
-
-        # ── Active correction mode: failures present ─────────────
-        # Full context: distilled lessons + retrieval + failure hints.
-        # Budget: 2000 chars total.
-
-        MAX_TOTAL = self._config.context_max_total
-        MAX_RETRIEVAL = self._config.context_max_retrieval
-        MAX_ABSTRACT = self._config.context_max_abstract
-
-        # ── 1. Concrete few-shot retrieval (for failing domains) ────
-        retrieval = ""
-        try:
-            retrieval = (
-                self.build_retrieval_context(
-                    domain,
-                    task_type,
-                    goal=goal,
-                    agent_name=unit_name,
-                )
-                or ""
-            )
-            if retrieval and len(retrieval) < 100:
-                retrieval = ""
-        except Exception:
-            pass
-
-        # ── 2. Abstract guidance (compact) ────────────────────────────
-        parts: List[str] = []
-        best = self.get_best_approach_for_domain(domain, task_type)
-
-        if best:
-            feats = best.get("structural_features", [])
-            if feats:
-                parts.append(f"[Proven {domain} approach: {', '.join(feats[:5])}]")
-
-        if has_failures or has_early_failures:
-            failures = guidance.get("failure_analysis", [])
-            if failures:
-                seen_descs: set = set()
-                unique_failures: list = []
-                for f in failures:
-                    desc = f.get("description", f.get("error_type", ""))
-                    if desc and desc not in seen_descs:
-                        seen_descs.add(desc)
-                        unique_failures.append(desc[:100])
-                if unique_failures:
-                    parts.append(f"Gaps to address ({rate:.0%} success, {total} tasks):")
-                    for desc in unique_failures[:2]:
-                        parts.append(f"  - {desc}")
-
-        # Per-(state,action) lessons
-        try:
-            stored_lessons = self._store.get_lessons(
-                domain=domain,
-                unit_name=unit_name if unit_name else None,
-                limit=3,
-            )
-            if stored_lessons:
-                for sl in stored_lessons[:2]:
-                    parts.append(f"  - {sl}")
-        except Exception:
-            pass
-
-        abstract = "\n".join(parts)
-        if len(abstract) > MAX_ABSTRACT:
-            abstract = abstract[:MAX_ABSTRACT]
-
-        # ── 3. Distilled lessons (mem0 pattern) ──────────────────────────
-        distilled = ""
-        try:
-            dist_lessons = self.retrieve_distilled_lessons(
-                domain, goal=goal, agent_name=unit_name, top_k=3
-            )
-            if dist_lessons:
-                d_parts = ["[Learned from prior tasks]"]
-                for dl in dist_lessons[:3]:
-                    if dl.get("lesson"):
-                        d_parts.append(f"  - {dl['lesson']}")
-                if len(d_parts) > 1:
-                    distilled = "\n".join(d_parts)
-        except Exception:
-            pass
-
-        # ── 3b. Reflexion retrieval (past failure insights) ─────────────
-        reflections_str = ""
-        if has_failures or has_early_failures:
-            try:
-                from .advanced_learning import Reflexion
-
-                reflexion = Reflexion.get_instance()
-                past = reflexion.get_relevant_reflections(unit_name=unit_name or "auto", limit=2)
-                if past:
-                    reflections_str = "[Past failure insights]\n" + "\n".join(
-                        f"  - {r}" for r in past[:2]
-                    )
-            except Exception:
-                pass
-
-        # ── 4. Assemble: distilled → reflections → retrieval → abstract ───
-        MAX_TOTAL_EXPANDED = 2000  # more budget now that we have richer signals
-        sections = []
-        if distilled:
-            sections.append(distilled[:400])
-        if reflections_str:
-            sections.append(reflections_str[:400])
-        if retrieval:
-            sections.append(retrieval[:MAX_RETRIEVAL])
-        if abstract:
-            sections.append(abstract)
-
-        if not sections:
-            return ""
-
-        result = "\n".join(sections)
-        if len(result) > MAX_TOTAL_EXPANDED:
-            result = result[:MAX_TOTAL_EXPANDED]
+        """Delegates to LearningContextBuilder."""
+        result = self._context.build_context_string(domain, task_type, unit_name, goal)
+        self._last_holdout = self._context.last_holdout
         return result
 
     @staticmethod
     def _bootstrap_guidance(domain: str, task_type: str = "") -> str:
-        """
-        Zero-episode bootstrap: provide structural guidance for domains
-        that have never been seen before. This prevents cold-start silence
-        where the model gets no learning context at all.
+        from .context_builder import _DOMAIN_BOOTSTRAP
 
-        Based on domain conventions — what successful responses in each
-        domain typically contain. Fades out once real episodes exist.
-        """
-        _DOMAIN_BOOTSTRAP: Dict[str, str] = {
-            "coding": (
-                "[Quality guidance for coding tasks]\n"
-                "  - Wrap ALL code in markdown fenced blocks (```python)\n"
-                "  - Include complete, runnable code with class/function definitions\n"
-                "  - Add test functions (def test_*) with 5+ assertions\n"
-                "  - Use section headings to organize (## Implementation, ## Tests)"
-            ),
-            "algorithms": (
-                "[Quality guidance for algorithm tasks]\n"
-                "  - Include complete implementations in code blocks (```python)\n"
-                "  - Add test functions (def test_*) with assertions verifying correctness\n"
-                "  - Analyze time/space complexity with O() notation\n"
-                "  - Use section headings (## Algorithm, ## Analysis, ## Tests)"
-            ),
-            "compiler_design": (
-                "[Quality guidance for compiler/interpreter tasks]\n"
-                "  - Include complete implementations: tokenizer, parser, evaluator\n"
-                "  - Define proper classes (Token, AST nodes, Environment)\n"
-                "  - Add test functions covering arithmetic, functions, closures\n"
-                "  - Include 5+ assertions validating each language feature"
-            ),
-            "data_science": (
-                "[Quality guidance for data science tasks]\n"
-                "  - Include complete class implementations with fit/predict methods\n"
-                "  - Add mathematical formulations (equations, proofs)\n"
-                "  - Write test functions with assertions verifying correctness\n"
-                "  - Use code blocks (```python) for all implementations"
-            ),
-            "system_design": (
-                "[Quality guidance for system design tasks]\n"
-                "  - Wrap code examples in markdown fenced blocks (```python)\n"
-                "  - Include architecture diagrams or structured descriptions\n"
-                "  - Analyze trade-offs (latency, throughput, consistency)\n"
-                "  - Use tables for comparisons where appropriate"
-            ),
-            "math": (
-                "[Quality guidance for math tasks]\n"
-                "  - Include formal definitions and theorem statements\n"
-                "  - Provide step-by-step proofs with justification\n"
-                "  - Use mathematical notation and formulas\n"
-                "  - Add concrete examples to illustrate abstract concepts"
-            ),
-            "research": (
-                "[Quality guidance for research tasks]\n"
-                "  - Structure with clear sections (Introduction, Analysis, Conclusion)\n"
-                "  - Cite sources and provide evidence for claims\n"
-                "  - Compare multiple perspectives or approaches\n"
-                "  - Include a summary/conclusion section"
-            ),
-        }
         return _DOMAIN_BOOTSTRAP.get(domain, "")
-
-    def _maintenance_guidance(self, domain: str, task_type: str) -> str:
-        """Lightweight hint for high-performing domains.
-
-        When the adaptive gate would have silenced all context (model already
-        performing well), provide a short structural hint from the best
-        historical episode. ~200-400 chars max.
-        """
-        best = self.get_best_approach_for_domain(domain, task_type)
-        if not best:
-            return ""
-        feats = best.get("structural_features", [])
-        if not feats:
-            return ""
-        return f"[Proven approach for {domain}: {', '.join(feats[:5])}]"[:400]
 
     # =========================================================================
     # IMPROVEMENT REPORT
@@ -1147,61 +874,8 @@ class LearningService:
     def get_best_approach_for_domain(
         self, domain: str, task_type: str = ""
     ) -> Optional[Dict[str, Any]]:
-        """
-        Return the best historical approach for a domain: what action metadata,
-        structural features, and quality score characterized the top episode.
-
-        This gives the system a concrete template to follow, not just averages.
-        """
-        try:
-            episodes = self._store.query_episodes(domain=domain, limit=50)
-            successful = [e for e in episodes if e.success and e.quality > 0]
-            if not successful:
-                return None
-
-            best = max(successful, key=lambda e: e.quality)
-            outcome = best.outcome or {}
-
-            approach: Dict[str, Any] = {
-                "quality": best.quality,
-                "execution_time": best.execution_time,
-                "structural_features": [],
-                "outline": None,
-                "action": best.action,
-            }
-
-            # Extract outline from stored digest if available
-            excerpt = outcome.get("response_excerpt", "")
-            if "Outline:" in excerpt:
-                for line in excerpt.split("\n"):
-                    if line.startswith("Outline:"):
-                        approach["outline"] = line[len("Outline:") :].strip()
-                        break
-
-            if outcome.get("has_code"):
-                approach["structural_features"].append(
-                    f"{outcome.get('code_block_count', 'multiple')} code blocks"
-                )
-            if outcome.get("has_headings"):
-                approach["structural_features"].append("section headings")
-            if outcome.get("has_citations"):
-                approach["structural_features"].append("cited references")
-            if outcome.get("has_math") and domain not in (
-                "coding",
-                "algorithms",
-                "compiler_design",
-            ):
-                approach["structural_features"].append("math formulations")
-            if outcome.get("has_table"):
-                approach["structural_features"].append("comparison tables")
-            wc = outcome.get("word_count", 0)
-            if wc:
-                approach["structural_features"].append(f"~{wc} words")
-
-            return approach
-        except Exception as e:
-            logger.debug(f"get_best_approach_for_domain failed: {e}")
-            return None
+        """Delegates to LearningContextBuilder."""
+        return self._context.get_best_approach_for_domain(domain, task_type)
 
     async def llm_judge_quality(
         self,
@@ -1673,287 +1347,14 @@ class LearningService:
         top_k: int = 2,
         agent_name: str = "",
     ) -> List[Dict[str, Any]]:
-        """
-        Retrieve excerpts from the best prior responses using vector embeddings.
+        """Delegates to LearningContextBuilder."""
+        return self._context.retrieve_similar_responses(domain, task_type, goal, top_k, agent_name)
 
-        Uses sentence-transformers (384-dim) for semantic similarity when available,
-        falls back to TF-IDF. Also retrieves distilled lessons (mem0 pattern).
-        Supports per-agent filtering.
-        """
+    def _embedding_retrieval(self, *args: Any, **kwargs: Any) -> Any:
+        return self._context._embedding_retrieval(*args, **kwargs)
 
-        emb = _get_embeddings()
-        now = time.time()
-        goal_vec = None
-
-        # ── Try embedding-based retrieval first ──────────────────────────
-        if goal and emb.available:
-            goal_vec = emb.embed(goal)
-
-        if goal_vec is not None:
-            scored = self._embedding_retrieval(domain, goal_vec, agent_name, now)
-        else:
-            scored = self._tfidf_retrieval(domain, goal, agent_name, now)
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-
-        results = []
-        for score, ep in scored[:top_k]:
-            outcome = ep.outcome or {}
-            actual_content = ""
-            full_content_len = 0
-            for _ck in ("content", "response", "result"):
-                _cv = outcome.get(_ck, "")
-                if isinstance(_cv, str) and len(_cv) > 200:
-                    full_content_len = len(_cv)
-                    actual_content = _cv[:1200]
-                    break
-            # content_length from outcome metadata is the TRUE full length
-            # (the content field itself may be truncated to 1500 chars)
-            stored_len = outcome.get("content_length", 0)
-            if stored_len and stored_len > full_content_len:
-                full_content_len = stored_len
-
-            excerpt = outcome.get("response_excerpt", "") or actual_content
-            if isinstance(excerpt, str) and len(excerpt) > 1000:
-                excerpt = excerpt[:1000] + "..."
-
-            if not excerpt:
-                goal_text = str(ep.context.get("goal", ep.context.get("message", "")))
-                if not goal_text:
-                    continue
-                excerpt = f"[Task: {goal_text[:200]}] Quality={ep.quality:.2f}"
-
-            results.append(
-                {
-                    "domain": ep.domain,
-                    "task_type": ep.task_type,
-                    "quality": ep.quality,
-                    "relevance_score": round(score, 3),
-                    "excerpt": excerpt,
-                    "actual_content": actual_content[:1200] if actual_content else "",
-                    "full_content_len": full_content_len,
-                    "goal_preview": str(ep.context.get("goal", ep.context.get("message", "")))[
-                        :100
-                    ],
-                    "agent_name": ep.unit_name,
-                }
-            )
-
-        return results
-
-    def _embedding_retrieval(
-        self,
-        domain: str,
-        goal_vec: Any,
-        agent_name: str,
-        now: float,
-    ) -> List[Tuple[float, EpisodeRecord]]:
-        """Retrieve episodes using embedding cosine similarity."""
-        import math as _math
-
-        import numpy as np
-
-        from .embeddings import EmbeddingService
-
-        emb = _get_embeddings()
-        scored: List[Tuple[float, EpisodeRecord]] = []
-
-        # Get episodes with stored embeddings
-        ep_embs = self._store.get_episodes_with_embeddings(domain=domain, limit=200)
-        if not ep_embs:
-            for alt_domain in _get_related_domains(domain):
-                ep_embs = self._store.get_episodes_with_embeddings(domain=alt_domain, limit=100)
-                if ep_embs:
-                    break
-        if not ep_embs:
-            ep_embs = self._store.get_episodes_with_embeddings(domain=None, limit=100)
-
-        for ep, emb_blob in ep_embs:
-            if ep.quality <= 0:
-                continue
-            ep_vec = EmbeddingService.deserialize(emb_blob)
-            similarity = float(np.dot(goal_vec, ep_vec))
-
-            age_h = max((now - ep.timestamp) / 3600, 0.01)
-            recency = 0.15 * _math.exp(-age_h / 6)
-
-            has_content = any(
-                isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
-                for k in ("content", "response_excerpt")
-            )
-            content_bonus = 0.1 if has_content else 0.0
-
-            # Per-agent boost: same agent gets +0.1
-            agent_bonus = 0.1 if agent_name and ep.unit_name == agent_name else 0.0
-
-            score = similarity * 0.45 + ep.quality * 0.30 + recency + content_bonus + agent_bonus
-            scored.append((score, ep))
-
-        return scored
-
-    def _tfidf_retrieval(
-        self,
-        domain: str,
-        goal: str,
-        agent_name: str,
-        now: float,
-    ) -> List[Tuple[float, EpisodeRecord]]:
-        """Fallback TF-IDF retrieval when embeddings unavailable."""
-        import math as _math
-        from collections import Counter as _Counter
-
-        episodes = self._store.query_episodes(domain=domain, success_only=True, limit=50)
-        if not episodes:
-            for alt_domain in _get_related_domains(domain):
-                episodes = self._store.query_episodes(
-                    domain=alt_domain, success_only=True, limit=20
-                )
-                if episodes:
-                    break
-            if not episodes:
-                episodes = self._store.query_episodes(domain="general", success_only=True, limit=20)
-
-        if not episodes:
-            return []
-
-        episodes = [
-            ep
-            for ep in episodes
-            if ep.outcome
-            and (
-                any(
-                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 100
-                    for k in ("content", "response", "response_excerpt")
-                )
-                or (ep.context.get("goal") or ep.context.get("message"))
-            )
-        ]
-        if not episodes:
-            return []
-
-        scored: List[Tuple[float, EpisodeRecord]] = []
-
-        _stop = {
-            "the",
-            "a",
-            "an",
-            "is",
-            "are",
-            "was",
-            "were",
-            "be",
-            "been",
-            "and",
-            "or",
-            "not",
-            "in",
-            "on",
-            "at",
-            "to",
-            "for",
-            "of",
-            "with",
-            "it",
-            "this",
-            "that",
-            "do",
-            "does",
-            "did",
-            "have",
-            "has",
-            "had",
-            "will",
-            "would",
-            "could",
-            "should",
-            "may",
-            "can",
-            "must",
-            "shall",
-            "from",
-            "by",
-            "as",
-            "if",
-            "but",
-            "so",
-            "all",
-            "each",
-            "every",
-            "any",
-            "no",
-            "your",
-            "my",
-            "their",
-            "our",
-            "its",
-            "use",
-            "using",
-        }
-
-        def _tokenize(text: str) -> List[str]:
-            return [w for w in re.findall(r"\b[a-z]{3,}\b", text.lower()) if w not in _stop]
-
-        if goal:
-            goal_tokens = _tokenize(goal)
-            goal_tf = _Counter(goal_tokens)
-            doc_tokens_list = []
-            for ep in episodes:
-                ctx_text = str(ep.context.get("goal", ep.context.get("message", "")))
-                doc_tokens_list.append(_tokenize(ctx_text))
-
-            n_docs = len(doc_tokens_list) + 1
-            df: Dict[str, int] = defaultdict(int)
-            for dtoks in doc_tokens_list:
-                for w in set(dtoks):
-                    df[w] += 1
-            for w in set(goal_tokens):
-                df[w] += 1
-
-            def _tfidf_vec(tf: Dict[str, int]) -> Dict[str, float]:
-                return {w: c * _math.log(n_docs / max(df.get(w, 1), 1)) for w, c in tf.items()}
-
-            def _cosine(v1: Dict[str, float], v2: Dict[str, float]) -> float:
-                shared = set(v1) & set(v2)
-                if not shared:
-                    return 0.0
-                dot = sum(v1[w] * v2[w] for w in shared)
-                mag1 = _math.sqrt(sum(x * x for x in v1.values()))
-                mag2 = _math.sqrt(sum(x * x for x in v2.values()))
-                return dot / max(mag1 * mag2, 1e-10)
-
-            goal_vec = _tfidf_vec(goal_tf)
-
-            for i, ep in enumerate(episodes):
-                if ep.quality <= 0:
-                    continue
-                doc_tf = _Counter(doc_tokens_list[i])
-                doc_vec = _tfidf_vec(doc_tf)
-                relevance = _cosine(goal_vec, doc_vec)
-                age_h = max((now - ep.timestamp) / 3600, 0.01)
-                recency = 0.15 * _math.exp(-age_h / 6)
-                has_content = any(
-                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
-                    for k in ("content", "response_excerpt")
-                )
-                content_bonus = 0.1 if has_content else 0.0
-                agent_bonus = 0.1 if agent_name and ep.unit_name == agent_name else 0.0
-                score = ep.quality * 0.4 + relevance * 0.4 + recency + content_bonus + agent_bonus
-                scored.append((score, ep))
-        else:
-            for ep in episodes:
-                if ep.quality <= 0:
-                    continue
-                age_h = max((now - ep.timestamp) / 3600, 0.01)
-                recency = 0.15 * _math.exp(-age_h / 6)
-                has_content = any(
-                    isinstance(ep.outcome.get(k, ""), str) and len(ep.outcome.get(k, "")) > 200
-                    for k in ("content", "response_excerpt")
-                )
-                content_bonus = 0.1 if has_content else 0.0
-                agent_bonus = 0.1 if agent_name and ep.unit_name == agent_name else 0.0
-                scored.append((ep.quality * 0.75 + recency + content_bonus + agent_bonus, ep))
-
-        return scored
+    def _tfidf_retrieval(self, *args: Any, **kwargs: Any) -> Any:
+        return self._context._tfidf_retrieval(*args, **kwargs)
 
     def build_retrieval_context(
         self,
@@ -1962,70 +1363,18 @@ class LearningService:
         goal: str = "",
         agent_name: str = "",
     ) -> str:
-        """
-        Build few-shot learning context from the best prior responses.
+        """Delegates to LearningContextBuilder."""
+        return self._context.build_retrieval_context(domain, task_type, goal, agent_name)
 
-        Uses vector embeddings for semantic matching when available,
-        falls back to TF-IDF. Supports per-agent scoping.
-        """
-        similar = self.retrieve_similar_responses(
-            domain,
-            task_type,
-            goal,
-            top_k=3,
-            agent_name=agent_name,
-        )
-        if not similar:
-            return ""
-
-        # Only include high-quality examples (Q >= 0.5)
-        good = [r for r in similar if r["quality"] >= 0.5]
-        if not good:
-            return ""
-
-        # Pick the single best by combined quality + relevance.
-        best_resp = max(good, key=lambda r: r.get("relevance_score", r["quality"]))
-        excerpt = best_resp.get("excerpt", "")
-        if not excerpt or len(excerpt) < 50:
-            return ""
-
-        relevance = best_resp.get("relevance_score", 0.0)
-        best_quality = best_resp["quality"]
-
-        # ── Same-task detection ──
-        # If relevance > 0.92, the retrieved response is for a nearly identical
-        # task.  Injecting the actual answer makes the LLM copy/abbreviate
-        # instead of thinking fresh (anti-pattern: RAG-as-summarizer).
-        # Instead, inject structural guidance so the LLM aims for equal or
-        # better quality WITHOUT seeing the previous text.
-        if relevance > 0.92:
-            content_len = best_resp.get("full_content_len", 0)
-            if not content_len:
-                actual_content = best_resp.get("actual_content", "")
-                content_len = len(actual_content) if actual_content else len(excerpt)
-            parts: List[str] = [
-                f"[QUALITY BASELINE — your previous response scored Q={best_quality:.2f} "
-                f"and was {content_len} chars]",
-                f"Your response MUST be at least {content_len} characters.",
-                "Cover ALL aspects requested. Do NOT summarize or abbreviate.",
-            ]
-            return "\n".join(parts)
-
-        # ── Different-task: inject as few-shot example (normal RAG) ──
-        parts: List[str] = []
-        parts.append(f"[REFERENCE FROM SIMILAR TASK (Q={best_quality:.2f})]")
-
-        if best_resp.get("goal_preview"):
-            parts.append(f"Task: {best_resp['goal_preview']}")
-
-        # Prefer actual response content over metadata digest.
-        actual_content = best_resp.get("actual_content", "")
-        if actual_content and len(actual_content) > len(excerpt):
-            parts.append(f"Response:\n{actual_content[:1000]}")
-        else:
-            parts.append(f"Excerpt:\n{excerpt[:1000]}")
-
-        return "\n".join(parts)
+    def retrieve_distilled_lessons(
+        self,
+        domain: str,
+        goal: str = "",
+        agent_name: str = "",
+        top_k: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """Delegates to LearningContextBuilder."""
+        return self._context.retrieve_distilled_lessons(domain, goal, agent_name, top_k)
 
     # =========================================================================
     # ADAPTIVE JUDGE SCHEDULING
@@ -2410,113 +1759,6 @@ class LearningService:
             logger.debug("LLM lesson extraction failed: %s", exc)
 
         return []
-
-    def retrieve_distilled_lessons(
-        self,
-        domain: str,
-        goal: str = "",
-        agent_name: str = "",
-        top_k: int = 5,
-    ) -> List[Dict[str, Any]]:
-        """
-        Retrieve the most relevant distilled lessons using vector similarity.
-
-        Supports hierarchical domains: if domain is "mermaid", retrieves
-        both "mermaid" (shared) and "mermaid:er" / "mermaid:sequence" etc.,
-        ranking sub-domain matches higher when the goal text matches.
-        """
-        emb_svc = _get_embeddings()
-
-        if goal and emb_svc.available:
-            goal_vec = emb_svc.embed(goal)
-            if goal_vec is not None:
-                return self._embedding_lesson_retrieval(domain, goal_vec, agent_name, top_k)
-
-        # Fallback: hierarchical retrieval by confidence
-        lessons = self._store.get_distilled_lessons(
-            domain=domain,
-            agent_name=agent_name or None,
-            limit=top_k * 3,
-            hierarchical=True,
-        )
-
-        # Score: sub-domain match bonus when goal hints at a sub-type
-        goal_lower = goal.lower() if goal else ""
-        scored = []
-        for l in lessons:
-            score = l.confidence
-            # Boost lessons whose sub-domain appears in the goal text
-            if ":" in l.domain:
-                sub = l.domain.split(":", 1)[1]
-                if sub and sub in goal_lower:
-                    score += 0.4  # strong sub-domain match
-                elif sub and sub not in goal_lower:
-                    score -= 0.3  # wrong sub-domain — suppress
-            scored.append((score, l))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-
-        return [
-            {
-                "lesson": l.lesson,
-                "type": l.context_type,
-                "applies_to": l.applicability,
-                "confidence": l.confidence,
-                "agent": l.agent_name,
-                "domain": l.domain,
-            }
-            for _, l in scored[:top_k]
-        ]
-
-    def _embedding_lesson_retrieval(
-        self,
-        domain: str,
-        goal_vec: Any,
-        agent_name: str,
-        top_k: int,
-    ) -> List[Dict[str, Any]]:
-        """Retrieve distilled lessons using embedding cosine similarity.
-
-        Uses hierarchical domain matching so sub-domain lessons are
-        included but ranked by semantic relevance to the current goal.
-        """
-        import numpy as np
-
-        from .embeddings import EmbeddingService
-
-        lesson_embs = self._store.get_distilled_lessons_with_embeddings(
-            domain=domain,
-            limit=100,
-            hierarchical=True,
-        )
-
-        if not lesson_embs:
-            lesson_embs = self._store.get_distilled_lessons_with_embeddings(domain=None, limit=100)
-        if not lesson_embs:
-            return []
-
-        scored = []
-        for lesson, emb_blob in lesson_embs:
-            lesson_vec = EmbeddingService.deserialize(emb_blob)
-            similarity = float(np.dot(goal_vec, lesson_vec))
-            agent_bonus = 0.1 if agent_name and lesson.agent_name == agent_name else 0.0
-            score = similarity * 0.6 + lesson.confidence * 0.3 + agent_bonus
-            scored.append((score, lesson))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-
-        return [
-            {
-                "lesson": lesson.lesson,
-                "type": lesson.context_type,
-                "applies_to": lesson.applicability,
-                "confidence": lesson.confidence,
-                "agent": lesson.agent_name,
-                "domain": lesson.domain,
-                "relevance": round(score, 3),
-            }
-            for score, lesson in scored[:top_k]
-        ]
 
     # =========================================================================
     # TAUTOLOGY FILTER — Delegated to PatternExtractor
@@ -2965,35 +2207,10 @@ class LearningService:
         )
 
     def get_learned_context(self, state: str, domain: str = "", unit_name: str = "") -> str:
-        """
-        Get learning context for a state — backward-compat wrapper around
-        build_context_string() + lessons from value estimates.
-
-        Replaces LearningManager.get_learned_context().
-        """
-        parts: List[str] = []
-
-        # Get lessons from value estimates for this domain/unit
-        lessons = self._store.get_lessons(
-            domain=domain or "general",
-            unit_name=unit_name if unit_name else None,
-            limit=10,
+        """Backward-compat wrapper — delegates to build_context_string."""
+        return self.build_context_string(
+            domain=domain or "general", task_type="", unit_name=unit_name
         )
-        if lessons:
-            parts.append("Prior lessons:")
-            for lesson in lessons[:5]:
-                parts.append(f"  {lesson}")
-
-        # Also include pattern-based context
-        context_str = self.build_context_string(
-            domain=domain or "general",
-            task_type="",
-            unit_name=unit_name,
-        )
-        if context_str:
-            parts.append(context_str)
-
-        return "\n".join(parts) if parts else ""
 
     def _update_values(
         self,
@@ -3107,7 +2324,7 @@ class LearningService:
         for skill, credit in zip(skills, credits):
             weighted_reward = quality * (credit / total) * len(skills)
             weighted_reward = max(0.0, min(1.0, weighted_reward))
-            td.skill_q.update(task_type, skill, weighted_reward, domain=domain)
+            td.record_skill_outcome(task_type, skill, weighted_reward, domain=domain)
 
     def _maybe_auto_optimize(self, domain: str, task_type: str, domain_count: int) -> None:
         """Auto-trigger DSPy re-optimization and crystallization.

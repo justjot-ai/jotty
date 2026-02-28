@@ -20,7 +20,7 @@ class TestFactRetrievalExecutor:
 
         # Math question
         tools = executor._auto_detect_tools("Calculate 234 * 567", None)
-        assert "calculator" in tools
+        assert "math-toolkit" in tools
 
         # Search question
         tools = executor._auto_detect_tools("What is the capital of France?", None)

@@ -17,7 +17,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -67,7 +66,8 @@ class TestBaseAgentMemoryPersistence:
                 return "ok"
 
         agent = StubAgent(config=AgentRuntimeConfig(name="persist_test", enable_safety_gates=False))
-        assert agent._memory is None
+        # _memory uses _UNSET sentinel (not None) for lazy initialization
+        assert agent._memory is BaseAgent._UNSET or agent._memory is None
         assert agent._memory_persistence is None
 
         fake_home = _make_tmp_home(tmp_path)

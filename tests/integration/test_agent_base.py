@@ -109,7 +109,7 @@ if BASE_AGENT_AVAILABLE:
 # ---------------------------------------------------------------------------
 # Helper: patch _init_dspy_lm so tests never touch real DSPy
 # ---------------------------------------------------------------------------
-_PATCH_DSPY = "Jotty.core.agents.base.base_agent.BaseAgent._init_dspy_lm"
+_PATCH_DSPY = "Jotty.core.intelligence.reasoning.base.base_agent.BaseAgent._init_dspy_lm"
 
 
 # =============================================================================
@@ -468,7 +468,7 @@ class TestBaseAgent:
         mock_mem = MagicMock()
         agent._memory = mock_mem
         with patch(
-            "Jotty.core.agents.base.base_agent.BaseAgent.memory",
+            "Jotty.core.intelligence.reasoning.base.base_agent.BaseAgent.memory",
             new_callable=PropertyMock,
             return_value=mock_mem,
         ):
@@ -486,7 +486,7 @@ class TestBaseAgent:
         mock_mem.retrieve.return_value = ["entry1"]
         agent._memory = mock_mem
         with patch(
-            "Jotty.core.agents.base.base_agent.BaseAgent.memory",
+            "Jotty.core.intelligence.reasoning.base.base_agent.BaseAgent.memory",
             new_callable=PropertyMock,
             return_value=mock_mem,
         ):
@@ -655,7 +655,7 @@ class TestBaseAgent:
     def test_analyze_failure_returns_guidance_for_logic_error(self):
         agent = self._make_agent()
         with patch(
-            "Jotty.core.agents.base.base_agent.BaseAgent._analyze_failure",
+            "Jotty.core.intelligence.reasoning.base.base_agent.BaseAgent._analyze_failure",
             wraps=agent._analyze_failure,
         ):
             result = agent._analyze_failure("KeyError: 'missing_field'", {})
@@ -925,7 +925,7 @@ class TestSwarmLearningAgent:
         agent = self._make_agent()
         # Should not raise even if broadcast import fails
         with patch(
-            "Jotty.core.utils.async_utils.AgentEventBroadcaster",
+            "Jotty.core.infrastructure.utils.async_utils.AgentEventBroadcaster",
         ) as mock_broadcaster:
             mock_broadcaster.get_instance.side_effect = RuntimeError("no broadcaster")
             # _broadcast catches all exceptions internally

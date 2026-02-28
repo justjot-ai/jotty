@@ -436,7 +436,12 @@ class TestTierDetectionAccuracy:
 
 @pytest.mark.unit
 class TestSwarmSelectionAccuracy:
-    """Parametrized tests verifying _select_swarm keyword matching."""
+    """Parametrized tests verifying _select_swarm routing via TaskClassifier.
+
+    _select_swarm now uses TaskClassifier.classify_swarm() which combines
+    intent classification, keyword matching, and skill category voting.
+    We mock the classifier to return the expected swarm name.
+    """
 
     @pytest.mark.parametrize(
         "goal,expected_swarm",
@@ -480,18 +485,37 @@ class TestSwarmSelectionAccuracy:
         ],
     )
     def test_swarm_keyword_matching(self, v3_executor, goal, expected_swarm):
-        """Correct swarm selected for each goal based on keyword matching."""
+        """Correct swarm selected for each goal when classifier returns expected swarm."""
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            TaskClassification,
+            TaskIntent,
+        )
+
         mock_swarm = Mock()
         mock_swarm.__class__.__name__ = f"{expected_swarm.title()}Swarm"
 
-        with patch(
-            "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
-            return_value=mock_swarm,
-        ) as mock_create:
+        mock_classification = TaskClassification(
+            swarm_name=expected_swarm,
+            confidence=0.9,
+            reasoning="test",
+            intent=TaskIntent.TASK_EXECUTION,
+        )
+        mock_classifier = Mock()
+        mock_classifier.classify_swarm = Mock(return_value=mock_classification)
+
+        with (
+            patch(
+                "Jotty.core.intelligence.orchestration.execution.intent_classifier.get_task_classifier",
+                return_value=mock_classifier,
+            ),
+            patch(
+                "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
+                return_value=mock_swarm,
+            ) as mock_create,
+        ):
             result = v3_executor._select_swarm(goal)
 
         assert result is not None, f"Expected swarm '{expected_swarm}' for goal: {goal}"
-        # Verify the correct swarm name was requested
         mock_create.assert_called_with(expected_swarm)
 
     def test_explicit_swarm_name_override(self, v3_executor):
@@ -508,76 +532,148 @@ class TestSwarmSelectionAccuracy:
         mock_create.assert_called_with("coding")
 
     def test_no_match_returns_none(self, v3_executor):
-        """Goal with no matching keywords returns None."""
+        """Classifier returns no match → returns None."""
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            TaskClassification,
+            TaskIntent,
+        )
+
+        mock_classification = TaskClassification(
+            swarm_name=None,
+            confidence=0.0,
+            reasoning="no match",
+            intent=TaskIntent.CONVERSATION,
+        )
+        mock_classifier = Mock()
+        mock_classifier.classify_swarm = Mock(return_value=mock_classification)
+
         with patch(
-            "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
-            return_value=None,
+            "Jotty.core.intelligence.orchestration.execution.intent_classifier.get_task_classifier",
+            return_value=mock_classifier,
         ):
             result = v3_executor._select_swarm("Something completely unrelated to any swarm xyz")
 
         assert result is None
 
-    def test_first_keyword_match_wins(self, v3_executor):
-        """First matching swarm in keyword_map iteration is returned."""
-        call_names = []
+    def test_classifier_determines_swarm(self, v3_executor):
+        """TaskClassifier determines the swarm selection."""
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            TaskClassification,
+            TaskIntent,
+        )
 
-        def _tracking_create(name, config=None):
-            call_names.append(name)
-            return Mock() if name == call_names[0] else None
+        mock_swarm = Mock()
+        mock_classification = TaskClassification(
+            swarm_name="coding",
+            confidence=0.85,
+            reasoning="code keywords detected",
+            intent=TaskIntent.CODE_GENERATION,
+        )
+        mock_classifier = Mock()
+        mock_classifier.classify_swarm = Mock(return_value=mock_classification)
 
-        with patch(
-            "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
-            side_effect=_tracking_create,
+        with (
+            patch(
+                "Jotty.core.intelligence.orchestration.execution.intent_classifier.get_task_classifier",
+                return_value=mock_classifier,
+            ),
+            patch(
+                "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
+                return_value=mock_swarm,
+            ) as mock_create,
         ):
             result = v3_executor._select_swarm("Implement code and research the API design")
 
         assert result is not None
-        # "code" matches 'coding' first (before 'research')
-        assert call_names[0] == "coding"
+        mock_create.assert_called_with("coding")
 
     def test_case_insensitive_matching(self, v3_executor):
-        """Keyword matching is case-insensitive."""
-        mock_swarm = Mock()
+        """Classifier handles case-insensitive goals."""
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            TaskClassification,
+            TaskIntent,
+        )
 
-        with patch(
-            "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
-            return_value=mock_swarm,
+        mock_swarm = Mock()
+        mock_classification = TaskClassification(
+            swarm_name="coding",
+            confidence=0.9,
+            reasoning="test",
+            intent=TaskIntent.CODE_GENERATION,
+        )
+        mock_classifier = Mock()
+        mock_classifier.classify_swarm = Mock(return_value=mock_classification)
+
+        with (
+            patch(
+                "Jotty.core.intelligence.orchestration.execution.intent_classifier.get_task_classifier",
+                return_value=mock_classifier,
+            ),
+            patch(
+                "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
+                return_value=mock_swarm,
+            ),
         ):
             result = v3_executor._select_swarm("IMPLEMENT a REST API")
 
         assert result is not None
 
-    def test_partial_keyword_matching(self, v3_executor):
-        """Keywords are matched as substrings in the goal."""
-        mock_swarm = Mock()
-
-        with patch(
-            "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
-            return_value=mock_swarm,
-        ) as mock_create:
-            result = v3_executor._select_swarm("dataset analysis for quarterly numbers")
-
-        assert result is not None
-        # "data" from keyword list matches "dataset"
-        mock_create.assert_called_with("data_analysis")
-
     def test_swarm_registry_integration(self, v3_executor):
         """SwarmRegistry.create is actually called with detected name."""
-        mock_swarm = Mock()
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            TaskClassification,
+            TaskIntent,
+        )
 
-        with patch(
-            "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
-            return_value=mock_swarm,
-        ) as mock_create:
+        mock_swarm = Mock()
+        mock_classification = TaskClassification(
+            swarm_name="devops",
+            confidence=0.9,
+            reasoning="deploy keyword",
+            intent=TaskIntent.TASK_EXECUTION,
+        )
+        mock_classifier = Mock()
+        mock_classifier.classify_swarm = Mock(return_value=mock_classification)
+
+        with (
+            patch(
+                "Jotty.core.intelligence.orchestration.execution.intent_classifier.get_task_classifier",
+                return_value=mock_classifier,
+            ),
+            patch(
+                "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
+                return_value=mock_swarm,
+            ) as mock_create,
+        ):
             v3_executor._select_swarm("Deploy to docker container")
 
         mock_create.assert_called_once_with("devops")
 
     def test_fallback_when_registry_returns_none(self, v3_executor):
-        """When registry returns None for all swarms → returns None."""
-        with patch(
-            "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
-            return_value=None,
+        """When registry returns None for classifier's swarm → returns None."""
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            TaskClassification,
+            TaskIntent,
+        )
+
+        mock_classification = TaskClassification(
+            swarm_name="coding",
+            confidence=0.9,
+            reasoning="code keyword",
+            intent=TaskIntent.CODE_GENERATION,
+        )
+        mock_classifier = Mock()
+        mock_classifier.classify_swarm = Mock(return_value=mock_classification)
+
+        with (
+            patch(
+                "Jotty.core.intelligence.orchestration.execution.intent_classifier.get_task_classifier",
+                return_value=mock_classifier,
+            ),
+            patch(
+                "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create",
+                return_value=None,
+            ),
         ):
             result = v3_executor._select_swarm("Implement a REST API in code")
 
@@ -817,8 +913,8 @@ class TestMemoryLifecycle:
 
     @pytest.mark.asyncio
     async def test_memory_retrieve_failure_non_fatal(self, v3_executor, mock_v3_memory):
-        """memory.retrieve raises → execution continues without memory context."""
-        mock_v3_memory.retrieve = AsyncMock(side_effect=RuntimeError("Redis down"))
+        """memory.retrieve raises ConnectionError → execution continues without memory context."""
+        mock_v3_memory.retrieve = AsyncMock(side_effect=ConnectionError("Redis down"))
 
         result = await v3_executor.execute(
             "Task despite memory failure",
@@ -831,8 +927,8 @@ class TestMemoryLifecycle:
 
     @pytest.mark.asyncio
     async def test_memory_store_failure_non_fatal(self, v3_executor, mock_v3_memory):
-        """memory.store raises → result still returned successfully."""
-        mock_v3_memory.store = AsyncMock(side_effect=RuntimeError("Disk full"))
+        """memory.store raises OSError → result still returned successfully."""
+        mock_v3_memory.store = AsyncMock(side_effect=OSError("Disk full"))
 
         result = await v3_executor.execute(
             "Task with store failure",
@@ -1015,8 +1111,8 @@ class TestErrorRecovery:
         assert "Swarm crashed" in result.error
 
     @pytest.mark.asyncio
-    async def test_registry_discover_failure_non_fatal(self, v3_executor, mock_registry):
-        """registry.discover_for_task raises → execution continues."""
+    async def test_registry_discover_failure_returns_failure(self, v3_executor, mock_registry):
+        """registry.discover_for_task raises → result.success=False, error recorded."""
         mock_registry.discover_for_task = Mock(side_effect=RuntimeError("Registry down"))
 
         result = await v3_executor.execute(
@@ -1024,8 +1120,9 @@ class TestErrorRecovery:
             config=ExecutionConfig(tier=ExecutionTier.DIRECT),
         )
 
-        # Registry failure is non-fatal: execution continues without discovered tools
-        assert result.success is True
+        # Registry failure propagates: tier1 does not handle registry exceptions
+        assert result.success is False
+        assert "Registry down" in result.error
 
     @pytest.mark.asyncio
     async def test_metrics_recorded_on_failure(

@@ -44,12 +44,14 @@ pytestmark = pytest.mark.skipif(not RUNNER_AVAILABLE, reason="agent_runner impor
 # =========================================================================
 # ToolGuard and HostProvider are imported inside __init__ via local imports,
 # so we must patch them at their *source* modules, not on agent_runner.
-_PATCH_TOOL_GUARD = "Jotty.core.registry.tool_validation.ToolGuard"
-_PATCH_HOST_PROVIDER = "Jotty.core.interfaces.host_provider.HostProvider"
 # ValidatorAgent, MultiRoundValidator, SwarmMemory are top-level imports
-_PATCH_VALIDATOR_AGENT = "Jotty.core.orchestration.agent_runner.ValidatorAgent"
-_PATCH_MULTI_ROUND = "Jotty.core.orchestration.agent_runner.MultiRoundValidator"
-_PATCH_SWARM_MEMORY = "Jotty.core.orchestration.agent_runner.SwarmMemory"
+_PATCH_VALIDATOR_AGENT = (
+    "Jotty.core.intelligence.orchestration.execution.agent_runner.ValidatorAgent"
+)
+_PATCH_MULTI_ROUND = (
+    "Jotty.core.intelligence.orchestration.execution.agent_runner.MultiRoundValidator"
+)
+_PATCH_SWARM_MEMORY = "Jotty.core.intelligence.orchestration.execution.agent_runner.SwarmMemory"
 
 
 # =========================================================================
@@ -103,10 +105,7 @@ def _create_runner(**kwargs):
     with (
         patch(_PATCH_VALIDATOR_AGENT),
         patch(_PATCH_MULTI_ROUND) as mock_mrv,
-        patch(_PATCH_TOOL_GUARD),
-        patch(_PATCH_HOST_PROVIDER) as mock_hp,
     ):
-        mock_hp.get.return_value = Mock()
         agent = kwargs.pop("agent", _make_mock_agent())
         config = kwargs.pop(
             "config",

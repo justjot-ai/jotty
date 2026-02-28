@@ -228,7 +228,7 @@ async def test_swarm_stream(sdk_client, mock_orchestrator):
 async def test_configure_lm(sdk_client):
     """Test LM configuration via SDK."""
     with patch(
-        "Jotty.core.intelligence.orchestration.llm_providers.provider_manager.configure_dspy_lm"
+        "Jotty.core.infrastructure.foundation.unified_lm_provider.configure_dspy_lm"
     ) as mock_config:
         result = await sdk_client.configure_lm(
             provider="anthropic", model="claude-3-5-sonnet-20241022"

@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -88,7 +87,7 @@ class TestPreCompactionFlush:
         # Level should be episodic
         assert call_kwargs[1]["level"] == "episodic"
         # Metadata should tag the source
-        assert call_kwargs[1]["metadata"] == {"source": "pre_compaction_flush"}
+        assert call_kwargs[1]["metadata"]["source"] == "pre_compaction_flush"
 
     # 2. Flush skips when parts total < 8000 chars (too small)
     def test_skips_when_total_chars_below_threshold(self):
@@ -143,18 +142,20 @@ class TestPreCompactionFlush:
         stored_content = agent.memory.store.call_args[0][0]
         assert len(stored_content) <= 2000
 
-    # 7. Key facts extracted from last 3 parts (reversed)
+    # 7. Key facts extracted from last 3 parts (reversed) via tail snippets
     def test_key_facts_from_last_three_parts(self):
         runner = _make_runner()
         agent = _make_agent(has_memory=True)
 
-        # Build 5 parts, each large enough to pass threshold
+        # Build 5 parts, each large enough to pass threshold.
+        # Since no priority markers exist, Pass 2 takes part[-500:] for last 3 parts.
+        # Place identifying text at the END so it appears in the tail snippet.
         parts = [
             "A" * 2000,  # part 0 — should NOT appear in key_facts
             "B" * 2000,  # part 1 — should NOT appear in key_facts
-            "FACT_C " + "c" * 2000,  # part 2 — last 3 includes this
-            "FACT_D " + "d" * 2000,  # part 3
-            "FACT_E " + "e" * 2000,  # part 4
+            "c" * 2000 + " FACT_C",  # part 2 — last 3 includes this (tail has FACT_C)
+            "d" * 2000 + " FACT_D",  # part 3 (tail has FACT_D)
+            "e" * 2000 + " FACT_E",  # part 4 (tail has FACT_E)
         ]
 
         runner._extract_and_flush_to_memory(parts, agent)
@@ -162,12 +163,10 @@ class TestPreCompactionFlush:
         agent.memory.store.assert_called_once()
         stored_content = agent.memory.store.call_args[0][0]
 
-        # Key facts come from last 3 parts (indices 2, 3, 4), reversed
+        # Key facts come from last 3 parts via tail snippets (part[-500:])
         assert "FACT_E" in stored_content
         assert "FACT_D" in stored_content
         assert "FACT_C" in stored_content
-        # Parts 0 and 1 are pure "A"/"B" filler, not in last 3
-        # (they won't appear as key_facts since we only take parts[-3:])
 
     # 8. Each snippet is capped at 500 chars
     def test_snippets_capped_at_500_chars(self):
@@ -213,7 +212,8 @@ class TestPreCompactionFlush:
     def test_fewer_than_three_parts(self):
         runner = _make_runner()
         agent = _make_agent(has_memory=True)
-        parts = ["ONLY_PART " + "a" * 9000]  # 1 part, > 8000 chars
+        # Place identifier at the END so it appears in the tail snippet (part[-500:])
+        parts = ["a" * 9000 + " ONLY_PART"]  # 1 part, > 8000 chars
 
         runner._extract_and_flush_to_memory(parts, agent)
 
