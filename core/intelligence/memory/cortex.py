@@ -237,6 +237,9 @@ class SwarmMemory:
                 return old_entry
 
         # Create new entry
+        # Extract TTL from context metadata (passed through by MemorySystem.store)
+        ttl_seconds = context.pop("_ttl_seconds", None)
+
         entry = MemoryEntry(
             key=new_key,
             content=content,
@@ -246,6 +249,7 @@ class SwarmMemory:
             source_episode=context.get("episode", 0),
             source_agent=self.agent_name,
             causal_links=causal_links or [],
+            ttl_seconds=ttl_seconds,
         )
 
         # Store domain/task_type in metadata for easy filtering
@@ -493,10 +497,14 @@ Store full trace to prevent similar failures.
             levels = list(MemoryLevel)
 
         all_memories: List[MemoryEntry] = []
+        now = datetime.now()
         for level in levels:
             all_memories.extend(self.memories[level].values())
         if not all_memories:
             return []
+
+        # Filter expired TTL entries
+        all_memories = [m for m in all_memories if m.expires_at is None or m.expires_at > now]
 
         # Build query keyword set (lowercased, split on whitespace/punct)
         query_words: Set[str] = set(w for w in _re.split(r"[\s\W]+", query.lower()) if len(w) > 2)
@@ -585,10 +593,12 @@ Store full trace to prevent similar failures.
         if levels is None:
             levels = list(MemoryLevel)
 
-        # Collect all candidates
-        all_memories = []
+        # Collect all candidates, filtering expired TTL entries
+        now = datetime.now()
+        all_memories: list[Any] = []
         for level in levels:
             all_memories.extend(self.memories[level].values())
+        all_memories = [m for m in all_memories if m.expires_at is None or m.expires_at > now]
 
         if not all_memories:
             return []
@@ -755,7 +765,7 @@ Store full trace to prevent similar failures.
         if levels is None:
             levels = list(MemoryLevel)
 
-        all_memories = []
+        all_memories: list[Any] = []
         for level in levels:
             all_memories.extend(self.memories[level].values())
 
@@ -1204,7 +1214,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary for JSON storage."""
-        data = {
+        data: Dict[str, Any] = {
             "agent_name": self.agent_name,
             "total_accesses": self.total_accesses,
             "consolidation_count": self.consolidation_count,

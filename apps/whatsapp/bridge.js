@@ -20,8 +20,9 @@ const path = require('path');
 const readline = require('readline');
 const pino = require('pino');
 
-// Session storage path
-const SESSION_PATH = path.join(process.env.HOME || '/tmp', '.jotty', 'whatsapp_session');
+// Session storage path (configurable via env for Forge/Jotty sharing)
+const SESSION_PATH = process.env.WHATSAPP_SESSION_DIR
+    || path.join(process.env.HOME || '/tmp', '.jotty', 'whatsapp_session');
 
 // Ensure session directory exists
 fs.mkdirSync(SESSION_PATH, { recursive: true });

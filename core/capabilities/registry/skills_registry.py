@@ -203,6 +203,24 @@ class BaseSkill:
         """
         pass
 
+    # -- Lifecycle hooks (C4: Plugin lifecycle) --
+
+    async def on_install(self) -> None:
+        """Called once when skill is first discovered by the registry."""
+        pass
+
+    async def on_enable(self) -> None:
+        """Called when skill is activated for a session."""
+        pass
+
+    async def on_disable(self) -> None:
+        """Called when skill is deactivated or registry shuts down."""
+        pass
+
+    async def on_uninstall(self) -> None:
+        """Called when skill is removed from the registry."""
+        pass
+
     async def execute(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute the skill with given parameters.
@@ -385,6 +403,9 @@ class SkillDefinition:
         # Executor type: classifies which execution surface this skill targets.
         # Auto-inferred from name/category/tags when not explicitly provided.
         self.executor_type = executor_type or self._infer_executor_type(name, category, self.tags)
+
+        # Lifecycle hooks (C4): on_install, on_enable, on_disable, on_uninstall
+        self.lifecycle_hooks: Dict[str, Callable] = {}
 
     @staticmethod
     def _infer_executor_type(name: str, category: str, tags: List[str]) -> str:
@@ -818,18 +839,26 @@ class SkillsRegistry:
             "_tools",  # ToolSelector, ToolManager (used by core/orchestration)
         }
 
-        # 1. Scan Jotty skills directory
-        if self.skills_dir.exists():
-            for skill_dir in self.skills_dir.iterdir():
-                if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
-                    try:
-                        skill = self._register_lazy_skill(skill_dir.name, self.skills_dir)
-                        if skill:
-                            self.loaded_skills[skill.name] = skill
-                    except Exception as e:
-                        logger.error(f"Failed to register skill {skill_dir.name}: {e}")
-        else:
-            logger.warning(f"Skills directory not found: {self.skills_dir}")
+        # 1. Scan Jotty skills directories (builtin + user + community)
+        scan_dirs = [
+            self.skills_dir,  # skills/ (builtin)
+            self.skills_dir / "user",  # skills/user/ (user-created)
+            self.skills_dir / "community",  # skills/community/ (installed via skill_installer)
+        ]
+        for scan_dir in scan_dirs:
+            if scan_dir.exists():
+                for skill_dir in scan_dir.iterdir():
+                    if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
+                        if skill_dir.name in self.loaded_skills:
+                            continue  # Already registered from higher-priority dir
+                        try:
+                            skill = self._register_lazy_skill(skill_dir.name, scan_dir)
+                            if skill:
+                                self.loaded_skills[skill.name] = skill
+                        except Exception as e:
+                            logger.error(f"Failed to register skill {skill_dir.name}: {e}")
+            elif scan_dir == self.skills_dir:
+                logger.warning(f"Skills directory not found: {self.skills_dir}")
 
         # 2. Scan installed skill packages (entry point group: jotty.skills)
         self._scan_plugin_skills(excluded_dirs)
@@ -914,6 +943,12 @@ class SkillsRegistry:
         is_claude_code_skill = scripts_dir.exists() and scripts_dir.is_dir()
 
         if not tools_py.exists() and not is_claude_code_skill:
+            # Try OpenClaw adapter (SKILL.md with no tools.py)
+            from .openclaw_adapter import parse_openclaw_skill
+
+            oc = parse_openclaw_skill(skill_dir)
+            if oc:
+                return self._register_openclaw_skill(skill_dir, oc)
             logger.debug(f"Skipping {skill_name}: no tools.py or scripts/")
             return None
 
@@ -940,7 +975,10 @@ class SkillsRegistry:
                 else:
                     tools_file = s_dir / "tools.py"
                     if tools_file.exists():
-                        return registry._load_tools_from_file(tools_file)
+                        tools = registry._load_tools_from_file(tools_file)
+                        # Extract lifecycle hooks (C4) from the module
+                        registry._extract_lifecycle_hooks(s_name, tools_file)
+                        return tools
                     return {}
 
             return loader  # type: ignore[return-value]
@@ -978,6 +1016,34 @@ class SkillsRegistry:
             skill_type=resolved_skill_type,
             base_skills=skill_metadata["base_skills"],
             execution_mode=skill_metadata.get("execution_mode", ""),
+        )
+
+    def _register_openclaw_skill(self, skill_dir: Path, oc: Dict[str, Any]) -> SkillDefinition:
+        """Register an OpenClaw skill (SKILL.md only, no tools.py).
+
+        Creates a SkillDefinition backed by shell-exec. The SKILL.md body
+        becomes the agent's instructions context.
+        """
+        from .openclaw_adapter import make_shell_exec_tools
+
+        name = oc["name"]
+        instructions = oc.get("instructions", "")
+        requires_bins = oc.get("requires_bins", [])
+
+        def _oc_loader(
+            _name: str = name,
+            _inst: str = instructions,
+            _bins: list = requires_bins,
+        ) -> Dict:
+            return make_shell_exec_tools(_name, _inst, _bins)
+
+        return SkillDefinition(
+            name=name,
+            description=oc.get("description", f"OpenClaw skill: {name}"),
+            _tool_loader=_oc_loader,  # type: ignore[arg-type]
+            metadata={"path": str(skill_dir), "openclaw": True, "requires_bins": requires_bins},
+            category=oc.get("category", "openclaw"),
+            tags=oc.get("tags", ["openclaw", "community"]),
         )
 
     def _parse_skill_metadata(self, skill_md: Path) -> Dict[str, Any]:
@@ -1476,6 +1542,35 @@ class SkillsRegistry:
             return {}
 
         return tools
+
+    _LIFECYCLE_HOOK_NAMES = ("on_install", "on_enable", "on_disable", "on_uninstall")
+
+    def _extract_lifecycle_hooks(self, skill_name: str, tools_file: Path) -> None:
+        """Extract lifecycle hook functions from a tools.py module into the SkillDefinition.
+
+        Looks for top-level functions named on_install, on_enable, on_disable, on_uninstall.
+        """
+        skill = self.loaded_skills.get(skill_name)
+        if not skill:
+            return
+
+        try:
+            spec = importlib.util.spec_from_file_location(f"hooks_{skill_name}", tools_file)
+            if not spec or not spec.loader:
+                return
+            # Re-use cached module from sys.modules if available
+            import sys as _sys
+
+            module = _sys.modules.get("skill_tools")
+            if module is None:
+                return  # Module wasn't loaded successfully
+
+            for hook_name in self._LIFECYCLE_HOOK_NAMES:
+                fn = getattr(module, hook_name, None)
+                if fn and callable(fn):
+                    skill.lifecycle_hooks[hook_name] = fn
+        except Exception:
+            pass  # Lifecycle hooks are optional, never block on failure
 
     def _retry_load_with_isolation(
         self, tools_file: Path, original_error: Exception

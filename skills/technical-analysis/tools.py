@@ -9,6 +9,11 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+try:
+    import pandas as pd
+except ImportError:
+    pd = None  # type: ignore[assignment]
+
 from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)

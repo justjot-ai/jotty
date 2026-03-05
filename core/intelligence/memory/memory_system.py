@@ -204,6 +204,7 @@ class MemorySystem:
         goal: str = "",
         metadata: Optional[Dict[str, Any]] = None,
         reward: float = 0.0,
+        ttl_seconds: Optional[float] = None,
     ) -> str:
         """
         Store a memory.
@@ -214,19 +215,22 @@ class MemorySystem:
             goal: Goal context for this memory
             metadata: Additional metadata
             reward: Reward value for RL integration
+            ttl_seconds: Optional TTL in seconds; None = no expiration (default)
 
         Returns:
             Memory ID
         """
         self._store_count += 1
 
-        # Tracing is handled at the caller level if needed
-        # (Removed problematic get_active_span() call)
+        # Pass ttl_seconds through metadata for the backend
+        meta = metadata or {}
+        if ttl_seconds is not None:
+            meta["_ttl_seconds"] = ttl_seconds
 
         if self._backend_type == MemoryBackend.FULL:
-            return self._store_full(content, level, goal, metadata or {}, reward)  # type: ignore[no-any-return]
+            return self._store_full(content, level, goal, meta, reward)  # type: ignore[no-any-return]
         else:
-            return self._store_fallback(content, level, metadata or {})  # type: ignore[no-any-return]
+            return self._store_fallback(content, level, meta)  # type: ignore[no-any-return]
 
     def _store_full(self, content: Any, level: Any, goal: Any, metadata: Any, reward: Any) -> Any:
         """Store using SwarmMemory."""

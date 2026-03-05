@@ -265,11 +265,20 @@ class MemoryEntry:
     is_protected: bool = False
     protection_reason: str = ""
 
+    # TTL (C5): explicit time-to-live expiration
+    ttl_seconds: Optional[float] = None  # None = use level-based decay (no TTL)
+    expires_at: Optional[datetime] = None  # Computed from ttl_seconds + created_at
+
     def __post_init__(self) -> None:
         if not self.content_hash:
             self.content_hash = hashlib.md5(self.content.encode()).hexdigest()
         if not self.token_count:
             self.token_count = len(self.content) // 4 + 1
+        # Compute expires_at from ttl_seconds if provided
+        if self.ttl_seconds is not None and self.expires_at is None:
+            from datetime import timedelta
+
+            self.expires_at = self.created_at + timedelta(seconds=self.ttl_seconds)
 
     def get_value(self, goal: str) -> float:
         """Get value for specific goal (exact match)."""
